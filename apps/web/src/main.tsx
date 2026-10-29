@@ -1,6 +1,7 @@
 import React,{useRef,useState} from 'react';
 import{createRoot}from'react-dom/client';
 import './style.css';
+import {GatewayClient} from './gateway';
 type Mode='assistant'|'companion';
 type Session={id:string};
 type Turn={id:string;segments:{text:string}[];status:string};
@@ -10,8 +11,9 @@ function App(){
  const connectedRef=useRef(false);
  const[session,setSession]=useState<Session|null>(null),[input,setInput]=useState('');
  const[messages,setMessages]=useState<string[]>([]),[error,setError]=useState(''),[busy,setBusy]=useState(false);
+ const client=new GatewayClient(token);
  const generation=useRef(0),controller=useRef<AbortController|null>(null),active=useRef<{sid:string;tid:string}|null>(null);
- const api=async<T,>(path:string,init:RequestInit={}):Promise<T>=>{const response=await fetch('/api'+path,{...init,headers:{Authorization:'Bearer '+token,...(init.body?{'Content-Type':'application/json'}:{}),...init.headers}});if(!response.ok)throw Error('HTTP '+response.status);return response.status===204?undefined as T:await response.json() as T;};
+ const api=<T,>(path:string,init:RequestInit={}):Promise<T>=>client.request<T>(path,init);
  const stop=()=>{generation.current++;controller.current?.abort();controller.current=null;const old=active.current;active.current=null;if(old)void api('/sessions/'+old.sid+'/turns/'+old.tid,{method:'DELETE'}).catch(()=>{});setBusy(false);};
  const switchMode=async(next:Mode)=>{stop();setMode(next);setSession(null);setMessages([]);setInput('');if(!connectedRef.current)return;const gen=generation.current;try{const s=await api<Session>('/sessions',{method:'POST',body:JSON.stringify({mode:next})});if(gen===generation.current)setSession(s);}catch(e){if(gen===generation.current)setError(String(e));}};
  const connect=async()=>{stop();setError('');const gen=generation.current;try{await api('/status');if(gen!==generation.current)return;const s=await api<Session>('/sessions',{method:'POST',body:JSON.stringify({mode})});if(gen!==generation.current)return;connectedRef.current=true;setConnected(true);history.replaceState(null,'',location.pathname);setSession(s);}catch(e){if(gen===generation.current)setError(String(e));}};
