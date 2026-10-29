@@ -115,3 +115,21 @@ it("ignores stale memory lists when the mode changes", async () => {
   expect(app.state.memories).toEqual([]);
   expect(app.state.notes).toEqual([]);
 });
+
+it("cancels server inference when polling fails instead of losing its turn ID", async () => {
+  const { app, client } = setup();
+  await app.connect();
+  vi.spyOn(client, "createTurn").mockResolvedValue({
+    id: "pending",
+    status: "thinking",
+    segments: [],
+  });
+  vi.spyOn(client, "pollTurn").mockRejectedValue(
+    new Error("network disconnected"),
+  );
+  app.setInput("question");
+  await app.send();
+  expect(client.cancelTurn).toHaveBeenCalledWith("assistant", "pending");
+  expect(app.state.busy).toBe(false);
+  expect(app.state.error).toContain("network disconnected");
+});

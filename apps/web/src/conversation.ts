@@ -206,7 +206,12 @@ export class Conversation {
         await new Promise((resolve) => setTimeout(resolve, this.interval));
       }
     } catch (error) {
-      if (current()) this.patch({ error: String(error) });
+      if (current()) {
+        const active = this.active;
+        if (active)
+          void this.client.cancelTurn(active.sid, active.tid).catch(() => {});
+        this.patch({ error: String(error) });
+      }
     } finally {
       if (current()) {
         this.active = null;
