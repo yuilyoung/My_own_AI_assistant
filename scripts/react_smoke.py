@@ -177,9 +177,9 @@ def main():
                     expect(
                         page.get_by_text("연결 확인용 고정 응답입니다.", exact=False)
                     ).to_be_visible()
-                    page.wait_for_function('document.querySelector("meter").value > 0')
+                    expect(page.locator("meter")).not_to_have_attribute("value", "0")
                     expect(page.get_by_role("button", name="전송", exact=True)).to_be_disabled()
-                    page.wait_for_function('document.querySelector("meter").value === 0')
+                    expect(page.locator("meter")).to_have_attribute("value", "0")
                     expect(page.get_by_text("대화 준비됨")).to_be_visible()
                     page.get_by_role("button", name="가상 소개팅", exact=True).click()
                     expect(page.get_by_text("대화 준비됨")).to_be_visible()
