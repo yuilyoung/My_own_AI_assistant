@@ -118,7 +118,9 @@ def main():
                     expect(page.get_by_text("DEMO · 고정 응답", exact=False)).to_be_visible()
                     page.get_by_label("기억할 내용").fill("비서 전용 기억")
                     page.get_by_role("button", name="기억 저장").click()
-                    expect(page.get_by_text("비서 전용 기억", exact=True)).to_be_visible()
+                    expect(
+                        page.get_by_role("listitem").filter(has_text="비서 전용 기억")
+                    ).to_be_visible()
                     page.get_by_label("비서 메모", exact=True).fill("검증 메모")
                     page.get_by_role("button", name="메모 저장").click()
                     expect(page.get_by_text("검증 메모", exact=True)).to_be_visible()
@@ -140,14 +142,18 @@ def main():
                     expect(page.get_by_text("대화 준비됨")).to_be_visible()
                     page.get_by_role("button", name="가상 소개팅", exact=True).click()
                     expect(page.get_by_text("대화 준비됨")).to_be_visible()
-                    expect(page.get_by_text("비서 전용 기억", exact=True)).to_have_count(0)
+                    expect(
+                        page.get_by_role("listitem").filter(has_text="비서 전용 기억")
+                    ).to_have_count(0)
                     expect(page.get_by_label("비서 메모", exact=True)).to_have_count(0)
                     page.get_by_role("button", name="마이크로 입력").click()
                     expect(page.get_by_role("button", name="녹음 완료")).to_be_enabled()
                     page.get_by_role("button", name="개인 비서", exact=True).click()
                     expect(page.get_by_text("대화 준비됨")).to_be_visible()
                     expect(page.get_by_label("메시지", exact=True)).to_have_value("")
-                    expect(page.get_by_text("비서 전용 기억", exact=True)).to_be_visible()
+                    expect(
+                        page.get_by_role("listitem").filter(has_text="비서 전용 기억")
+                    ).to_be_visible()
                     assert not errors, errors
                     browser.close()
                     print(

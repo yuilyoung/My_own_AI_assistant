@@ -25,3 +25,4 @@ apps/web/public/avatar-local/
 *.pt
 *.wav
 *.sqlite*
+build/
