@@ -1,3 +1,4 @@
+import mimetypes
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -20,7 +21,9 @@ def test_frontend_environment_override(tmp_path, monkeypatch):
     assert Settings.from_env().web_dir == tmp_path
 
 
-def test_serves_worklet_as_script_and_keeps_api_protected(tmp_path):
+def test_serves_worklet_as_script_and_keeps_api_protected(tmp_path, monkeypatch):
+    mimetypes.init()
+    monkeypatch.setitem(mimetypes.types_map, ".mjs", "text/plain")
     web = tmp_path / "web"
     web.mkdir()
     (web / "index.html").write_text("<h1>React</h1>")

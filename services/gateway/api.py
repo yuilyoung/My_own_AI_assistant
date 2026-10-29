@@ -1,4 +1,5 @@
 import hmac
+import mimetypes
 import re
 from contextlib import asynccontextmanager
 
@@ -218,6 +219,8 @@ def create_app(settings: Settings) -> FastAPI:
     async def note(sid: str, body: MemoryInput):
         return store.add_note(sid, body.text)
 
+    # Windows registry MIME mappings may classify .mjs as text/plain.
+    mimetypes.add_type("text/javascript", ".mjs")
     if settings.web_dir.is_dir():
         app.mount("/", StaticFiles(directory=settings.web_dir, html=True), name="web")
     else:
