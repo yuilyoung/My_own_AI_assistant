@@ -104,16 +104,14 @@ def create_app(settings: Settings) -> FastAPI:
         settings.timeout,
     )
 
-    recognizer = (
-        WhisperCpp(
-            settings.whisper_cli,
-            settings.whisper_model,
-            settings.data_dir / partition / "stt-tmp",
-            settings.timeout,
+    recognizer = None
+    if settings.stt == "whisper_cpp":
+        cli, model = settings.whisper_cli, settings.whisper_model
+        if cli is None or model is None:
+            raise ValueError("Local STT requires an executable and a model")
+        recognizer = WhisperCpp(
+            cli, model, settings.data_dir / partition / "stt-tmp", settings.timeout
         )
-        if settings.stt == "whisper_cpp"
-        else None
-    )
     transcriptions = Transcriptions(store, recognizer)
 
     @asynccontextmanager

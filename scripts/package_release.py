@@ -67,7 +67,9 @@ def verify(dist: Path) -> None:
 
 
 def build_bundle(dist: Path, tag: str | None = None) -> Path:
-    version = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+    version = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"][
+        "version"
+    ]
     if tag is not None and tag != f"v{version}":
         raise ValueError(f"Release tag must equal v{version}")
     wheels = list(dist.glob("*.whl"))
@@ -81,7 +83,7 @@ def build_bundle(dist: Path, tag: str | None = None) -> Path:
         raise ValueError("Source distribution version mismatch")
     check_wheel(wheel, version)
     archive_path = dist / f"my-own-ai-assistant-{version}-runtime.zip"
-    install_ps = '''$ErrorActionPreference = "Stop"
+    install_ps = """$ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 python -m venv .venv
 if ($LASTEXITCODE -ne 0) { throw "Python 3.11+ is required" }
@@ -89,25 +91,25 @@ $wheel = Get-ChildItem packages/*.whl | Select-Object -First 1
 & ./.venv/Scripts/python.exe -m pip install -c constraints.txt $wheel.FullName
 if ($LASTEXITCODE -ne 0) { throw "Package installation failed" }
 Write-Host "Installed. Run ./run.ps1"
-'''
-    install_sh = '''#!/usr/bin/env sh
+"""
+    install_sh = """#!/usr/bin/env sh
 set -eu
 cd "$(dirname "$0")"
 python3 -m venv .venv
 .venv/bin/python -m pip install -c constraints.txt packages/*.whl
 printf 'Installed. Run sh run.sh\n'
-'''
-    run_ps = '''$ErrorActionPreference = "Stop"
+"""
+    run_ps = """$ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 & ./.venv/Scripts/python.exe -m gateway.cli
 exit $LASTEXITCODE
-'''
-    run_sh = '''#!/usr/bin/env sh
+"""
+    run_sh = """#!/usr/bin/env sh
 set -eu
 cd "$(dirname "$0")"
 exec .venv/bin/python -m gateway.cli
-'''
-    instructions = f'''# Local runtime {version}
+"""
+    instructions = f"""# Local runtime {version}
 
 Requires Python 3.11+ and network access to install Python dependencies.
 Windows PowerShell: run `./install.ps1`, then `./run.ps1`.
@@ -120,7 +122,7 @@ Configure local providers separately as described in the repository README.
 This is a Python runtime bundle, NOT an exe, a standalone/offline installer,
 or a macOS/Windows device-certification result.
 Never publish `.local-data`, tokens, recordings or your environment settings.
-'''
+"""
     with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.write(wheel, f"packages/{wheel.name}")
         for name, content in {
@@ -142,7 +144,9 @@ Never publish `.local-data`, tokens, recordings or your environment settings.
         ],
     }
     manifest_path = dist / "manifest.json"
-    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     checksums = "".join(f"{digest(p)}  {p.name}\n" for p in [*artifacts, manifest_path])
     (dist / "SHA256SUMS.txt").write_text(checksums, encoding="utf-8")
     verify(dist)
@@ -157,7 +161,9 @@ def main() -> None:
     args = parser.parse_args()
     try:
         if args.verify:
-            version = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+            version = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))[
+                "project"
+            ]["version"]
             if args.tag is not None and args.tag != f"v{version}":
                 raise ValueError(f"Release tag must equal v{version}")
             verify(args.dist)

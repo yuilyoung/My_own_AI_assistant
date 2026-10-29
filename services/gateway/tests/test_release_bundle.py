@@ -15,17 +15,29 @@ SCRIPT = ROOT / "scripts" / "package_release.py"
 def distribution(tmp_path):
     wheel = tmp_path / "my_own_ai_assistant-0.2.0-py3-none-any.whl"
     with zipfile.ZipFile(wheel, "w") as archive:
-        for name in ("gateway/cli.py", "gateway/config.py", "gateway_ui/index.html",
-                     "gateway_ui/app.mjs", "gateway_ui/capture-worklet.mjs"):
+        for name in (
+            "gateway/cli.py",
+            "gateway/config.py",
+            "gateway_ui/index.html",
+            "gateway_ui/app.mjs",
+            "gateway_ui/capture-worklet.mjs",
+        ):
             archive.writestr(name, "fixture")
-        archive.writestr("my_own_ai_assistant-0.2.0.dist-info/METADATA", "Name: my-own-ai-assistant\nVersion: 0.2.0\n")
+        archive.writestr(
+            "my_own_ai_assistant-0.2.0.dist-info/METADATA",
+            "Name: my-own-ai-assistant\nVersion: 0.2.0\n",
+        )
     (tmp_path / "my_own_ai_assistant-0.2.0.tar.gz").write_bytes(b"fixture-source")
     return tmp_path
 
 
 def run_bundle(directory, *arguments):
-    return subprocess.run([sys.executable, str(SCRIPT), "--dist", str(directory), *arguments],
-                          capture_output=True, text=True, timeout=15)
+    return subprocess.run(
+        [sys.executable, str(SCRIPT), "--dist", str(directory), *arguments],
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
 
 
 def test_bundle_allowlist_excludes_unrelated_local_files(distribution):
@@ -35,13 +47,23 @@ def test_bundle_allowlist_excludes_unrelated_local_files(distribution):
     assert result.returncode == 0, result.stderr
     with zipfile.ZipFile(next(distribution.glob("*.zip"))) as archive:
         names = set(archive.namelist())
-        assert names == {"packages/my_own_ai_assistant-0.2.0-py3-none-any.whl",
-                         "INSTALL.md", "constraints.txt", "install.ps1", "install.sh", "run.ps1", "run.sh"}
+        assert names == {
+            "packages/my_own_ai_assistant-0.2.0-py3-none-any.whl",
+            "INSTALL.md",
+            "constraints.txt",
+            "install.ps1",
+            "install.sh",
+            "run.ps1",
+            "run.sh",
+        }
         assert b"PRIVATE_TOKEN" not in b"".join(archive.read(n) for n in names)
     manifest = json.loads((distribution / "manifest.json").read_text())
     assert manifest["version"] == "0.2.0"
     for record in manifest["files"]:
-        assert hashlib.sha256((distribution / record["name"]).read_bytes()).hexdigest() == record["sha256"]
+        assert (
+            hashlib.sha256((distribution / record["name"]).read_bytes()).hexdigest()
+            == record["sha256"]
+        )
 
 
 def test_mismatched_tag_is_rejected(distribution):

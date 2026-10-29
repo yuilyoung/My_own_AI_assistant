@@ -18,10 +18,21 @@ def smoke(python: str) -> dict:
     with tempfile.TemporaryDirectory(prefix="assistant-install-smoke-") as temp:
         cwd = Path(temp)
         probe = subprocess.run(
-            [python, "-I", "-c", "import gateway,gateway_ui; print(gateway.__file__); print(gateway_ui.__file__)"],
-            cwd=cwd, capture_output=True, text=True, timeout=15, check=True,
+            [
+                python,
+                "-I",
+                "-c",
+                "import gateway,gateway_ui; print(gateway.__file__); print(gateway_ui.__file__)",
+            ],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=True,
         )
-        if not all("site-packages" in line or "dist-packages" in line for line in probe.stdout.splitlines()):
+        if not all(
+            "site-packages" in line or "dist-packages" in line for line in probe.stdout.splitlines()
+        ):
             raise RuntimeError("Smoke test must use an installed wheel, not source imports")
         checks.append("installed imports outside checkout")
         with socket.socket() as reservation:
@@ -31,15 +42,24 @@ def smoke(python: str) -> dict:
         env = os.environ.copy()
         env.pop("PYTHONPATH", None)
         env.pop("PYTHONHOME", None)
-        env.update({
-            "ASSISTANT_TOKEN": token, "ASSISTANT_PORT": str(port),
-            "ASSISTANT_DATA_DIR": str(cwd / "data"), "LLM_PROVIDER": "demo",
-            "TTS_PROVIDER": "none", "STT_PROVIDER": "none",
-            "OLLAMA_URL": "http://127.0.0.1:11434", "MELO_URL": "http://127.0.0.1:8766",
-            "OLLAMA_MODEL": "qwen3:4b", "MELO_TOKEN": "",
-        })
+        env.update(
+            {
+                "ASSISTANT_TOKEN": token,
+                "ASSISTANT_PORT": str(port),
+                "ASSISTANT_DATA_DIR": str(cwd / "data"),
+                "LLM_PROVIDER": "demo",
+                "TTS_PROVIDER": "none",
+                "STT_PROVIDER": "none",
+                "OLLAMA_URL": "http://127.0.0.1:11434",
+                "MELO_URL": "http://127.0.0.1:8766",
+                "OLLAMA_MODEL": "qwen3:4b",
+                "MELO_TOKEN": "",
+            }
+        )
 
-        def request(path: str, method: str = "GET", body=None, expected: int = 200, auth: bool = True):
+        def request(
+            path: str, method: str = "GET", body=None, expected: int = 200, auth: bool = True
+        ):
             connection = http.client.HTTPConnection("127.0.0.1", port, timeout=3)
             headers = {"Authorization": f"Bearer {token}"} if auth else {}
             encoded = None
@@ -51,15 +71,20 @@ def smoke(python: str) -> dict:
                 response = connection.getresponse()
                 data = response.read()
                 if response.status != expected:
-                    raise RuntimeError(f"{method} {path}: expected {expected}, got {response.status}")
+                    raise RuntimeError(
+                        f"{method} {path}: expected {expected}, got {response.status}"
+                    )
                 return data
             finally:
                 connection.close()
 
         # CLI prints a pairing token: suppress output rather than uploading it to CI logs.
         process = subprocess.Popen(
-            [python, "-I", "-m", "gateway.cli"], cwd=cwd, env=env,
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            [python, "-I", "-m", "gateway.cli"],
+            cwd=cwd,
+            env=env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
         try:
             deadline = time.monotonic() + 30

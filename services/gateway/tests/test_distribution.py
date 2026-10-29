@@ -1,5 +1,4 @@
 import pytest
-
 from gateway.config import Settings
 
 

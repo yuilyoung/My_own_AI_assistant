@@ -76,7 +76,10 @@ class Transcriptions:
                 if not self._active(job):
                     return
                 job.status = "transcribing"
-                text = await self.provider.transcribe(data)
+                provider = self.provider
+                if provider is None:
+                    raise ValueError("STT provider is disabled")
+                text = await provider.transcribe(data)
                 if self._active(job):
                     job.text = TurnInput(text=text).text
                     job.status = "completed"
