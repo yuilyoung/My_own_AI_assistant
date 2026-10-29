@@ -1,4 +1,4 @@
-import React,{useRef,useState} from 'react';
+import React,{useEffect,useRef,useState} from 'react';
 import{createRoot}from'react-dom/client';
 import './style.css';
 import {GatewayClient} from './gateway';
@@ -14,6 +14,7 @@ function App(){
  const client=new GatewayClient(token);
 
  const generation=useRef(0),controller=useRef<AbortController|null>(null),active=useRef<{sid:string;tid:string}|null>(null);
+ useEffect(()=>()=>{generation.current++;controller.current?.abort();},[]);
  const api=<T,>(path:string,init:RequestInit={}):Promise<T>=>client.request<T>(path,init);
  const stop=()=>{generation.current++;controller.current?.abort();controller.current=null;const old=active.current;active.current=null;if(old)void api('/sessions/'+old.sid+'/turns/'+old.tid,{method:'DELETE'}).catch(()=>{});setBusy(false);};
  const switchMode=async(next:Mode)=>{stop();setMode(next);setSession(null);setMessages([]);setInput('');if(!connectedRef.current)return;const gen=generation.current;try{const s=await api<Session>('/sessions',{method:'POST',body:JSON.stringify({mode:next})});if(gen===generation.current)setSession(s);}catch(e){if(gen===generation.current)setError(String(e));}};
