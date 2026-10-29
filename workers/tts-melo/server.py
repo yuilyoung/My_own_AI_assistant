@@ -1,4 +1,5 @@
 """Optional isolated MeloTTS worker. ML imports/downloads happen only in main()."""
+
 import hmac
 import io
 import os
@@ -28,8 +29,9 @@ def create_app(token, synthesize):
             return JSONResponse({"detail": "Invalid host"}, status_code=400)
         if request.headers.get("origin"):
             return JSONResponse({"detail": "Browser access is disabled"}, status_code=403)
-        if not hmac.compare_digest(request.headers.get("authorization", "").encode(),
-                                   ("Bearer " + token).encode()):
+        if not hmac.compare_digest(
+            request.headers.get("authorization", "").encode(), ("Bearer " + token).encode()
+        ):
             return JSONResponse({"detail": "Unauthorized"}, status_code=401)
         size = 0
         body = bytearray()

@@ -25,3 +25,10 @@ apps/web/public/avatar-local/
 *.pt
 *.wav
 *.sqlite*
+
+build/
+reports/
+.coverage*
+.mypy_cache/
+.install-venv/
+runtime-check/

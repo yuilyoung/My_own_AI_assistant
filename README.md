@@ -91,3 +91,11 @@ node --test apps/diagnostics/tests/*.test.mjs
 Gateway는 `127.0.0.1`에만 바인딩하며 인증과 Host/Origin 검사를 적용합니다. SQLite는 암호화 저장소가 아닙니다. 소개팅 모드에는 비서 도구를 제공하지 않습니다. 전사 임시 파일 삭제는 보안 삭제가 아니며 강제 종료 후 잔여 파일이 남을 수 있습니다. 원격 Mac mini 이전에는 HTTPS와 원격 인증을 추가해야 합니다.
 
 Live2D SDK, 캐릭터, 모델 가중치에는 각각의 사용·배포 조건이 있습니다. 코드 공개가 해당 자산의 재배포 허가를 의미하지 않습니다. 라이선스 문서에서 확정된 사실과 공개 배포 전 확인 사항을 구분합니다.
+
+## CI/CD
+
+Ruff/Prettier 포맷 검사, Ruff/ESLint 린트, mypy 타입 검사, Bandit 보안 정적 분석을 실행합니다. Windows·Ubuntu 및 Python 3.11·3.13에서 테스트하고, 생성한 패키지를 깨끗한 환경에 설치해 HTTP로 검증합니다.
+
+검증을 통과한 wheel·소스 배포 파일·로컬 실행 ZIP과 SHA-256 체크섬을 GitHub Actions Artifact로 보관합니다. ZIP은 Python과 인터넷 연결이 필요한 설치 묶음이며 단독 실행 EXE가 아닙니다. 버전 태그는 검증 후 초안 Release만 생성하며 서버 자동 배포는 하지 않습니다.
+
+[CI/CD 구조, 산출물, 로컬 검사 명령](docs/ci-cd.md)
