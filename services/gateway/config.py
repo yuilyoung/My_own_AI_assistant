@@ -13,8 +13,16 @@ def loopback_endpoint(value: str) -> str:
         valid = ipaddress.ip_address(u.hostname or "").is_loopback
     except ValueError:
         valid = False
-    if (u.scheme != "http" or not valid or u.username or u.password
-            or u.path not in ("", "/") or u.query or u.fragment or not u.port):
+    if (
+        u.scheme != "http"
+        or not valid
+        or u.username
+        or u.password
+        or u.path not in ("", "/")
+        or u.query
+        or u.fragment
+        or not u.port
+    ):
         raise ValueError("Provider URL must be http://<literal-loopback-IP>:<port>")
     return value.rstrip("/")
 
@@ -47,8 +55,12 @@ class Settings:
         if self.stt not in {"none", "whisper_cpp"}:
             raise ValueError("Unknown STT provider")
         if self.stt == "whisper_cpp":
-            if (self.whisper_cli is None or self.whisper_model is None
-                    or not self.whisper_cli.is_file() or not self.whisper_model.is_file()):
+            if (
+                self.whisper_cli is None
+                or self.whisper_model is None
+                or not self.whisper_cli.is_file()
+                or not self.whisper_model.is_file()
+            ):
                 raise ValueError("Configure existing WHISPER_CLI and WHISPER_MODEL files")
             if ".en." in self.whisper_model.name.lower():
                 raise ValueError("Korean STT requires a multilingual model, not .en")
@@ -66,7 +78,9 @@ class Settings:
     @classmethod
     def from_env(cls):
         return cls(
-            web_dir=Path(os.environ["ASSISTANT_WEB_DIR"]) if os.getenv("ASSISTANT_WEB_DIR") else default_web_dir(),
+            web_dir=Path(os.environ["ASSISTANT_WEB_DIR"])
+            if os.getenv("ASSISTANT_WEB_DIR")
+            else default_web_dir(),
             data_dir=Path(os.getenv("ASSISTANT_DATA_DIR", ".local-data")),
             token=os.getenv("ASSISTANT_TOKEN", ""),
             port=int(os.getenv("ASSISTANT_PORT", "8765")),

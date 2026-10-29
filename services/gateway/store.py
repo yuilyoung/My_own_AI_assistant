@@ -42,8 +42,10 @@ class Store:
     def create_session(self, value: SessionCreate) -> dict:
         sid = str(uuid4())
         with self.lock, self.db:
-            self.db.execute("INSERT INTO sessions(id,mode,character,scope) VALUES(?,?,?,?)",
-                            (sid, value.mode, value.character, scope_for(value)))
+            self.db.execute(
+                "INSERT INTO sessions(id,mode,character,scope) VALUES(?,?,?,?)",
+                (sid, value.mode, value.character, scope_for(value)),
+            )
         return self.session(sid)
 
     def session(self, sid: str) -> dict:
@@ -58,28 +60,41 @@ class Store:
         with self.lock:
             rows = self.db.execute(
                 "SELECT user_text,reply FROM exchanges WHERE session_id=? ORDER BY id DESC LIMIT 6",
-                (sid,)).fetchall()
+                (sid,),
+            ).fetchall()
         result = []
         for row in reversed(rows):
-            result.extend([{"role": "user", "content": row["user_text"]},
-                           {"role": "assistant", "content": row["reply"]}])
+            result.extend(
+                [
+                    {"role": "user", "content": row["user_text"]},
+                    {"role": "assistant", "content": row["reply"]},
+                ]
+            )
         return result
 
     def save_exchange(self, sid: str, tid: str, text: str, reply: dict):
         with self.lock, self.db:
-            self.db.execute("INSERT INTO exchanges(session_id,turn_id,user_text,reply) VALUES(?,?,?,?)",
-                            (sid, tid, text, json.dumps(reply, ensure_ascii=False)))
+            self.db.execute(
+                "INSERT INTO exchanges(session_id,turn_id,user_text,reply) VALUES(?,?,?,?)",
+                (sid, tid, text, json.dumps(reply, ensure_ascii=False)),
+            )
 
     def memories(self, sid: str) -> list[dict]:
         scope = self.session(sid)["scope"]
         with self.lock:
-            return [dict(r) for r in self.db.execute(
-                "SELECT id,text FROM memories WHERE scope=? ORDER BY rowid", (scope,))]
+            return [
+                dict(r)
+                for r in self.db.execute(
+                    "SELECT id,text FROM memories WHERE scope=? ORDER BY rowid", (scope,)
+                )
+            ]
 
     def add_memory(self, sid: str, text: str) -> dict:
         scope = self.session(sid)["scope"]
         with self.lock, self.db:
-            count = self.db.execute("SELECT count(*) FROM memories WHERE scope=?", (scope,)).fetchone()[0]
+            count = self.db.execute(
+                "SELECT count(*) FROM memories WHERE scope=?", (scope,)
+            ).fetchone()[0]
             if count >= 50:
                 raise ValueError("Maximum 50 memories per scope")
             mid = str(uuid4())
@@ -89,20 +104,31 @@ class Store:
     def delete_memory(self, sid: str, mid: str) -> bool:
         scope = self.session(sid)["scope"]
         with self.lock, self.db:
-            return self.db.execute("DELETE FROM memories WHERE id=? AND scope=?", (mid, scope)).rowcount > 0
+            return (
+                self.db.execute(
+                    "DELETE FROM memories WHERE id=? AND scope=?", (mid, scope)
+                ).rowcount
+                > 0
+            )
 
     def notes(self, sid: str) -> list[dict]:
         s = self.session(sid)
         require_assistant(s["mode"])
         with self.lock:
-            return [dict(r) for r in self.db.execute(
-                "SELECT id,text FROM notes WHERE scope=? ORDER BY rowid", (s["scope"],))]
+            return [
+                dict(r)
+                for r in self.db.execute(
+                    "SELECT id,text FROM notes WHERE scope=? ORDER BY rowid", (s["scope"],)
+                )
+            ]
 
     def add_note(self, sid: str, text: str) -> dict:
         s = self.session(sid)
         require_assistant(s["mode"])
         with self.lock, self.db:
-            count = self.db.execute("SELECT count(*) FROM notes WHERE scope=?", (s["scope"],)).fetchone()[0]
+            count = self.db.execute(
+                "SELECT count(*) FROM notes WHERE scope=?", (s["scope"],)
+            ).fetchone()[0]
             if count >= 200:
                 raise ValueError("Maximum 200 notes")
             nid = str(uuid4())
