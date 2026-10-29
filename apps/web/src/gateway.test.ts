@@ -27,3 +27,11 @@ describe('GatewayClient', () => {
     expect(mock.mock.calls[0][0]).toBe('/api/sessions/a%2Fb/turns/c%20d');
   });
 });
+
+it('fetches WAV bytes with bearer authentication and cancellation', async () => {
+  const bytes = new ArrayBuffer(44), signal = new AbortController().signal;
+  const mock = vi.fn().mockResolvedValue({ok:true,arrayBuffer:async()=>bytes});
+  vi.stubGlobal('fetch',mock);
+  expect(await new GatewayClient('secret').audio('a/b','x y',signal)).toBe(bytes);
+  expect(mock).toHaveBeenCalledWith('/api/sessions/a%2Fb/audio/x%20y',expect.objectContaining({headers:{Authorization:'Bearer secret'},signal}));
+});
