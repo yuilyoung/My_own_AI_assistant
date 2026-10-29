@@ -22,6 +22,21 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def tone_wav():
+    result = io.BytesIO()
+    with wave.open(result, "wb") as audio:
+        audio.setnchannels(1)
+        audio.setsampwidth(2)
+        audio.setframerate(16000)
+        audio.writeframes(
+            b"".join(
+                struct.pack("<h", int(9000 * math.sin(2 * math.pi * 220 * n / 16000)))
+                for n in range(24000)
+            )
+        )
+    return result.getvalue()
+
+
 def serve():
     import uvicorn
     from gateway.api import create_app
@@ -35,18 +50,7 @@ def serve():
 
     class FixtureTTS:
         async def synthesize(self, text):
-            result = io.BytesIO()
-            with wave.open(result, "wb") as audio:
-                audio.setnchannels(1)
-                audio.setsampwidth(2)
-                audio.setframerate(16000)
-                audio.writeframes(
-                    b"".join(
-                        struct.pack("<h", int(9000 * math.sin(2 * math.pi * 220 * n / 16000)))
-                        for n in range(24000)
-                    )
-                )
-            return result.getvalue()
+            return tone_wav()
 
     settings = Settings.from_env()
     app = create_app(settings)
@@ -63,6 +67,8 @@ def main():
     token = secrets.token_urlsafe(32)
     base = "http://127.0.0.1:18765"
     with tempfile.TemporaryDirectory() as data:
+        microphone = Path(data) / "microphone.wav"
+        microphone.write_bytes(tone_wav())
         env = os.environ.copy()
         env.update(
             PYTHONPATH=str(ROOT / "services"),
@@ -94,6 +100,7 @@ def main():
                         args=[
                             "--use-fake-ui-for-media-stream",
                             "--use-fake-device-for-media-stream",
+                            "--use-file-for-fake-audio-capture=" + str(microphone),
                             "--autoplay-policy=no-user-gesture-required",
                         ]
                     )
@@ -118,14 +125,21 @@ def main():
                     errors = []
                     turns = []
                     page.on("pageerror", lambda error: errors.append(str(error)))
-                    page.on(
-                        "request",
-                        lambda request: (
+                    uploads = []
+
+                    def inspect_request(request):
+                        if request.method != "POST":
+                            return
+                        if request.url.endswith("/turns"):
                             turns.append(request.url)
-                            if request.method == "POST" and request.url.endswith("/turns")
-                            else None
-                        ),
-                    )
+                        if request.url.endswith("/transcriptions"):
+                            with wave.open(io.BytesIO(request.post_data_buffer), "rb") as recording:
+                                frames = recording.getnframes()
+                                nonzero = any(recording.readframes(frames))
+                                uploads.append((recording.getframerate(), frames, nonzero))
+                                print("WAV_UPLOAD", uploads[-1])
+
+                    page.on("request", inspect_request)
                     page.goto(base + "/#token=" + token)
                     page.get_by_role("button", name="연결", exact=True).click()
                     expect(page.get_by_text("대화 준비됨")).to_be_visible()
@@ -152,6 +166,12 @@ def main():
                         print("VOICE ALERTS", page.get_by_role("alert").all_text_contents())
                         print("VOICE STATUS", page.get_by_role("status").all_text_contents())
                         raise
+                    assert (
+                        uploads
+                        and uploads[0][0] == 16000
+                        and uploads[0][1] >= 1600
+                        and uploads[0][2]
+                    ), uploads
                     assert not turns, "Transcription must never auto-submit a turn"
                     page.get_by_role("button", name="전송", exact=True).click()
                     expect(
