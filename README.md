@@ -20,6 +20,7 @@ Windows 로컬 PC에서 시작해 Mac mini로 이전할 수 있는 **개인 AI �
 - [상세 기술 설계](docs/design/technical-design.md)
 - [오픈소스와 라이선스 검토](docs/design/sources-and-licenses.md)
 - [구현 백로그](docs/design/implementation-backlog.md)
+- [로컬 실행·준비 상태 확인](docs/local-run.md)
 - [공식 Live2D SDK·Haru 설치](docs/live2d-local-install.md)
 - [현재 구현·검증 상태](docs/implementation-status.md)
 - [음성 입력 계약과 수동 검증](docs/voice-input.md)
@@ -49,15 +50,14 @@ cd My_own_AI_assistant
 .\scripts\setup.ps1
 ```
 
-React 화면을 사용하려면 Node.js 22 이상으로 한 번 빌드한 뒤 Gateway를 시작합니다. 진단 화면만 사용하려면 빌드 없이 `scripts\start.ps1`을 실행할 수 있습니다.
+기본 setup은 Node.js 22 이상의 잠금 의존성 설치와 React 빌드까지 처리합니다. 진단 화면만 필요하면 `scripts\setup.ps1 -DiagnosticsOnly`를 사용합니다.
 
 ```powershell
-cd apps/web
-npm ci
-npm run build
-cd ../..
+.\scripts\start.ps1 -Check
 .\scripts\start.ps1
 ```
+
+Linux에서는 `bash scripts/setup.sh` 후 `bash scripts/start.sh`로 실행합니다. 모델·음성·캐릭터 연결은 [로컬 실행 안내](docs/local-run.md)를 참고하세요.
 
 콘솔에 표시되는 `http://127.0.0.1:8765/#token=...` 주소를 열고 **연결**을 누릅니다. React는 주소의 토큰을 즉시 지우고 메모리에만 보관합니다. `ASSISTANT_WEB_DIR=apps/diagnostics`를 지정하면 진단 화면을 선택할 수 있습니다. 토큰을 공유하지 마세요. 기본 모드는 **고정 응답 `demo` / TTS 없음 / STT 없음**입니다.
 

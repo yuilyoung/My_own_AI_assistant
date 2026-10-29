@@ -41,3 +41,16 @@ def test_worker_does_not_leak_exception():
             "/synthesize", json={"text": "안녕"}, headers={"Authorization": "Bearer " + token}
         )
         assert r.status_code == 503 and "SECRET" not in r.text
+
+
+def test_worker_health_requires_auth_and_does_not_synthesize():
+    def unexpected(text):
+        raise AssertionError("Health probe must not run inference")
+
+    token = "separate-worker-test-token-of-long-length"
+    with TestClient(worker().create_app(token, unexpected), base_url="http://127.0.0.1:8766") as c:
+        assert c.get("/health").status_code == 401
+        response = c.get("/health", headers={"Authorization": "Bearer " + token})
+        assert response.status_code == 200
+        assert response.json() == {"status": "ready", "provider": "melo"}
+        assert token not in response.text

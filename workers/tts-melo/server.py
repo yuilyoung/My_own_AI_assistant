@@ -55,6 +55,10 @@ def create_app(token, synthesize):
         finally:
             busy.release()
 
+    @app.get("/health")
+    async def health():
+        return {"status": "ready", "provider": "melo"}
+
     @app.post("/synthesize")
     async def tts(body: TextInput):
         try:
