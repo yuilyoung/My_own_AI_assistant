@@ -1,4 +1,4 @@
-export type AvatarState = 'unavailable' | 'loading' | 'ready' | 'error';
+export type AvatarState = "unavailable" | "loading" | "ready" | "error";
 export type AvatarAdapter = {
   load(modelUrl: string): Promise<void>;
   setExpression(name: string): void;
@@ -8,9 +8,9 @@ export type AvatarAdapter = {
 };
 /** Safe fallback until the licensed Cubism SDK and model are installed. */
 export class UnavailableAvatar implements AvatarAdapter {
-  readonly state: AvatarState = 'unavailable';
+  readonly state: AvatarState = "unavailable";
   async load(_modelUrl: string): Promise<void> {
-    throw new Error('Live2D Cubism SDK와 사용권이 확인된 모델이 필요합니다.');
+    throw new Error("Live2D Cubism SDK와 사용권이 확인된 모델이 필요합니다.");
   }
   setExpression(_name: string): void {}
   setMotion(_name: string): void {}
