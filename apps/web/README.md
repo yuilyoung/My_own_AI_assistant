@@ -16,4 +16,4 @@ npm run build
 
 개발 서버는 `npm run dev`로 실행하며 Gateway도 별도 실행해야 합니다. 포트 5173을 고정하고 같은 개발 출처의 Origin만 Gateway 출처로 변환합니다. 운영에서는 Gateway의 동일 출처 제공을 사용합니다.
 
-Live2D SDK와 캐릭터가 없어 현재 아바타 영역에는 설치 안내가 표시됩니다. 실제 모델 렌더링·표정·모션·립싱크는 미구현입니다. `assets/manifest.example.json`은 설치 계약 예시이며 활성화 기능이 아닙니다.
+공식 Cubism Framework 기반 렌더러와 React 연결을 제공합니다. SDK/Core/모델이 없으면 설치 안내가 표시됩니다. [공식 SDK·Haru 설치](../../docs/live2d-local-install.md)를 따라 `npm run avatar:install -- /path/to/sdk` 후 빌드하세요. 실제 Core 렌더링은 아직 검증하지 않았습니다. `assets/manifest.example.json`은 이전 기록 양식이며, 런타임 설정은 설치 도구가 생성하는 `public/avatar-local/manifest.json`입니다.

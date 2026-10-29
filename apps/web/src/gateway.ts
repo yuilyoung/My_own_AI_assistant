@@ -6,7 +6,12 @@ export type Status = {
 };
 export type Mode = "assistant" | "companion";
 export type Session = { id: string };
-export type Segment = { text: string; audio_id?: string | null };
+export type Segment = {
+  text: string;
+  emotion?: "neutral" | "happy" | "concerned" | "surprised";
+  gesture?: "idle" | "nod" | "greeting";
+  audio_id?: string | null;
+};
 export type Turn = {
   id: string;
   segments: Segment[];

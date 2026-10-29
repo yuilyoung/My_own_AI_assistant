@@ -133,3 +133,43 @@ it("cancels server inference when polling fails instead of losing its turn ID", 
   expect(app.state.busy).toBe(false);
   expect(app.state.error).toContain("network disconnected");
 });
+
+it("delivers response expression and motion before audio, and resets on stop", async () => {
+  const { app, client, player } = setup();
+  await app.connect();
+  vi.spyOn(client, "createTurn").mockResolvedValue({
+    id: "t",
+    status: "queued",
+    segments: [],
+  });
+  vi.spyOn(client, "pollTurn").mockResolvedValue({
+    id: "t",
+    status: "completed",
+    segments: [
+      {
+        text: "answer",
+        emotion: "happy",
+        gesture: "greeting",
+        audio_id: "audio",
+      },
+    ],
+  });
+  vi.spyOn(client, "audio").mockResolvedValue(new ArrayBuffer(12));
+  player.play.mockImplementation(async () => {
+    expect(app.state.avatarCue).toMatchObject({
+      emotion: "happy",
+      gesture: "greeting",
+    });
+  });
+  app.setInput("hello");
+  await app.send();
+  expect(app.state.avatarCue).toMatchObject({
+    emotion: "happy",
+    gesture: "greeting",
+  });
+  app.stop();
+  expect(app.state.avatarCue).toMatchObject({
+    emotion: "neutral",
+    gesture: "idle",
+  });
+});

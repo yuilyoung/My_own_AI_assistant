@@ -1,6 +1,6 @@
 # Live2D 연결에 필요한 자산
 
-현재 UI·API·음성 흐름은 구현되어 있지만 `UnavailableAvatar`가 실제 SDK를 대신하고 있다. 완성된 캐릭터 대화를 검증하려면 아래 자산이 필요하다.
+현재 UI·API·음성 흐름과 공식 Framework 기반 어댑터 코드가 구현되어 있다. 사용자는 공식 SDK·샘플 모델 진행을 선택했다. Core가 아직 없어 실제 렌더링은 미검증이며, [설치 안내](live2d-local-install.md)로 이어서 진행한다. 완성된 캐릭터 대화를 검증하려면 아래 자산이 필요하다.
 
 ## 전달할 파일
 
@@ -14,4 +14,4 @@
 
 파일 목록·SHA-256·revision을 기록하고 실제 SDK API에 맞는 어댑터를 구현한다. 실제 모델의 파라미터/표정/모션 목록을 읽어 허용된 neutral/happy/concerned/surprised, idle/nod/greeting을 매핑한다. 없는 표정/모션을 임의로 성공 처리하지 않는다. 실제 렌더링, 음성 입모양, 취소·언로드, 오류 및 누락 자산 테스트를 수행한다.
 
-`assets/manifest.example.json`은 기록 양식이며 현재 자동 로더가 아니다. 파일을 복사하는 것만으로 Live2D가 활성화되지 않는다. 실제 LLM/STT/TTS 가중치와 Windows 실기기 검증도 별도로 필요하다.
+`assets/manifest.example.json`은 기록 양식이며 현재 자동 로더가 아니다. `npm run avatar:install`로 로컬 자산을 설치하고 웹을 다시 빌드해야 활성화된다. 실제 LLM/STT/TTS 가중치와 Windows 실기기 검증도 별도로 필요하다.

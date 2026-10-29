@@ -11,7 +11,9 @@ export type AudioPlayer = {
   close(): Promise<void>;
 };
 type Item = { id: string; text: string };
+export type AvatarCue = { emotion: string; gesture: string; serial: number };
 export type View = {
+  avatarCue: AvatarCue;
   mode: Mode;
   session: Session | null;
   status: Status | null;
@@ -27,6 +29,7 @@ export type View = {
 /** One owner for each session's network, recording and playback lifecycle. */
 export class Conversation {
   state: View = {
+    avatarCue: { emotion: "neutral", gesture: "idle", serial: 0 },
     mode: "assistant",
     session: null,
     status: null,
@@ -82,7 +85,14 @@ export class Conversation {
     const old = this.active;
     this.active = null;
     if (old) void this.client.cancelTurn(old.sid, old.tid).catch(() => {});
-    this.patch({ busy: false });
+    this.patch({
+      busy: false,
+      avatarCue: {
+        emotion: "neutral",
+        gesture: "idle",
+        serial: this.state.avatarCue.serial + 1,
+      },
+    });
   }
   async connect() {
     this.stop();
@@ -171,6 +181,11 @@ export class Conversation {
         for (const segment of result.segments.slice(seen)) {
           if (!current()) return;
           this.patch({
+            avatarCue: {
+              emotion: segment.emotion ?? "neutral",
+              gesture: segment.gesture ?? "idle",
+              serial: this.state.avatarCue.serial + 1,
+            },
             messages: [
               ...this.state.messages,
               { role: "assistant", text: segment.text },

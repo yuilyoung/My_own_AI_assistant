@@ -97,12 +97,13 @@ def main():
                     raise RuntimeError("Fixture server startup timeout")
                 with sync_playwright() as playwright:
                     browser = playwright.chromium.launch(
+                        executable_path=os.getenv("PLAYWRIGHT_CHROMIUM_EXECUTABLE"),
                         args=[
                             "--use-fake-ui-for-media-stream",
                             "--use-fake-device-for-media-stream",
                             "--use-file-for-fake-audio-capture=" + str(microphone),
                             "--autoplay-policy=no-user-gesture-required",
-                        ]
+                        ],
                     )
                     context = browser.new_context(permissions=["microphone"])
                     page = context.new_page()

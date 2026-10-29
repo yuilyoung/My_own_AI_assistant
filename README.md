@@ -2,7 +2,7 @@
 
 Windows 로컬 PC에서 시작해 Mac mini로 이전할 수 있는 **개인 AI 비서 + 가상 소개팅 공통 엔진**입니다. 최종 화면은 2D Live2D 캐릭터를 사용합니다.
 
-> React 화면에서 텍스트 대화, 버튼식 음성 입력·전사 검토, 음성 재생, 모드별 기억과 비서 메모를 사용할 수 있습니다. 실제 Live2D 렌더러는 아직 연결되지 않았습니다. 기본 실행은 고정 응답 demo이며 실제 AI 대화에는 로컬 모델 설치가 필요합니다.
+> React 화면에서 텍스트 대화, 버튼식 음성 입력·전사 검토, 음성 재생, 모드별 기억과 비서 메모를 사용할 수 있습니다. 공식 Cubism Live2D 연동 코드를 제공하며, 캐릭터 사용에는 공식 SDK/Core와 샘플 자산의 별도 설치가 필요합니다. 실제 Core 렌더링은 아직 검증하지 않았습니다. 기본 실행은 고정 응답 demo이며 실제 AI 대화에는 로컬 모델 설치가 필요합니다.
 
 ## 목표와 원칙
 
@@ -20,6 +20,7 @@ Windows 로컬 PC에서 시작해 Mac mini로 이전할 수 있는 **개인 AI �
 - [상세 기술 설계](docs/design/technical-design.md)
 - [오픈소스와 라이선스 검토](docs/design/sources-and-licenses.md)
 - [구현 백로그](docs/design/implementation-backlog.md)
+- [공식 Live2D SDK·Haru 설치](docs/live2d-local-install.md)
 - [현재 구현·검증 상태](docs/implementation-status.md)
 - [음성 입력 계약과 수동 검증](docs/voice-input.md)
 
