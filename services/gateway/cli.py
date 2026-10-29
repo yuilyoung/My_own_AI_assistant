@@ -22,7 +22,7 @@ def main():
         settings = replace(settings, token=token_path.read_text(encoding="utf-8").strip())
     print("Local only. Keep this pairing URL private:")
     print(f"http://127.0.0.1:{settings.port}/#token={settings.token}")
-    print(f"LLM={settings.llm}; TTS={settings.tts}; microphone/STT not implemented in this slice.")
+    print(f"LLM={settings.llm}; TTS={settings.tts}; STT={settings.stt} (opt-in; transcript review before sending).")
     uvicorn.run(create_app(settings), host="127.0.0.1", port=settings.port, access_log=False)
 
 

@@ -1,0 +1,35 @@
+{
+  "checked_at": "2026-10-29",
+  "source_commit": "cc869bd44a0a603f4abcefffdd94c420393eb0fc",
+  "checked_remote_tree_before_status_document_update": "580a33a47d1916266d4406a670e6d7ec445d25b2",
+  "all_non_document_roots_equal": true,
+  "excluded": "README.md, Read.md and docs are repository-oriented rewritten documentation",
+  "root_hashes": {
+    ".github": "6b47e8f3c9ac67bdbcfafbfd21190e3207a79b90",
+    ".gitignore": "8fdaf4d8324e7c4363ef72003c4d52faf78b0e38",
+    "apps": "c072ee9668f26cea36865ceae3fd3f875be2d2fc",
+    "assets": "6a25d0cfc55b0a718773ff5b75211a9f755e3f38",
+    "config": "5618a33d158c61ed2e7d314263aae54b61bb140c",
+    "pyproject.toml": "a3786364d0606cb05e56fbbfe34e8154dc283ff7",
+    "requirements-dev.txt": "41423cc9f9db7b2f08a930fdaefceecb2a8c9a53",
+    "requirements.txt": "c78df5d8dbd611d91466061bc4c11ef8d37f5d18",
+    "scripts": "4793045d391c6929b0317ac7cef4f7f53fd7bb6a",
+    "services": "bd36dafbd4fb5c8cabfc9ae630ab02b7cf95888c",
+    "workers": "bc2c997114a298bb6cbc76fb5bdc8cc03f42575c"
+  },
+  "local_validation": {
+    "python_command": "python -m pytest -q",
+    "python_passed": 56,
+    "node_command": "node --test apps/diagnostics/tests/*.test.mjs",
+    "node_passed": 21,
+    "compileall_passed": true,
+    "actual_model_inference_tested": false,
+    "physical_microphone_tested": false,
+    "live2d_rendering_tested": false
+  },
+  "engine_v01_ci": {
+    "commit": "4e57373fc247b58ffe9b80f9ba05606f365d98f9",
+    "run_id": 40829345874,
+    "conclusion": "success"
+  }
+}

@@ -1,10 +1,21 @@
 import {TurnGate} from './core.mjs';
 import {Player} from './player.mjs';
+import {MicrophoneRecorder} from './recorder.mjs';
+import {VoiceInput} from './voice-input.mjs';
 
 const $=id=>document.getElementById(id);
 const gate=new TurnGate();
 const player=new Player(value=>{$('level').style.width=(value*100)+'%';});
-let token='',session=null,mode='assistant',active=null,controller=null,connected=false;
+let token='',session=null,mode='assistant',active=null,controller=null,connected=false,sttEnabled=false;
+const voice=new VoiceInput({
+ recorder:new MicrophoneRecorder(),request,
+ onResult:text=>{$('message').value=text;$('voice-hint').textContent='인식 결과를 확인·수정한 뒤 전송하세요.';},
+ onState:kind=>{
+  const labels={idle:'대기',opening:'마이크 권한 확인 중',recording:'녹음 중 · 최대 30초',transcribing:'음성 인식 중'};
+  $('microphone').textContent=kind==='recording'?'녹음 완료':'마이크로 입력';
+  state(labels[kind],kind!=='idle');
+ },onError:showError,
+});
 const params=new URLSearchParams(location.hash.slice(1));
 try {token=params.get('token')||sessionStorage.getItem('assistant-token')||'';}catch{}
 if(location.hash)history.replaceState(null,'',location.pathname);
@@ -14,12 +25,12 @@ function showError(error){$('error').textContent=error?.name==='AbortError'?'':S
 async function request(path,options={}){
  const response=await fetch('/api'+path,{...options,headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,...options.headers}});
  if(!response.ok){
-   const messages={401:'연결 토큰을 확인하세요.',403:'현재 모드에서 허용되지 않은 요청입니다.',404:'세션 또는 오디오가 만료되었습니다.',422:'입력 형식이나 실행 가능한 작업 수를 확인하세요.'};
+   const messages={401:'연결 토큰을 확인하세요.',403:'현재 모드에서 허용되지 않은 요청입니다.',404:'세션 또는 오디오가 만료되었습니다.',413:'녹음 길이나 입력 크기가 제한을 초과했습니다.',415:'16kHz 모노 PCM16 WAV가 필요합니다.',503:'로컬 음성 인식이 비활성화되어 있습니다.',422:'입력 형식이나 실행 가능한 작업 수를 확인하세요.'};
    throw new Error(messages[response.status]||'요청 처리에 실패했습니다. 서버 상태를 확인하세요.');
  }
  return response.status===204?null:response.json();
 }
-function state(text,busy=false){$('state').textContent=text;$('stop').disabled=!busy;$('send').disabled=busy||!connected;$('message').disabled=!connected;}
+function state(text,busy=false){$('state').textContent=text;$('stop').disabled=!busy;$('send').disabled=busy||!connected;$('message').disabled=!connected;$('microphone').disabled=!connected||!session||!sttEnabled||['opening','transcribing'].includes(voice.kind);}
 function message(text,kind){
  $('messages').querySelector('.empty')?.remove();
  const bubble=document.createElement('div');bubble.className='bubble '+kind;
@@ -27,12 +38,14 @@ function message(text,kind){
  const body=document.createElement('span');body.textContent=text;bubble.append(label,body);$('messages').append(bubble);$('messages').scrollTop=$('messages').scrollHeight;
 }
 function stop(){
+ voice.cancel();
  const marker=gate.next();controller?.abort();controller=null;player.stop();
  const old=active;active=null;
  if(old)request(`/sessions/${old.sid}/turns/${old.tid}`,{method:'DELETE'}).catch(error=>{if(gate.accepts(marker))showError(error);});
  state(connected?'대기':'연결 필요');
 }
 async function switchMode(next){
+ voice.cancel();$('voice-hint').textContent='';$('message').value='';
  const old=active;gate.cancel();controller?.abort();player.stop();active=null;session=null;mode=next;
  const generation=gate.next();
  $('assistant').setAttribute('aria-pressed',String(mode==='assistant'));$('companion').setAttribute('aria-pressed',String(mode==='companion'));
@@ -49,7 +62,8 @@ async function switchMode(next){
 async function connect(event){
  event?.preventDefault();token=$('token').value.trim();showError('');
  try{
-  const status=await request('/status');connected=true;
+  const status=await request('/status');connected=true;sttEnabled=status.stt_enabled===true;
+  $('stt').textContent=sttEnabled?'로컬 whisper.cpp':'미연결 · 기본 비활성화';
   try{sessionStorage.setItem('assistant-token',token);}catch{}
   $('pairing').hidden=true;$('profile').textContent=status.profile==='demo'?'DEMO · 고정 응답':'LOCAL · 로컬 모델';
   $('llm').textContent=status.llm==='demo'?'테스트 고정 응답':status.model;
@@ -110,9 +124,18 @@ async function save(event,kind,input){
  event.preventDefault();if(!session)return;
  try{await request(`/sessions/${session.id}/${kind}`,{method:'POST',body:JSON.stringify({text:$(input).value})});$(input).value='';await refreshLists();}catch(error){showError(error);}
 }
+$('microphone').onclick=async()=>{
+ if(!session||!sttEnabled)return;
+ try{
+  showError('');
+  if(voice.kind==='recording'){await voice.finish();return;}
+  stop();$('voice-hint').textContent='녹음 완료를 누르면 인식합니다. 결과는 확인 후 전송하세요.';
+  await voice.start(session.id);
+ }catch(error){showError(error);}
+};
 $('pairing').onsubmit=connect;$('chat').onsubmit=send;$('stop').onclick=stop;
 $('assistant').onclick=()=>switchMode('assistant');$('companion').onclick=()=>switchMode('companion');
 $('remember').onsubmit=e=>save(e,'memories','memory');$('note-form').onsubmit=e=>save(e,'notes','note');
 $('message').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();if(!$('send').disabled)$('chat').requestSubmit();}};
-addEventListener('pagehide',()=>{gate.cancel();controller?.abort();player.close();});
+addEventListener('pagehide',()=>{voice.cancel();gate.cancel();controller?.abort();player.close();});
 if(token)connect();

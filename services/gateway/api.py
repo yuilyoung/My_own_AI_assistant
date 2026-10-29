@@ -1,7 +1,8 @@
 import hmac
+import re
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
@@ -10,6 +11,8 @@ from .contracts import MemoryInput, SessionCreate, TurnInput
 from .engine import Engine
 from .providers import DemoLLM, MeloTTS, OllamaLLM, SilentTTS
 from .store import Store
+from .speech import MAX_WAV_BYTES, WhisperCpp
+from .transcription import Transcriptions
 
 
 class LocalGuard:
@@ -35,6 +38,9 @@ class LocalGuard:
                 code = 401
         if code:
             return await JSONResponse({"detail": "Request not authorized"}, status_code=code)(scope, receive, send)
+        audio_upload = scope["method"] == "POST" and re.fullmatch(
+            r"/api/sessions/[^/]+/transcriptions", scope["path"]) is not None
+        body_limit = MAX_WAV_BYTES if audio_upload else 16_384
         body = bytearray()
         if scope["method"] in {"POST", "PUT", "PATCH"}:
             while True:
@@ -42,7 +48,7 @@ class LocalGuard:
                 if message["type"] == "http.disconnect":
                     return
                 body.extend(message.get("body", b""))
-                if len(body) > 16_384:
+                if len(body) > body_limit:
                     return await JSONResponse({"detail": "Body too large"}, status_code=413)(scope, receive, send)
                 if not message.get("more_body", False):
                     break
@@ -79,14 +85,21 @@ def create_app(settings: Settings) -> FastAPI:
     engine = Engine(store, DemoLLM() if settings.llm == "demo" else OllamaLLM(settings),
                     SilentTTS() if settings.tts == "none" else MeloTTS(settings), settings.timeout)
 
+    recognizer = (WhisperCpp(settings.whisper_cli, settings.whisper_model,
+                             settings.data_dir / partition / "stt-tmp", settings.timeout)
+                  if settings.stt == "whisper_cpp" else None)
+    transcriptions = Transcriptions(store, recognizer)
+
     @asynccontextmanager
     async def lifespan(app):
         yield
+        await transcriptions.close()
         await engine.close()
         store.close()
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.engine = engine
+    app.state.transcriptions = transcriptions
     app.add_middleware(LocalGuard, settings=settings)
 
     @app.exception_handler(KeyError)
@@ -105,7 +118,8 @@ def create_app(settings: Settings) -> FastAPI:
     async def status():
         return {"profile": partition, "llm": settings.llm, "tts": settings.tts,
                 "model": settings.model if settings.llm == "ollama" else None,
-                "cloud_enabled": False, "stt_enabled": False, "version": "0.1.0"}
+                "cloud_enabled": False, "stt": settings.stt,
+                "stt_enabled": transcriptions.provider is not None, "version": "0.2.0"}
 
     @app.post("/api/sessions", status_code=201)
     async def session(body: SessionCreate):
@@ -117,6 +131,7 @@ def create_app(settings: Settings) -> FastAPI:
 
     @app.post("/api/sessions/{sid}/turns", status_code=202)
     async def turn(sid: str, body: TurnInput):
+        transcriptions.cancel_session(sid)
         return engine.start(sid, body.text)
 
     @app.get("/api/sessions/{sid}/turns/{tid}")
@@ -130,6 +145,25 @@ def create_app(settings: Settings) -> FastAPI:
     @app.get("/api/sessions/{sid}/audio/{aid}")
     async def audio(sid: str, aid: str):
         return Response(engine.get_audio(sid, aid), media_type="audio/wav")
+
+    @app.post("/api/sessions/{sid}/transcriptions", status_code=202)
+    async def transcribe(sid: str, request: Request):
+        if transcriptions.provider is None:
+            raise HTTPException(503, "STT disabled; configure local whisper.cpp")
+        if request.headers.get("content-type", "").split(";")[0].strip().lower() != "audio/wav":
+            raise HTTPException(415, "Expected audio/wav")
+        job = transcriptions.start(sid, await request.body())
+        if sid in engine.current:
+            engine.cancel(sid, engine.current[sid])
+        return job
+
+    @app.get("/api/sessions/{sid}/transcriptions/{tid}")
+    async def transcription_status(sid: str, tid: str):
+        return transcriptions.snapshot(sid, tid)
+
+    @app.delete("/api/sessions/{sid}/transcriptions/{tid}", status_code=204)
+    async def cancel_transcription(sid: str, tid: str):
+        transcriptions.cancel(sid, tid)
 
     @app.get("/api/sessions/{sid}/memories")
     async def memories(sid: str):

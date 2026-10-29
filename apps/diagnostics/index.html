@@ -12,8 +12,8 @@
 <div class="eyebrow">WORKSPACE</div><h1>나만의 대화 공간</h1><p class="intro">하나의 엔진, 분리된 기억.<br>현재는 개발용 연결 점검 화면입니다.</p>
 <div class="tabs" role="group" aria-label="대화 모드"><button id="assistant" aria-pressed="true">개인 비서</button><button id="companion" aria-pressed="false">가상 소개팅</button></div>
 <section class="avatar" aria-label="아바타 연결 상태"><div class="orb"><span>AI</span></div><h2>Live2D 연결 대기</h2><p>실제 캐릭터와 Cubism SDK는<br>아직 연결하지 않았습니다.</p><div class="meter"><div id="level"></div></div><small>재생 오디오 RMS · 입모양 제어값 점검</small></section>
-<div class="status-list"><div>대화 엔진 <b id="llm">—</b></div><div>음성 합성 <b id="tts">—</b></div><div>마이크 입력 <b>후속 구현</b></div><div>외부 API <b>비활성화</b></div></div>
-<p class="quiet">원본 녹음은 수집하지 않습니다.<br>대화·기억은 로컬 SQLite에 저장합니다.</p>
+<div class="status-list"><div>대화 엔진 <b id="llm">—</b></div><div>음성 합성 <b id="tts">—</b></div><div>마이크 입력 <b id="stt">—</b></div><div>외부 API <b>비활성화</b></div></div>
+<p class="quiet">마이크는 버튼을 누를 때만 사용합니다.<br>로컬 STT 임시 파일은 처리 후 삭제합니다.<br>대화·기억은 로컬 SQLite에 저장합니다.</p>
 </aside>
 <article>
 <div class="conversation-head"><div><div class="eyebrow">CONVERSATION</div><h2 id="mode-title">개인 비서</h2></div><span id="state" class="state">연결 필요</span></div>
@@ -21,7 +21,8 @@
 <form id="pairing"><label for="token">실행 콘솔의 연결 토큰</label><div class="row"><input id="token" type="password" autocomplete="off" placeholder="연결 URL을 열거나 토큰을 입력하세요" required><button>연결</button></div></form>
 <div id="messages" class="messages" role="log" aria-live="polite"><div class="empty"><span>시작할 준비가 되었어요.</span><p>로컬 서버에 연결한 뒤 메시지를 보내세요.</p></div></div>
 <div id="error" role="alert"></div>
-<form id="chat" class="composer"><label class="sr-only" for="message">메시지</label><textarea id="message" rows="2" maxlength="2000" placeholder="메시지를 입력하세요…" required disabled></textarea><div class="composer-actions"><small>Enter로 전송 · Shift+Enter로 줄바꿈</small><div><button type="button" id="stop" class="secondary" disabled>중지</button><button id="send" disabled>전송</button></div></div></form>
+<form id="chat" class="composer"><label class="sr-only" for="message">메시지</label><textarea id="message" rows="2" maxlength="2000" placeholder="메시지를 입력하세요…" required disabled></textarea><div class="composer-actions"><small>Enter로 전송 · Shift+Enter로 줄바꿈</small><div><button type="button" id="microphone" class="secondary" disabled>마이크로 입력</button><button type="button" id="stop" class="secondary" disabled>중지</button><button id="send" disabled>전송</button></div></div></form>
+<p id="voice-hint" class="quiet" aria-live="polite"></p>
 <details><summary>이 모드의 기억 · 메모</summary><p class="quiet">입력 후 저장 버튼을 누른 내용만 장기 기억으로 추가됩니다.</p><form id="remember" class="row"><input id="memory" placeholder="명시적으로 저장할 기억" maxlength="500" required><button>기억 저장</button></form><div id="memories"></div><form id="note-form" class="row"><input id="note" placeholder="비서 전용 메모" maxlength="500" required><button>메모 저장</button></form><div id="notes"></div></details>
 </article>
 </main><footer>LOCAL-FIRST · 토큰을 공유하지 마세요 · 유료 API 자동 전환 없음</footer>

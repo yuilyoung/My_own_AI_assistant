@@ -26,6 +26,9 @@ class Settings:
     port: int = 8765
     llm: Literal["demo", "ollama"] = "demo"
     tts: Literal["none", "melo"] = "none"
+    stt: Literal["none", "whisper_cpp"] = "none"
+    whisper_cli: Path | None = None
+    whisper_model: Path | None = None
     ollama_url: str = "http://127.0.0.1:11434"
     melo_url: str = "http://127.0.0.1:8766"
     melo_token: str = ""
@@ -36,6 +39,14 @@ class Settings:
     def __post_init__(self):
         loopback_endpoint(self.ollama_url)
         loopback_endpoint(self.melo_url)
+        if self.stt not in {"none", "whisper_cpp"}:
+            raise ValueError("Unknown STT provider")
+        if self.stt == "whisper_cpp":
+            if (self.whisper_cli is None or self.whisper_model is None
+                    or not self.whisper_cli.is_file() or not self.whisper_model.is_file()):
+                raise ValueError("Configure existing WHISPER_CLI and WHISPER_MODEL files")
+            if ".en." in self.whisper_model.name.lower():
+                raise ValueError("Korean STT requires a multilingual model, not .en")
         if self.llm not in {"demo", "ollama"} or self.tts not in {"none", "melo"}:
             raise ValueError("Unknown provider; no fallback is allowed")
         if not 1024 <= self.port <= 65535 or self.timeout <= 0:
@@ -55,6 +66,9 @@ class Settings:
             port=int(os.getenv("ASSISTANT_PORT", "8765")),
             llm=os.getenv("LLM_PROVIDER", "demo"),
             tts=os.getenv("TTS_PROVIDER", "none"),
+            stt=os.getenv("STT_PROVIDER", "none"),
+            whisper_cli=Path(os.environ["WHISPER_CLI"]) if os.getenv("WHISPER_CLI") else None,
+            whisper_model=Path(os.environ["WHISPER_MODEL"]) if os.getenv("WHISPER_MODEL") else None,
             ollama_url=os.getenv("OLLAMA_URL", "http://127.0.0.1:11434"),
             melo_url=os.getenv("MELO_URL", "http://127.0.0.1:8766"),
             melo_token=os.getenv("MELO_TOKEN", ""),
