@@ -99,6 +99,22 @@ def main():
                     )
                     context = browser.new_context(permissions=["microphone"])
                     page = context.new_page()
+                    page.on(
+                        "console",
+                        lambda message: (
+                            print("BROWSER", message.type, message.text)
+                            if message.type == "error"
+                            else None
+                        ),
+                    )
+                    page.on(
+                        "response",
+                        lambda response: (
+                            print("HTTP", response.status, response.url)
+                            if response.status >= 400
+                            else None
+                        ),
+                    )
                     errors = []
                     turns = []
                     page.on("pageerror", lambda error: errors.append(str(error)))
@@ -128,9 +144,14 @@ def main():
                     expect(page.get_by_role("button", name="녹음 완료")).to_be_enabled()
                     page.wait_for_timeout(400)
                     page.get_by_role("button", name="녹음 완료").click()
-                    expect(page.get_by_label("메시지", exact=True)).to_have_value(
-                        "검토할 음성 입력"
-                    )
+                    try:
+                        expect(page.get_by_label("메시지", exact=True)).to_have_value(
+                            "검토할 음성 입력"
+                        )
+                    except Exception:
+                        print("VOICE ALERTS", page.get_by_role("alert").all_text_contents())
+                        print("VOICE STATUS", page.get_by_role("status").all_text_contents())
+                        raise
                     assert not turns, "Transcription must never auto-submit a turn"
                     page.get_by_role("button", name="전송", exact=True).click()
                     expect(
