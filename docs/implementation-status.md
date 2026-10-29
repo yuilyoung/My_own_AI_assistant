@@ -1,53 +1,58 @@
-# 구현·검증 상태 — 공통 엔진 + 음성 입력 v0.2
+# 구현·검증 상태 — React 음성·기억 통합
 
-기준일: 2026-10-29. 이 문서는 목표 설계와 실제 구현을 구분한다.
+기준일: 2026-10-29 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
 
-## GitHub 반영 순서
+## 현재 구현
 
-| 순서 | 내용 | 원격 커밋 |
-|---|---|---|
-| 1 | README 초기화 | a9a03e21bcab2a7669a6729a08577ea21ab94014 |
-| 2 | Read.md·기술 설계·출처·백로그 | c091965605a0b1e20cc68cbbb382c19b854df0ce |
-| 3 | 공통 엔진·진단 UI·테스트 | 4e57373fc247b58ffe9b80f9ba05606f365d98f9 |
-| 4 | 버튼식 한국어 음성 입력 | 이 문서를 포함하는 feat 커밋 |
+- FastAPI Gateway: loopback 바인딩, 토큰, Host/Origin, 입력 크기와 세션별 리소스 소유권 검사.
+- SQLite: 대화·기억·비서 메모. 비서/소개팅 scope를 서버에서 결정하고 소개팅의 비서 도구 접근을 차단한다.
+- React/TypeScript: 공급자 상태와 demo 고지, 모드 선택·채팅·중지, 승인한 기억 저장·삭제, 비서 메모.
+- 기존 음성 모듈을 React에서도 공유한다. 명시적 PTT, AudioWorklet PCM 수집, 16kHz 모노 PCM16 WAV, 최대 30초, 전사 검토 후 직접 전송.
+- 인증 WAV 재생, RMS 레벨 표시, 재생 중지, 모드 전환·페이지 이탈·연결 해제 시 녹음·전사·응답·오디오 취소.
+- 지연된 턴 생성 ID를 받아 서버에 취소 요청하며, 폴링 오류에서도 실행 중인 추론을 취소한다. 오래된 응답·기억 목록은 새 모드에 반영하지 않는다.
+- Ollama 구조화 응답, 별도 MeloTTS 워커, whisper.cpp 실행 어댑터. 실제 모델 가중치는 포함하지 않는다.
+- Gateway가 운영 React 빌드를 우선 제공한다. 빌드가 없으면 진단 UI로 실행하며 `ASSISTANT_WEB_DIR`로 명시적 경로를 지정할 수 있다.
+- Windows의 레지스트리 MIME 설정과 무관하게 `.mjs`를 JavaScript로 제공한다.
 
-문서를 먼저 main에 게시한 뒤 구현을 두 커밋으로 나눴다. GitHub 연결의 저장소 접근 대상이 추가되어 쓰기에 성공했다. 과거 HTTP 403은 현재 차단 사유가 아니다. 변경은 GitHub Git-data API를 통해 커밋과 main ref에 직접 반영하며 강제 업데이트하지 않는다.
+기본 실행은 **demo 고정 응답 / TTS none / STT none**이다. UI는 이를 실제 AI 대화로 표시하지 않는다. API 버전은 0.2.0을 유지하며 이번 작업은 React 통합이다.
 
-원본 로컬 구현은 7410ec7(공통 엔진), cc869bd44a0a603f4abcefffdd94c420393eb0fc(음성 입력)이다. 문서 우선 이력을 만들면서 원격 커밋 SHA는 바뀌었다. README/Read.md/docs는 저장소용 통합 문서로 정리했고, 코드·테스트·설정·워크플로의 모든 파일은 원본과 Git blob/tree 해시가 일치함을 확인했다. 검증 기록은 [validation/publish-v0.2.json](validation/publish-v0.2.json)에 남겼다.
-
-## 포함한 구현
-
-- FastAPI Gateway, loopback 바인딩, 인증 토큰, Host/Origin·입력 크기 검사.
-- SQLite 세션·기억·메모, 서버가 결정하는 비서/소개팅 scope, 소개팅의 비서 도구 접근 차단.
-- 턴/generation 취소, 오래된 응답·오디오 폐기, 모드 전환 시 입력창 초기화.
-- Ollama 구조화 응답 어댑터, 별도 MeloTTS 워커 및 HTTP 어댑터.
-- 개발용 HTML/JavaScript 진단 화면, Web Audio 재생·RMS·중지.
-- 명시적인 버튼식 마이크 입력, AudioWorklet PCM 수집, 16kHz 모노 PCM16 WAV 변환.
-- whisper.cpp 자식 프로세스 연결, 세션별 전사 작업·취소·시간초과·임시 파일 정리.
-- 전사 결과를 사용자에게 보여주고 확인 후 직접 전송하는 흐름. 자동 채팅 제출 없음.
-- Windows/Unix 실행 스크립트와 Windows/Linux GitHub Actions 정의.
-
-기본은 demo 고정 응답, TTS none, STT none이다. 실제 AI가 대화하거나 Live2D 캐릭터가 연결된 것처럼 표시하지 않는다. 모델 가중치·캐릭터·Cubism Core·API 키는 포함하지 않는다.
-
-## 이번 게시 작업의 재검증
+## 검증
 
 | 검사 | 결과 |
 |---|---|
-| 공통 엔진 v0.1 Python | 40 passed |
-| 공통 엔진 v0.1 Node | 9 passed |
-| 음성 입력 포함 v0.2 Python | 56 passed |
-| 음성 입력 포함 v0.2 Node | 21 passed |
-| Python compileall | 성공 |
-| 원격·로컬 소스 동일성 | 문서 제외 11개 루트 항목과 모든 하위 소스 해시 일치 |
-| 공통 엔진 GitHub Actions | 성공: https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/40829345874 |
-| 음성 입력 GitHub Actions | 이 커밋 게시 후 확인 필요 |
+| Python 전체 | 59 passed |
+| 기존 Node 음성 모듈 | 21 passed |
+| Vitest/React | 14 passed |
+| Prettier / ESLint / TypeScript | 통과 |
+| Ruff formatter / lint | 통과 |
+| Vite 운영 빌드 | 통과, 별도 capture-worklet `.mjs` 생성 |
+| Gateway wheel 빌드 | 통과 |
+| Windows·Linux × Python 3.11·3.13 CI | 통과: [40874171930](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/40874171930) |
+| Chromium 운영 음성 E2E | 통과: [40874172006](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/40874172006) |
 
-로컬 검증 환경은 Linux / Python 3.13 / Node 22이다. 자동 테스트에서 외부 모델 HTTP, whisper 프로세스, 마이크 등은 모의 객체를 사용한다. GitHub CI의 Windows 실행도 실제 마이크·모델·음성 품질 시험은 아니다.
+로컬 검증 환경: Linux / Python 3.12 / Node 22. Starlette/AnyIO의 upstream deprecation warning 1건은 남아 있다. 로컬 Chromium 다운로드는 실패했으며 브라우저 검증은 GitHub Actions에서 수행한다.
 
-실제 whisper 한국어 모델·Ollama·MeloTTS 추론, 브라우저 마이크, Windows/macOS 실기기 품질·지연은 미검증이다. 이전 브라우저 E2E는 관리자 정책 오류로 차단됐으며 이번에 통과한 것으로 기록하지 않는다. 이전 HTTP smoke 수치를 이번 게시 작업에서 새로 실행한 테스트로 합산하지 않는다.
+브라우저 테스트는 테스트 전용 서버의 합성 STT/TTS와 명시적인 비무음 WAV 마이크 입력을 사용한다. 실제 AudioWorklet·업로드·전사 검토·사용자 전송·WAV 재생/RMS·모드별 기억을 검사하지만 실제 한국어 인식 품질과 모델 추론은 검사하지 않는다. 운영 Gateway에는 이 합성 공급자를 추가하지 않았다.
 
-## 남은 범위
+코드 기준 SHA: `bf6b545051a03deb1d1e38d09735e651ed601337`. 두 워크플로 모두 성공했고, `web-dist`(78,873 bytes), `gateway-wheel`(15,268 bytes) artifact가 만료되지 않은 상태로 생성됨을 API로 확인했다. 상세 실행·artifact digest는 [CI 증거 JSON](validation/react-voice-ci.json)에 기록했다. 이후 문서 전용 커밋의 검증 결과는 해당 커밋의 Actions에서 확인한다.
 
-React 화면과 실제 Live2D 모델 로딩·표정·모션·입모양 연결이 아직 없다. 지금 화면의 원형 AI 표시와 RMS 막대는 진단용이며 캐릭터 렌더러가 아니다. 자동 발화 감지/VAD, WebSocket, 상주 STT 워커, Codex·외부 API·일반 PC 제어, Mac mini 이전·HTTPS·원격 인증, 공개 서비스/다중 사용자도 후속이다.
+## 수정한 문제와 검증 방법
 
-다음 구현 단위는 권리를 확인한 고정 모델 한 개와 공식 Cubism Web 런타임을 연결하고, 실제 음성 재생 시각/RMS로 입 파라미터를 제어하는 화면이다. 실제 장치·모델 테스트 전에는 완성된 Live2D MVP 또는 배포 가능 제품으로 판단하지 않는다.
+1. 지연 생성/모드 전환: Vitest에서 늦은 턴과 기억 응답을 반환하고 새 모드에 반영되지 않으며 턴이 취소되는지 확인했다.
+2. 폴링 실패의 고아 추론: 실패 회귀 테스트를 먼저 확인하고 서버 취소 요청을 추가해 전체 14개 웹 테스트를 통과했다.
+3. Windows worklet MIME: CI에서 `text/plain` 실패를 확인했다. Linux에서도 MIME 맵을 잘못된 값으로 설정해 재현한 뒤 명시적인 JavaScript 매핑으로 수정했다.
+4. E2E 기억 선택자: 삭제 버튼 텍스트가 합쳐져 정확한 문자열 선택이 실패했다. 기억 listitem으로 검사 범위를 지정했다.
+5. E2E 음성 입력: 422 실패를 진단 로그로 업로드 경계까지 추적했다. 기본 가상 마이크 대신 고정 WAV를 지정했고 16kHz, 7,523 frames, 비무음 PCM 업로드와 전사 검토를 확인했다.
+6. E2E 재생 검사: 문자열 JavaScript 평가가 운영 CSP에 차단되어 DOM 속성 assertion으로 변경했다. 운영 CSP를 완화하지 않고 RMS 상승·0 복귀와 전체 브라우저 검증이 통과했다.
+
+## 남은 필수 작업
+
+**완성된 Live2D MVP가 아니다.** `UnavailableAvatar`는 안전한 대체 안내만 제공하며 실제 캐릭터 모델을 로딩하지 않는다. 현재 음성 레벨 막대는 캐릭터 입모양이 아니다.
+
+공식 Cubism SDK/Core와 사용권을 확인한 모델 export가 필요하다. [자산 전달 안내](live2d-asset-handoff.md)에 파일 목록을 적었다. 확보 후 실제 SDK 어댑터, 모델 렌더링, 표정/모션 매핑, RMS 입모양, 리소스 해제 검증을 수행한다.
+
+사용자 PC의 실제 Ollama/MeloTTS/whisper.cpp 설치·추론, 마이크/스피커·한국어 품질·지연·30분 안정성, macOS/Mac mini는 미검증이다. 인터넷 공개·다중 사용자·외부 API·Codex 자동 연동·VAD/WebSocket은 현재 범위 밖이다.
+
+## 게시 방식
+
+작업을 작은 로컬 커밋으로 나누고, 일반 git push의 자격 증명 부재 때문에 연결된 GitHub Git-data API로 같은 파일 트리를 main에 반영했다. 강제 업데이트 없이 예상 head를 확인했다. 이 방식에서는 로컬/원격 커밋 SHA가 다르며 파일 트리 SHA 일치로 소스 동일성을 검증한다.

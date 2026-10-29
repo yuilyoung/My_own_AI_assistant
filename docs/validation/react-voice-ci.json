@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-29",
+  "code_commit": "bf6b545051a03deb1d1e38d09735e651ed601337",
+  "code_tree": "52ad6111ba25d22ca0b62738d3b1574bfd94f308",
+  "tests": {
+    "python": 59,
+    "node_audio": 21,
+    "vitest_react": 14
+  },
+  "workflows": [
+    {
+      "id": 40874171930,
+      "name": "Local engine tests",
+      "conclusion": "success",
+      "url": "https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/40874171930"
+    },
+    {
+      "id": 40874172006,
+      "name": "Web frontend CI",
+      "conclusion": "success",
+      "url": "https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/40874172006"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": 12897301843,
+      "name": "web-dist",
+      "size_in_bytes": 78873,
+      "digest": "sha256:39f93132be550129b95b7957b6c6809551a5d6b326e89ae68e0aafb5ea7c9818",
+      "head_sha": "bf6b545051a03deb1d1e38d09735e651ed601337"
+    },
+    {
+      "id": 12896634127,
+      "name": "gateway-wheel",
+      "size_in_bytes": 15268,
+      "digest": "sha256:c7902ef02660855576d88d6d4c4137c9f785ea4a339d0eff863543fb02e0c2fe",
+      "head_sha": "bf6b545051a03deb1d1e38d09735e651ed601337"
+    }
+  ],
+  "scope": "Real Chromium production build, synthetic non-silent microphone WAV and STT/TTS fixtures; not real model inference or Live2D."
+}

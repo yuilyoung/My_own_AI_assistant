@@ -16,8 +16,8 @@
 | Silero VAD | https://github.com/snakers4/silero-vad | 후속 발화 감지 후보 |
 | FastAPI | https://github.com/fastapi/fastapi | Gateway |
 | Pydantic | https://github.com/pydantic/pydantic | 계약 검증 |
-| React | https://github.com/facebook/react | 후속 UI, 현재 진단 화면과 구분 |
-| Vite | https://github.com/vitejs/vite | 후속 UI 개발·빌드 |
+| React | https://github.com/facebook/react | React 대화 UI, 진단 화면과 별도 |
+| Vite | https://github.com/vitejs/vite | React UI 개발·운영 빌드 |
 
 whisper.cpp/Ollama/MeloTTS/Silero의 코드 라이선스 및 Qwen/Melo의 모델 카드 검토는 초기 선정의 근거다. 같은 제품 이름 아래 코드·런타임·가중치의 조건이 항상 같지는 않다. 실제 배포 파일 목록과 해시 기반으로 고지를 작성해야 한다.
 

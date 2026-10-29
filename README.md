@@ -2,7 +2,7 @@
 
 Windows 로컬 PC에서 시작해 Mac mini로 이전할 수 있는 **개인 AI 비서 + 가상 소개팅 공통 엔진**입니다. 최종 화면은 2D Live2D 캐릭터를 사용합니다.
 
-> 개발 중인 프로젝트입니다. 현재 준비된 구현은 FastAPI 공통 엔진, 개발용 진단 화면, 버튼식 음성 입력입니다. React/Live2D 캐릭터 렌더링은 아직 구현되지 않았습니다. 문서를 먼저 커밋하고 공통 엔진과 음성 입력을 별도 구현 커밋으로 반영합니다.
+> React 화면에서 텍스트 대화, 버튼식 음성 입력·전사 검토, 음성 재생, 모드별 기억과 비서 메모를 사용할 수 있습니다. 실제 Live2D 렌더러는 아직 연결되지 않았습니다. 기본 실행은 고정 응답 demo이며 실제 AI 대화에는 로컬 모델 설치가 필요합니다.
 
 ## 목표와 원칙
 
@@ -37,7 +37,7 @@ Windows 로컬 PC에서 시작해 Mac mini로 이전할 수 있는 **개인 AI �
         SQLite     Ollama   whisper.cpp   MeloTTS
 ```
 
-현재 진단 UI는 별도 npm 의존성이 없는 HTML/JavaScript이고, HTTP 폴링을 사용합니다. React/Vite 화면과 WebSocket은 후속 구현입니다.
+React/Vite 화면과 개발용 진단 화면을 제공합니다. 두 화면은 동일한 인증 API와 음성 모듈을 사용하며 HTTP 폴링으로 상태를 확인합니다. Gateway는 React 운영 빌드가 있으면 이를 제공하고, 없으면 진단 화면을 제공합니다.
 
 ## Windows에서 실행
 
@@ -46,10 +46,19 @@ Windows 로컬 PC에서 시작해 Mac mini로 이전할 수 있는 **개인 AI �
 ```powershell
 cd My_own_AI_assistant
 .\scripts\setup.ps1
+```
+
+React 화면을 사용하려면 Node.js 22 이상으로 한 번 빌드한 뒤 Gateway를 시작합니다. 진단 화면만 사용하려면 빌드 없이 `scripts\start.ps1`을 실행할 수 있습니다.
+
+```powershell
+cd apps/web
+npm ci
+npm run build
+cd ../..
 .\scripts\start.ps1
 ```
 
-콘솔에 표시되는 `http://127.0.0.1:8765/#token=...` 주소를 엽니다. 토큰을 공유하지 마세요. 기본 모드는 **고정 응답 `demo` / TTS 없음 / STT 없음**입니다.
+콘솔에 표시되는 `http://127.0.0.1:8765/#token=...` 주소를 열고 **연결**을 누릅니다. React는 주소의 토큰을 즉시 지우고 메모리에만 보관합니다. `ASSISTANT_WEB_DIR=apps/diagnostics`를 지정하면 진단 화면을 선택할 수 있습니다. 토큰을 공유하지 마세요. 기본 모드는 **고정 응답 `demo` / TTS 없음 / STT 없음**입니다.
 
 ### 로컬 대화 모델
 
@@ -85,6 +94,15 @@ node --test apps/diagnostics/tests/*.test.mjs
 ```
 
 공급자 테스트는 모의 HTTP/프로세스를 사용합니다. 테스트 통과를 실제 모델 품질, 마이크 동작, Windows/macOS 실기기 실행의 증거로 해석하지 마세요.
+
+## CI와 산출물
+
+- Python: Ruff formatter/lint, Windows·Linux × Python 3.11·3.13 테스트, Gateway wheel 빌드.
+- Web: `npm ci`, Prettier, ESLint, TypeScript, Vitest/React 통합 테스트, Vite 운영 빌드.
+- 운영 브라우저: Chromium의 합성 마이크 → AudioWorklet → WAV 업로드 → 합성 STT → 사용자 검토·전송 → 합성 TTS/RMS 재생, 모드 전환과 기억 격리.
+- Actions 산출물: `web-dist`, `gateway-wheel`. 캐릭터·모델 가중치·로컬 데이터는 포함하지 않습니다. wheel에는 UI와 외부 모델이 포함되지 않으므로 소스 실행 안내를 함께 사용하세요.
+
+브라우저 검증은 실제 whisper/Ollama/MeloTTS 모델의 인식률·자연스러움·지연을 측정하지 않습니다. 현재 검증 결과와 실행 링크는 [구현 상태](docs/implementation-status.md)에 기록합니다.
 
 ## 보안과 배포 범위
 
