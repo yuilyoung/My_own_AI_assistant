@@ -1,0 +1,14 @@
+{
+  "enabled": false,
+  "id": "default",
+  "sdk": "Live2D Cubism SDK for Web — not installed",
+  "source": null,
+  "revision": null,
+  "sha256": null,
+  "licenseAcknowledged": false,
+  "redistributionApproved": false,
+  "model3Path": null,
+  "emotionMappings": {},
+  "gestureMappings": {},
+  "note": "No character/Core is bundled. Do not enable until an actual renderer and reviewed assets are installed."
+}

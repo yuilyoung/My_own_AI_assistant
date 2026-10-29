@@ -1,0 +1,6 @@
+# Direct dependency versions exercised in the implementation environment.
+# Not a complete hash-locked dependency graph; review before public deployment.
+fastapi==0.128.2
+uvicorn==0.48.0
+httpx==0.28.1
+pydantic==2.13.5

@@ -1,26 +1,21 @@
-# 구현·검증 상태
+# 구현·검증 상태 — 공통 엔진 v0.1
 
-2026-10-29 문서 우선 커밋 단계.
+2026-10-29. README/Read.md·기술 설계를 먼저 게시하고 원본 로컬 커밋 7410ec7의 구현을 반영한다. 문서 우선 이력을 만들었으므로 원격 커밋 SHA는 원본과 다르다.
 
-## 원격 상태
+## 포함한 구현
 
-저장소 접근 대상 추가 후 README 원격 생성에 성공했다. 과거 HTTP 403으로 업로드하지 못했던 설명은 현재 차단 사유가 아니다. 이 문서 커밋은 설계·안내 문서만 포함한다. 구현 코드는 다음 기능별 커밋으로 가져온다.
+FastAPI 공통 엔진, 서버가 정한 모드별 기억 범위, 비서 메모 권한, 턴/generation 취소와 늦은 응답 폐기, Ollama 구조화 응답 및 MeloTTS HTTP 어댑터, SQLite, 개발용 진단 화면, WAV 재생·RMS 계산·중지, Windows/Unix 시작 스크립트, Windows/Linux CI 정의.
 
-## 준비된 소스와 재검증
+기본 demo는 고정 응답이며 TTS는 none이다. React/Live2D 캐릭터가 구현된 것으로 표시하지 않는다. 음성 입력 v0.2는 다음 기능 커밋이다.
 
-이전 산출물 Git bundle에서 7410ec7(공통 엔진), cc869bd(음성 입력)를 복원했다. 이번 작업 환경에서 v0.2 전체 테스트를 다시 실행했다.
+## 이번 작업에서 재실행한 검증
 
-- `python -m pytest -q`: 56 passed.
-- `node --test apps/diagnostics/tests/*.test.mjs`: 21 passed.
+- v0.1: `python -m pytest -q` → 40 passed.
+- v0.1: `node --test apps/diagnostics/tests/*.test.mjs` → 9 passed.
+- 후속 v0.2 원본도 별도로 실행: Python 56 passed, Node 21 passed. 아직 이 커밋의 기능은 아니다.
 
-이는 Linux 작업 환경의 자동 테스트 결과다. HTTP/모델 공급자와 일부 장치 동작은 모의 객체를 사용한다. 실제 한국어 모델 추론, 브라우저 마이크, Windows/macOS, Mac mini의 동작·품질을 입증하지 않는다.
+실제 한국어 모델·마이크·Windows/macOS 실기기 시험이 아니라 Linux 작업 환경의 자동 테스트다. 공급자 HTTP 및 장치 동작 일부는 모의 객체다. 이전 브라우저 E2E는 관리자 정책으로 차단됐으며 이번에 통과했다고 계산하지 않는다. CI 정의와 실제 GitHub Actions 결과는 별개다.
 
-## 구현 범위
+## 남은 범위
 
-FastAPI 공통 엔진, 모드별 기억/권한, Ollama/Melo 어댑터, 개발용 진단 화면, WAV 재생/RMS/취소, 버튼식 음성 입력, whisper.cpp CLI 계약.
-
-## 미완료
-
-React/Live2D 실제 렌더링, VAD/WebSocket, 실제 Ollama/Melo/whisper 품질·지연, Windows/macOS 장치 시험, Codex·외부 API·일반 PC 제어, 공개 배포/다중 사용자.
-
-이전 환경에서 브라우저 E2E는 관리자 정책 오류로 차단됐다. 이번 문서 단계에서 브라우저 E2E를 다시 통과한 것은 아니다. GitHub CI도 아직 결과를 확인하지 않았다.
+버튼식 STT 반영, React/Live2D 실제 렌더링, VAD/WebSocket, 실제 Ollama/Melo/whisper 품질·지연, Windows/macOS 장치 시험, Codex·외부 API·일반 PC 제어, 공개 배포/다중 사용자. 로컬 부분 구현이지 완성된 Live2D 앱이나 서비스 출시판이 아니다.
