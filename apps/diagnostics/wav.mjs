@@ -5,11 +5,21 @@ export function encodeWav(samples) {
   }
   const buffer = new ArrayBuffer(44 + samples.length * 2);
   const view = new DataView(buffer);
-  const tag = (offset, text) => { for (let i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i)); };
-  tag(0, 'RIFF'); view.setUint32(4, buffer.byteLength - 8, true); tag(8, 'WAVE'); tag(12, 'fmt ');
-  view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
-  view.setUint32(24, 16000, true); view.setUint32(28, 32000, true);
-  view.setUint16(32, 2, true); view.setUint16(34, 16, true); tag(36, 'data');
+  const tag = (offset, text) => {
+    for (let i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i));
+  };
+  tag(0, 'RIFF');
+  view.setUint32(4, buffer.byteLength - 8, true);
+  tag(8, 'WAVE');
+  tag(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, 16000, true);
+  view.setUint32(28, 32000, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  tag(36, 'data');
   view.setUint32(40, samples.length * 2, true);
   for (let i = 0; i < samples.length; i++) {
     if (!Number.isFinite(samples[i])) throw new Error('잘못된 오디오 샘플입니다.');

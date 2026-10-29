@@ -3,6 +3,7 @@
 Install playwright separately; uses system Chromium when available.
 A disposable local server and synthetic sine-wave fixture are created, then stopped.
 """
+
 import io
 import json
 import math
@@ -30,8 +31,12 @@ def fixture_wave():
         w.setnchannels(1)
         w.setsampwidth(2)
         w.setframerate(16000)
-        w.writeframes(b"".join(struct.pack("<h", int(9000 * math.sin(2 * math.pi * 220 * n / 16000)))
-                               for n in range(48000)))
+        w.writeframes(
+            b"".join(
+                struct.pack("<h", int(9000 * math.sin(2 * math.pi * 220 * n / 16000)))
+                for n in range(48000)
+            )
+        )
     return buffer.getvalue()
 
 
@@ -41,24 +46,34 @@ def main():
     base = "http://127.0.0.1:18765"
     with tempfile.TemporaryDirectory() as data:
         env = os.environ.copy()
-        env.update(PYTHONPATH=str(ROOT / "services"), ASSISTANT_TOKEN=token,
-                   ASSISTANT_DATA_DIR=data, ASSISTANT_PORT="18765", LLM_PROVIDER="demo", TTS_PROVIDER="none")
+        env.update(
+            PYTHONPATH=str(ROOT / "services"),
+            ASSISTANT_TOKEN=token,
+            ASSISTANT_DATA_DIR=data,
+            ASSISTANT_PORT="18765",
+            LLM_PROVIDER="demo",
+            TTS_PROVIDER="none",
+        )
         with open(Path(data) / "server.log", "w") as log:
-            process = subprocess.Popen([sys.executable, "-m", "gateway.cli"], cwd=ROOT,
-                                       env=env, stdout=log, stderr=log)
+            process = subprocess.Popen(
+                [sys.executable, "-m", "gateway.cli"], cwd=ROOT, env=env, stdout=log, stderr=log
+            )
             try:
                 for _ in range(80):
                     try:
-                        urllib.request.urlopen(base, timeout=.2).close()
+                        urllib.request.urlopen(base, timeout=0.2).close()
                         break
                     except Exception:
-                        time.sleep(.1)
+                        time.sleep(0.1)
                 else:
                     raise RuntimeError("Test gateway did not start")
                 with sync_playwright() as p:
                     executable = os.getenv("BROWSER_EXECUTABLE") or shutil.which("chromium")
-                    browser = p.chromium.launch(headless=True, executable_path=executable,
-                                                args=["--no-sandbox"] if executable else [])
+                    browser = p.chromium.launch(
+                        headless=True,
+                        executable_path=executable,
+                        args=["--no-sandbox"] if executable else [],
+                    )
                     page = browser.new_page(viewport={"width": 1300, "height": 1000})
                     errors = []
                     page.on("pageerror", lambda error: errors.append(str(error)))
@@ -74,7 +89,9 @@ def main():
                     expect(page.locator("#state")).to_have_text("대기")
                     results.append("real HTTP demo turn")
 
-                    page.locator("#remember").evaluate("node => node.closest('details').open = true")
+                    page.locator("#remember").evaluate(
+                        "node => node.closest('details').open = true"
+                    )
                     page.locator("#remember input").fill("퇴근 후 20분 산책하기")
                     page.locator("#remember button").click()
                     expect(page.locator("#memories")).to_contain_text("퇴근 후 20분 산책하기")
@@ -92,7 +109,9 @@ def main():
                     expect(page.locator("#memories")).to_contain_text(attack)
                     assert page.locator("#memories img").count() == 0
                     assert page.evaluate("window.xss") is None
-                    page.locator("#memories .item").filter(has_text=attack).get_by_role("button").click()
+                    page.locator("#memories .item").filter(has_text=attack).get_by_role(
+                        "button"
+                    ).click()
                     expect(page.locator("#memories")).not_to_contain_text(attack)
                     results.append("untrusted memory rendered as text and deleted")
 
@@ -106,11 +125,17 @@ def main():
                         route.fulfill(response=response, json=payload)
 
                     page.route(re.compile(r"/api/sessions/[^/]+/turns/[^/]+$"), with_fixture_audio)
-                    page.route("**/audio/synthetic-test-wave", lambda r: r.fulfill(
-                        status=200, content_type="audio/wav", body=fixture_wave()))
+                    page.route(
+                        "**/audio/synthetic-test-wave",
+                        lambda r: r.fulfill(
+                            status=200, content_type="audio/wav", body=fixture_wave()
+                        ),
+                    )
                     page.locator("#message").fill("오디오 재생과 중지를 점검합니다.")
                     page.locator("#send").click()
-                    page.wait_for_function("parseFloat(document.querySelector('#level').style.width)>0")
+                    page.wait_for_function(
+                        "parseFloat(document.querySelector('#level').style.width)>0"
+                    )
                     page.locator("#stop").click()
                     expect(page.locator("#state")).to_have_text("대기")
                     page.wait_for_function("document.querySelector('#level').style.width === '0%'")
@@ -127,7 +152,9 @@ def main():
                     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
                     page.set_viewport_size({"width": 1300, "height": 1000})
                     page.locator("details").evaluate("node=>node.open=false")
-                    screenshot = Path(os.getenv("SMOKE_SCREENSHOT", str(ROOT / ".local-data/browser-smoke.png")))
+                    screenshot = Path(
+                        os.getenv("SMOKE_SCREENSHOT", str(ROOT / ".local-data/browser-smoke.png"))
+                    )
                     screenshot.parent.mkdir(parents=True, exist_ok=True)
                     page.screenshot(path=str(screenshot), full_page=True)
                     results.append("responsive layout and screenshot")

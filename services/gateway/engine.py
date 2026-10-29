@@ -23,9 +23,15 @@ class Turn:
     task: asyncio.Task | None = None
 
     def view(self) -> dict:
-        return {"id": self.id, "session_id": self.session_id, "generation": self.generation,
-                "status": self.status, "segments": list(self.segments),
-                "warning": self.warning, "error": self.error}
+        return {
+            "id": self.id,
+            "session_id": self.session_id,
+            "generation": self.generation,
+            "status": self.status,
+            "segments": list(self.segments),
+            "warning": self.warning,
+            "error": self.error,
+        }
 
 
 class Engine:
@@ -43,7 +49,9 @@ class Engine:
         for aid, (_, _, created, _) in list(self.audio.items()):
             if now - created > 300:
                 del self.audio[aid]
-        completed = [t for t in self.turns.values() if t.status in {"completed", "cancelled", "error"}]
+        completed = [
+            t for t in self.turns.values() if t.status in {"completed", "cancelled", "error"}
+        ]
         for t in sorted(completed, key=lambda t: t.created)[:-50]:
             self.turns.pop(t.id, None)
             if self.current.get(t.session_id) == t.id:
@@ -72,7 +80,12 @@ class Engine:
     async def _run(self, t: Turn):
         try:
             s = self.store.session(t.session_id)
-            prompt = [{"role": "system", "content": system_prompt(s["mode"], self.store.memories(s["id"]))}]
+            prompt = [
+                {
+                    "role": "system",
+                    "content": system_prompt(s["mode"], self.store.memories(s["id"])),
+                }
+            ]
             prompt += self.store.history(s["id"])
             prompt += [{"role": "user", "content": t.text}]
             async with self.inference:
@@ -88,14 +101,20 @@ class Engine:
                         return
                     audio_id = None
                     try:
-                        wav = await asyncio.wait_for(self.tts.synthesize(segment.text), self.timeout)
+                        wav = await asyncio.wait_for(
+                            self.tts.synthesize(segment.text), self.timeout
+                        )
                         if not self._active(t):
                             return
                         if wav:
                             validate_wav(wav)
                             audio_id = str(uuid4())
                             # Bound all in-memory audio, evict oldest; never persist recordings.
-                            while self.audio and sum(len(a[3]) for a in self.audio.values()) + len(wav) > 32_000_000:
+                            while (
+                                self.audio
+                                and sum(len(a[3]) for a in self.audio.values()) + len(wav)
+                                > 32_000_000
+                            ):
                                 self.audio.pop(next(iter(self.audio)))
                             self.audio[audio_id] = (t.session_id, t.id, time.monotonic(), wav)
                     except asyncio.CancelledError:

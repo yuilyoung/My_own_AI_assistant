@@ -3,7 +3,9 @@
   "version": "0.2.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "format": "prettier --write \"apps/diagnostics/**/*.{mjs,html,css}\" eslint.config.mjs package.json package-lock.json",
     "format:check": "prettier --check \"apps/diagnostics/**/*.{mjs,html,css}\" eslint.config.mjs package.json package-lock.json",
