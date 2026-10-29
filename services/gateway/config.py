@@ -19,6 +19,11 @@ def loopback_endpoint(value: str) -> str:
     return value.rstrip("/")
 
 
+def default_web_dir() -> Path:
+    built = Path("apps/web/dist")
+    return built if (built / "index.html").is_file() else Path("apps/diagnostics")
+
+
 @dataclass(frozen=True)
 class Settings:
     data_dir: Path = field(default_factory=lambda: Path(".local-data"))
@@ -34,7 +39,7 @@ class Settings:
     melo_token: str = ""
     model: str = "qwen3:4b"
     timeout: float = 90.0
-    web_dir: Path = field(default_factory=lambda: Path("apps/diagnostics"))
+    web_dir: Path = field(default_factory=default_web_dir)
 
     def __post_init__(self):
         loopback_endpoint(self.ollama_url)
@@ -61,6 +66,7 @@ class Settings:
     @classmethod
     def from_env(cls):
         return cls(
+            web_dir=Path(os.environ["ASSISTANT_WEB_DIR"]) if os.getenv("ASSISTANT_WEB_DIR") else default_web_dir(),
             data_dir=Path(os.getenv("ASSISTANT_DATA_DIR", ".local-data")),
             token=os.getenv("ASSISTANT_TOKEN", ""),
             port=int(os.getenv("ASSISTANT_PORT", "8765")),
