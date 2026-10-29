@@ -53,7 +53,7 @@ Linux는 `OLLAMA_NO_CLOUD=1 ollama serve`, 모델 설치 후 `bash scripts/start
 
 - 캐릭터: [공식 SDK·Haru 설치](live2d-local-install.md). Core 없는 GitHub Framework만으로 실제 렌더링할 수 없다.
 - 입력: 공식 whisper.cpp 실행 파일과 다국어 모델을 준비하고 `WHISPER_CLI`, `WHISPER_MODEL`을 설정한다. Windows는 `-Microphone`, Linux는 `--microphone`을 추가한다. 영어 전용 `.en` 모델을 쓰지 않는다.
-- 출력: 별도 MeloTTS 환경에서 `workers/tts-melo/server.py`를 실행하고 워커와 Gateway에 같은 32자 이상 무작위 `MELO_TOKEN`을 설정한다. Windows는 `-Voice`, Linux는 `--voice`를 추가한다. Gateway용 Python 환경에 ML 패키지를 섞지 않는다. MeloTTS 설치·모델·한국어 품질은 현재 실검증하지 않았다.
+- 출력: 별도 MeloTTS 환경에서 `workers/tts-melo/server.py`를 실행하고 워커와 Gateway에 같은 32자 이상 무작위 `MELO_TOKEN`을 설정한다. Windows는 `-Voice`, Linux는 `--voice`를 추가한다. Gateway용 Python 환경에 ML 패키지를 섞지 않는다. Linux CPU 의존성 설치는 검증했다. [MeloTTS 환경 안내](../workers/tts-melo/README.md)를 참고한다. 모델·한국어 합성 품질은 아직 미검증이다.
 
 Melo 워커의 인증된 `GET /health`는 실제 음성 합성을 실행하지 않고 연결·인증·프로세스 초기화 완료를 확인한다. STT 진단 역시 파일 존재·실행 권한을 확인할 뿐 전사 품질을 보증하지 않는다.
 
@@ -71,3 +71,5 @@ Melo 워커의 인증된 `GET /health`는 실제 음성 합성을 실행하지 �
 Linux에서 전체 setup 재실행·빌드·새 launcher의 인증 API/React/demo 대화를 확인했다. Python 74개, 웹/설치 29개, SDK 경계 모의 12개, 기존 음성 21개가 통과했다. Windows 스크립트는 정적 검토만 했으며 실제 Windows 실행은 미검증이다.
 
 클라우드에는 공식 Ollama 0.40.13(공식 SHA-256 확인)과 CPU whisper.cpp v1.8.7 실행 파일을 설치했다. Ollama 서버의 버전 응답을 확인했지만 `qwen3:4b` 다운로드는 네트워크 403으로 실패했다. Whisper/Melo 모델과 Cubism Core도 확보하지 못했다. 실제 AI 응답·한국어 STT/TTS·Haru 표시·사용자 PC 장시간 검증이 남아 있다.
+
+2026-10-30 후속: 최초 4개 사이트는 접근 가능해졌으나 실제 파일 CDN이 추가로 403을 반환했다. 한국어 TTS Python 3.11 CPU 환경과 토크나이저·설정 캐시는 준비했다. [실행 검증 기록](validation/local-runtime-2026-10-30.json)에 성공·차단·미실행을 구분했다.

@@ -1,0 +1,46 @@
+{
+  "date_kst": "2026-10-30",
+  "application_commit": "1e1e4fd07a043b81cc95f763e025d31ec2edb2f7",
+  "melo": {
+    "source_commit": "209145371cff8fc3bd60d7be902ea69cbdb7965a",
+    "python": "3.11.17",
+    "torch": "2.5.1+cpu",
+    "dependency_install": "passed",
+    "cpu_library_imports": "passed",
+    "korean_tokenizer_and_config_download": "passed",
+    "korean_synthesis": "not_run_missing_dictionary_and_checkpoint"
+  },
+  "whisper": {
+    "version": "v1.8.7",
+    "executable_build": "passed",
+    "model": "ggerganov/whisper.cpp/ggml-small.bin",
+    "expected_bytes": 487601967,
+    "expected_sha256": "1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b",
+    "model_download": "blocked_proxy_403",
+    "transcription": "not_run"
+  },
+  "ollama": {
+    "version": "0.40.13",
+    "server_version_request": "passed",
+    "model": "qwen3:4b",
+    "manifest_download": "passed",
+    "model_blobs": "blocked_proxy_403",
+    "real_chat": "not_run"
+  },
+  "cubism": {
+    "official_download_page": "passed",
+    "download_catalog": "blocked_proxy_403",
+    "core_install": "not_run",
+    "actual_render": "not_run"
+  },
+  "additional_blocked_hosts": [
+    "cubism.live2d.com",
+    "us.aws.cdn.hf.co",
+    "cotonoha-dic.s3-ap-northeast-1.amazonaws.com",
+    "dd20bb891979d25aebc8bec07b2b3bbc.r2.cloudflarestorage.com"
+  ],
+  "notes": [
+    "Original four sites now reachable; actual binary download hosts need additional runtime policy application.",
+    "Synthetic tests from previous commits are not evidence of real inference or model rendering."
+  ]
+}

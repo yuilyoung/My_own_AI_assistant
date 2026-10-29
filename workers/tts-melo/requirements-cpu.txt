@@ -1,0 +1,19 @@
+# Linux x86_64 / Python 3.11 CPU environment; separate from Gateway .venv.
+# These direct versions installed successfully and passed the resolver check.
+# Actual Korean inference still requires the model and UniDic downloads.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1+cpu
+torchaudio==2.5.1+cpu
+numpy==1.23.5
+scipy==1.10.1
+numba==0.57.1
+setuptools==80.9.0
+huggingface-hub==0.36.2
+transformers==4.27.4
+tokenizers==0.13.3
+librosa==0.9.1
+nltk==3.10.4
+gradio==6.15.1
+fastapi==0.128.2
+uvicorn==0.48.0
+melotts @ git+https://github.com/myshell-ai/MeloTTS.git@209145371cff8fc3bd60d7be902ea69cbdb7965a
