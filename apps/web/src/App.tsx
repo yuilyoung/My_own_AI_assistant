@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { FormEvent } from "react";
 import { GatewayClient } from "./gateway";
+import { AvatarInspector } from "./AvatarInspector";
 import { Conversation } from "./conversation";
 import { Player } from "../../diagnostics/player.mjs";
 import { MicrophoneRecorder } from "../../diagnostics/recorder.mjs";
@@ -62,6 +63,7 @@ function Workspace({ app, level }: { app: Conversation; level: number }) {
           <p>
             현재 화면은 음성·텍스트 대화용이며 캐릭터가 렌더링되지 않습니다.
           </p>
+          <AvatarInspector />
           <label>
             음성 레벨 <meter min="0" max="1" value={level} />
           </label>
