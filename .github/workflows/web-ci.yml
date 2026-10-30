@@ -15,6 +15,7 @@ on:
       - 'apps/diagnostics/**'
       - 'services/**'
       - 'scripts/react_smoke.py'
+      - 'scripts/windows_smoke.py'
       - 'requirements*.txt'
       - '.github/workflows/web-ci.yml'
 permissions:
