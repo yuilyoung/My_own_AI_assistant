@@ -56,9 +56,14 @@ describe("official Cubism model3 metadata validation", () => {
 
   it("rejects prototype names from external model metadata", () => {
     const input = sample();
-    const groups = JSON.parse('{"__proto__":[{"File":"motions/idle.motion3.json"}]}');
+    const groups = JSON.parse(
+      '{"__proto__":[{"File":"motions/idle.motion3.json"}]}',
+    );
     expect(() =>
-      parseModel3({ ...input, FileReferences: { ...input.FileReferences, Motions: groups } }),
+      parseModel3({
+        ...input,
+        FileReferences: { ...input.FileReferences, Motions: groups },
+      }),
     ).toThrow(/모션 그룹/);
   });
 
@@ -69,7 +74,11 @@ describe("official Cubism model3 metadata validation", () => {
       "http://127.0.0.1:8765/avatar-local/Haru/Haru.moc3",
     );
     expect(() =>
-      resolveModelAsset("https://external.example/Haru.model3.json", "Haru.moc3", origin),
+      resolveModelAsset(
+        "https://external.example/Haru.model3.json",
+        "Haru.moc3",
+        origin,
+      ),
     ).toThrow(/동일 출처/);
     expect(() => resolveModelAsset(model, "../other.moc3", origin)).toThrow();
   });
