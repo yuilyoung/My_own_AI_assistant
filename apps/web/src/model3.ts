@@ -67,7 +67,8 @@ export function parseModel3(value: unknown): CubismModel3 {
   if (refs.Motions !== undefined) {
     const groups = record(refs.Motions);
     for (const [name, value] of Object.entries(groups)) {
-      if (!name || name.length > 80) throw new Error("모션 그룹 이름이 유효하지 않습니다.");
+      if (!name || name.length > 80 || ["__proto__", "prototype", "constructor"].includes(name))
+        throw new Error("모션 그룹 이름이 유효하지 않습니다.");
       const files = entries(value).map(resource);
       motions[name] = files;
       referencedFiles.push(...files);
