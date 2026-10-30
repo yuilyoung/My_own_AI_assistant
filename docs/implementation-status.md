@@ -1,6 +1,6 @@
 # 구현·검증 상태 — React 음성·기억 통합
 
-기준일: 2026-10-29 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+최종 작업 확인일: 2026-10-30 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
 
 ## 현재 구현
 
@@ -44,6 +44,16 @@
 4. E2E 기억 선택자: 삭제 버튼 텍스트가 합쳐져 정확한 문자열 선택이 실패했다. 기억 listitem으로 검사 범위를 지정했다.
 5. E2E 음성 입력: 422 실패를 진단 로그로 업로드 경계까지 추적했다. 기본 가상 마이크 대신 고정 WAV를 지정했고 16kHz, 7,523 frames, 비무음 PCM 업로드와 전사 검토를 확인했다.
 6. E2E 재생 검사: 문자열 JavaScript 평가가 운영 CSP에 차단되어 DOM 속성 assertion으로 변경했다. 운영 CSP를 완화하지 않고 RMS 상승·0 복귀와 전체 브라우저 검증이 통과했다.
+
+
+## 2026-10-30 추가 작업 — 신규 CI 검증 대기
+
+- `scripts/windows_smoke.py`를 추가하고 Web CI에 `windows-latest` 운영 실행 검증 잡을 추가했다. 이 검사는 Windows의 실제 Python 자식 프로세스로 Gateway를 실행하고, React 빌드·JavaScript/AudioWorklet MIME·인증 거부·demo 응답·모드 간 기억 격리를 확인하도록 작성되었다.
+- `apps/web/src/model3.ts`와 회귀 테스트를 추가했다. 공식 `.model3.json`의 Moc/Textures/Expressions/Motions/선택 자산/LipSync 그룹을 읽고, 임의 원격 URL·경로 탈출·위험한 그룹 이름을 거부한다. **이 코드는 실제 Cubism 렌더러가 아니며 현재 UI에서 아직 사용하지 않는다.**
+- 2026-10-29의 이전 CI 성공 결과는 **과거 커밋 `bf6b545`에 대한 근거**다. 이 추가 변경분의 Windows 빌드, Python Ruff, React Prettier/TypeScript/Vitest 및 브라우저 테스트는 아직 통과 확인을 하지 못했다. GitHub 연결의 커밋별 워크플로 조회가 PR 이벤트에만 한정되어 push 실행 결과가 보이지 않는다.
+- 사용자 Windows PC에서 실제 마이크/스피커/LLM/STT/TTS 구동 또는 Live2D 프레임 출력은 여전히 확인되지 않았다. 사용권이 확인된 공식 Cubism Core/Framework와 캐릭터 모델 export가 필요하다.
+
+마지막 검증 전 소스 커밋: [`818db9c`](https://github.com/yuilyoung/My_own_AI_assistant/commit/818db9c290930c8f539b105cc396ec4056bd645f). 문서 커밋은 코드 해시와 달라질 수 있다.
 
 ## 남은 필수 작업
 
