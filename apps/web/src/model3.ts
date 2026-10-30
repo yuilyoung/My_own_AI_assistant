@@ -22,7 +22,8 @@ export function localAssetPath(value: unknown): string {
     !value ||
     value.length > 256 ||
     value.includes("\\") ||
-    /[?#:%\u0000-\u001f]/.test(value) ||
+    /[?#:%]/.test(value) ||
+    [...value].some((character) => character.charCodeAt(0) < 32) ||
     value.startsWith("/") ||
     value.split("/").some((part) => !part || part === "." || part === "..")
   ) {
@@ -121,7 +122,10 @@ export function resolveModelAsset(
 ): string {
   const base = new URL(origin);
   const model = new URL(modelUrl, base);
-  if (model.origin !== base.origin || !model.pathname.endsWith(".model3.json")) {
+  if (
+    model.origin !== base.origin ||
+    !model.pathname.endsWith(".model3.json")
+  ) {
     throw new Error("동일 출처의 model3.json 파일만 선택할 수 있습니다.");
   }
   const asset = new URL(localAssetPath(file), model);
@@ -148,7 +152,9 @@ export async function inspectLocalModel3(
     model.search ||
     model.hash
   ) {
-    throw new Error("avatar-local 아래 동일 출처 model3.json만 검사할 수 있습니다.");
+    throw new Error(
+      "avatar-local 아래 동일 출처 model3.json만 검사할 수 있습니다.",
+    );
   }
   const response = await read(model.href);
   if (!response.ok) {
