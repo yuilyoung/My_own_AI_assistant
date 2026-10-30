@@ -13,6 +13,7 @@
 - Ollama 구조화 응답, 별도 MeloTTS 워커, whisper.cpp 실행 어댑터. 실제 모델 가중치는 포함하지 않는다.
 - Gateway가 운영 React 빌드를 우선 제공한다. 빌드가 없으면 진단 UI로 실행하며 `ASSISTANT_WEB_DIR`로 명시적 경로를 지정할 수 있다.
 - Windows의 레지스트리 MIME 설정과 무관하게 `.mjs`를 JavaScript로 제공한다.
+- React에서 로컬 Cubism model3 JSON의 참조 경로와 LipSync 그룹을 사전 점검할 수 있다. SDK/Core 렌더러는 없다.
 
 기본 실행은 **demo 고정 응답 / TTS none / STT none**이다. UI는 이를 실제 AI 대화로 표시하지 않는다. API 버전은 0.2.0을 유지하며 이번 작업은 React 통합이다.
 
@@ -22,7 +23,7 @@
 |---|---|
 | Python 전체 | 59 passed |
 | 기존 Node 음성 모듈 | 21 passed |
-| Vitest/React | 14 passed |
+| Vitest/React | 29 passed (2026-10-30 PR CI) |
 | Prettier / ESLint / TypeScript | 통과 |
 | Ruff formatter / lint | 통과 |
 | Vite 운영 빌드 | 통과, 별도 capture-worklet `.mjs` 생성 |
@@ -46,14 +47,14 @@
 6. E2E 재생 검사: 문자열 JavaScript 평가가 운영 CSP에 차단되어 DOM 속성 assertion으로 변경했다. 운영 CSP를 완화하지 않고 RMS 상승·0 복귀와 전체 브라우저 검증이 통과했다.
 
 
-## 2026-10-30 추가 작업 — 신규 CI 검증 대기
+## 2026-10-30 확장·검증 완료 (합성 입력 기준)
 
-- `scripts/windows_smoke.py`를 추가하고 Web CI에 `windows-latest` 운영 실행 검증 잡을 추가했다. 이 검사는 Windows의 실제 Python 자식 프로세스로 Gateway를 실행하고, React 빌드·JavaScript/AudioWorklet MIME·인증 거부·demo 응답·모드 간 기억 격리를 확인하도록 작성되었다.
-- `apps/web/src/model3.ts`와 회귀 테스트를 추가했다. 공식 `.model3.json`의 Moc/Textures/Expressions/Motions/선택 자산/LipSync 그룹을 읽고, 임의 원격 URL·경로 탈출·위험한 그룹 이름을 거부한다. **이 코드는 실제 Cubism 렌더러가 아니며 현재 UI에서 아직 사용하지 않는다.**
-- 2026-10-29의 이전 CI 성공 결과는 **과거 커밋 `bf6b545`에 대한 근거**다. 이 추가 변경분의 Windows 빌드, Python Ruff, React Prettier/TypeScript/Vitest 및 브라우저 테스트는 아직 통과 확인을 하지 못했다. GitHub 연결의 커밋별 워크플로 조회가 PR 이벤트에만 한정되어 push 실행 결과가 보이지 않는다.
-- 사용자 Windows PC에서 실제 마이크/스피커/LLM/STT/TTS 구동 또는 Live2D 프레임 출력은 여전히 확인되지 않았다. 사용권이 확인된 공식 Cubism Core/Framework와 캐릭터 모델 export가 필요하다.
-
-마지막 검증 전 소스 커밋: [`818db9c`](https://github.com/yuilyoung/My_own_AI_assistant/commit/818db9c290930c8f539b105cc396ec4056bd645f). 문서 커밋은 코드 해시와 달라질 수 있다.
+- `scripts/windows_smoke.py`와 `windows-latest` CI 잡을 추가했다. GitHub의 Windows 실행기에서 실제 Gateway 자식 프로세스를 띄워 React 운영 빌드, JS/AudioWorklet MIME, 인증 거부, demo 턴, 비서·소개팅 기억 격리를 검사했다. **사용자 PC 실기기 검증은 아니다.**
+- `apps/web/src/model3.ts`는 공식 `.model3.json` 형식의 Moc/Textures/표정/모션/LipSync 그룹을 분석하고 원격 URL·경로 탈출·위험한 이름을 거부한다. React 아바타 패널의 **모델 JSON 검사**에 연결했고 성공/오류 UI 및 모델 메타데이터 단위 테스트를 추가했다. 실제 파일 존재·라이선스·Core 초기화·WebGL 렌더링·입모양 구동을 확인하지는 않는다.
+- [PR #2](https://github.com/yuilyoung/My_own_AI_assistant/pull/2)를 자동 CI 검증 뒤 squash 병합했다. 검증 대상 PR 마지막 코드 SHA는 `c4f2e283b4c15b0e082cb1efb54760c2729a311f`, 병합 SHA는 [`99eb905`](https://github.com/yuilyoung/My_own_AI_assistant/commit/99eb90522da52dd737a8c8a8a44fa1a8f767f19f)이다.
+- [Web CI #47](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/40980055255) **성공**: Prettier, ESLint, TypeScript/Vite 빌드, Vitest/React **29 passed (7 files)**, 합성 STT/TTS 기반 Chromium 운영 브라우저 E2E, Windows Gateway 운영 smoke. `web-dist` artifact **80,379 bytes**, artifact ID `12943984130`.
+- [Local engine CI #72](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/40980055226) **성공**: Ruff formatter/lint, gateway wheel, Windows·Linux × Python 3.11/3.13 매트릭스. Python 단위 테스트 **59 passed**, upstream 경고 1건은 남는다.
+- CI의 음성·브라우저·운영 Windows 검증은 demo 및 합성 공급자를 사용한다. 사용자 PC의 실제 Ollama/MeloTTS/whisper.cpp, 마이크·스피커, 한국어 품질·30분 안정성, 공식 Cubism Core/캐릭터 렌더링은 아직 미검증이다.
 
 ## 남은 필수 작업
 
