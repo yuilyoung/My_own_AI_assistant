@@ -60,6 +60,10 @@ cd ../..
 
 콘솔에 표시되는 `http://127.0.0.1:8765/#token=...` 주소를 열고 **연결**을 누릅니다. React는 주소의 토큰을 즉시 지우고 메모리에만 보관합니다. `ASSISTANT_WEB_DIR=apps/diagnostics`를 지정하면 진단 화면을 선택할 수 있습니다. 토큰을 공유하지 마세요. 기본 모드는 **고정 응답 `demo` / TTS 없음 / STT 없음**입니다.
 
+### Live2D 로컬 모델 사전 검사 (실제 렌더링 아님)
+
+공식 SDK와 캐릭터별 사용권을 직접 확인한 모델 export 전체 폴더를 `apps/web/public/avatar-local/Haru/` 같은 로컬 전용 경로에 넣고 React를 다시 빌드합니다. React 아바타 패널의 **모델 JSON 검사**에 `/avatar-local/Haru/Haru.model3.json`을 입력하면 모델 참조 경로와 LipSync 파라미터 목록을 검사합니다. 이 기능은 실제 Cubism Core/Framework를 실행하거나 모델을 그리지 않으며, 개별 자산 파일의 존재 또는 라이선스를 자동으로 증명하지도 않습니다. [자산 전달·검증 안내](docs/live2d-asset-handoff.md)를 참고하세요.
+
 ### 로컬 대화 모델
 
 Ollama와 모델을 별도 설치하고 Ollama 서버에 `OLLAMA_NO_CLOUD=1`을 적용한 뒤 시작합니다. Gateway 설정만 바꿔도 이미 실행 중인 Ollama가 바뀌는 것은 아닙니다.
@@ -100,6 +104,7 @@ node --test apps/diagnostics/tests/*.test.mjs
 - Python: Ruff formatter/lint, Windows·Linux × Python 3.11·3.13 테스트, Gateway wheel 빌드.
 - Web: `npm ci`, Prettier, ESLint, TypeScript, Vitest/React 통합 테스트, Vite 운영 빌드.
 - 운영 브라우저: Chromium의 합성 마이크 → AudioWorklet → WAV 업로드 → 합성 STT → 사용자 검토·전송 → 합성 TTS/RMS 재생, 모드 전환과 기억 격리.
+- Windows 운영 smoke: GitHub Actions의 Windows 실행기에서 Gateway를 별도 프로세스로 시작해 빌드된 React·AudioWorklet MIME·로컬 API 인증·demo 응답·모드별 기억 격리를 검사합니다. **사용자 PC에서 실제 모델을 검증한 것은 아닙니다.**
 - Actions 산출물: `web-dist`, `gateway-wheel`. 캐릭터·모델 가중치·로컬 데이터는 포함하지 않습니다. wheel에는 UI와 외부 모델이 포함되지 않으므로 소스 실행 안내를 함께 사용하세요.
 
 브라우저 검증은 실제 whisper/Ollama/MeloTTS 모델의 인식률·자연스러움·지연을 측정하지 않습니다. 현재 검증 결과와 실행 링크는 [구현 상태](docs/implementation-status.md)에 기록합니다.
