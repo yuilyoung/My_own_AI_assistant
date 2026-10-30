@@ -39,7 +39,11 @@ export function AvatarInspector() {
       />
       <button disabled={busy}>{busy ? "검사 중" : "모델 JSON 검사"}</button>
       {result && <p role="status">{result}</p>}
-      {error && <p role="alert" className="error">{error}</p>}
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
       <small>
         모델 파일은 현재 서버에서만 읽습니다. Cubism Core 또는 캐릭터 렌더링을
         활성화하지 않습니다.
