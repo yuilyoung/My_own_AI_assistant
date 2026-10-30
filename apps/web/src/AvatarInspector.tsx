@@ -28,7 +28,10 @@ export function AvatarInspector() {
   };
 
   return (
-    <form className="avatar-inspector" onSubmit={(event) => void inspect(event)}>
+    <form
+      className="avatar-inspector"
+      onSubmit={(event) => void inspect(event)}
+    >
       <label htmlFor="avatar-model3">로컬 모델 export 경로 점검</label>
       <input
         id="avatar-model3"
