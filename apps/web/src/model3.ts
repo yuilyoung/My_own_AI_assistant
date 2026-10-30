@@ -22,7 +22,8 @@ export function localAssetPath(value: unknown): string {
     !value ||
     value.length > 256 ||
     value.includes("\\") ||
-    /[?#:%\u0000-\u001f]/.test(value) ||
+    /[?#:%]/.test(value) ||
+    [...value].some((character) => character.charCodeAt(0) < 32) ||
     value.startsWith("/") ||
     value.split("/").some((part) => !part || part === "." || part === "..")
   ) {
