@@ -39,7 +39,9 @@ def check(base, token):
     assert asset and asset.group(1).startswith("/assets/"), "React build not served"
     _, headers, _ = request(base, asset.group(1))
     assert "javascript" in headers["Content-Type"], "Bundle has wrong MIME type"
-    for worklet in (ROOT / "apps/web/dist/assets").glob("*.mjs"):
+    worklets = list((ROOT / "apps/web/dist/assets").glob("*.mjs"))
+    assert worklets, "AudioWorklet build output missing"
+    for worklet in worklets:
         _, headers, _ = request(base, "/assets/" + worklet.name)
         assert "javascript" in headers["Content-Type"], "AudioWorklet MIME regression"
     try:
@@ -50,9 +52,11 @@ def check(base, token):
         raise AssertionError("Unauthenticated API was accepted")
     code, _, body = request(base, "/api/status", token)
     assert code == 200 and json.loads(body)["llm"] == "demo"
+
     def api(path, payload=None):
         code, _, response = request(base, "/api" + path, token, payload)
         return code, json.loads(response)
+
     _, assistant = api("/sessions", {"mode": "assistant"})
     sid = assistant["id"]
     api(f"/sessions/{sid}/memories", {"text": "Windows-only smoke memory"})
@@ -96,7 +100,10 @@ def main():
         with log_path.open("w", encoding="utf-8") as log:
             process = subprocess.Popen(
                 [sys.executable, "-m", "gateway.cli"],
-                cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT,
+                cwd=ROOT,
+                env=env,
+                stdout=log,
+                stderr=subprocess.STDOUT,
             )
             try:
                 for _ in range(150):
