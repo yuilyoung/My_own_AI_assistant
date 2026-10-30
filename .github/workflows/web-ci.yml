@@ -6,6 +6,7 @@ on:
       - 'apps/diagnostics/**'
       - 'services/**'
       - 'scripts/react_smoke.py'
+      - 'scripts/windows_smoke.py'
       - 'requirements*.txt'
       - '.github/workflows/web-ci.yml'
   pull_request:
@@ -59,3 +60,27 @@ jobs:
           name: web-dist
           path: apps/web/dist/
           if-no-files-found: error
+
+  windows-production-smoke:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install locked frontend dependencies
+        working-directory: apps/web
+        run: npm ci --no-audit --no-fund
+      - name: Build production React application
+        working-directory: apps/web
+        run: npm run build
+      - name: Install Gateway dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Start real Windows Gateway and verify production API / assets
+        run: python scripts/windows_smoke.py
