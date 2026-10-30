@@ -1,5 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { localAssetPath, parseModel3, resolveModelAsset } from "./model3";
+import { describe, expect, it, vi } from "vitest";
+import {
+  inspectLocalModel3,
+  localAssetPath,
+  parseModel3,
+  resolveModelAsset,
+} from "./model3";
 
 function sample() {
   return {
@@ -65,6 +70,24 @@ describe("official Cubism model3 metadata validation", () => {
         FileReferences: { ...input.FileReferences, Motions: groups },
       }),
     ).toThrow(/모션 그룹/);
+  });
+
+  it("inspects a local model without fetching any external URL", async () => {
+    const origin = "http://127.0.0.1:8765";
+    const read = vi.fn(async () => new Response(JSON.stringify(sample())));
+    const parsed = await inspectLocalModel3(
+      "/avatar-local/Haru/Haru.model3.json",
+      origin,
+      read,
+    );
+    expect(parsed.lipSyncIds).toEqual(["ParamMouthOpenY"]);
+    expect(read).toHaveBeenCalledWith(
+      "http://127.0.0.1:8765/avatar-local/Haru/Haru.model3.json",
+    );
+    await expect(
+      inspectLocalModel3("https://other.example/model3.json", origin, read),
+    ).rejects.toThrow(/동일 출처/);
+    expect(read).toHaveBeenCalledTimes(1);
   });
 
   it("resolves only local assets inside the selected model directory", () => {
