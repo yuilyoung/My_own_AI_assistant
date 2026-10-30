@@ -15,3 +15,15 @@
 파일 목록·SHA-256·revision을 기록하고 실제 SDK API에 맞는 어댑터를 구현한다. 실제 모델의 파라미터/표정/모션 목록을 읽어 허용된 neutral/happy/concerned/surprised, idle/nod/greeting을 매핑한다. 없는 표정/모션을 임의로 성공 처리하지 않는다. 실제 렌더링, 음성 입모양, 취소·언로드, 오류 및 누락 자산 테스트를 수행한다.
 
 `assets/manifest.example.json`은 기록 양식이며 현재 자동 로더가 아니다. 파일을 복사하는 것만으로 Live2D가 활성화되지 않는다. 실제 LLM/STT/TTS 가중치와 Windows 실기기 검증도 별도로 필요하다.
+
+## 로컬 모델 JSON 사전 검사 (새 기능, 렌더링 아님)
+
+1. 공식 SDK/Core 및 사용할 캐릭터의 이용 조건을 확인한다. Core·모델을 공개 Git 저장소에 커밋하지 않는다.
+2. 내보낸 캐릭터 전체 폴더를 `apps/web/public/avatar-local/Haru/`처럼 사용자 PC에 둔다. 이 경로는 `.gitignore` 대상이다.
+3. `cd apps/web; npm ci; npm run build`로 정적 자산을 포함해 빌드하고 로컬 Gateway를 시작한다.
+4. React 화면의 **모델 JSON 검사**에 `/avatar-local/Haru/Haru.model3.json`처럼 실제 파일명을 입력한다.
+
+사전 검사는 model3 메타데이터의 Moc·Textures·Expressions·Motions·LipSync 그룹을 읽고 안전한 상대 경로만 허용한다. **모든 참조 파일의 존재 여부, SDK와 모델 버전 호환성, 사용권 충족, 실제 캔버스 렌더링, 표정/모션/립싱크 구동은 검사하지 않는다.** 검사 통과를 앱 완성으로 표시하지 않는다.
+
+공식 Cubism Web Samples의 model3 예시: https://github.com/Live2D/CubismWebSamples/blob/develop/Samples/Resources/Haru/Haru.model3.json
+공식 Core 안내: https://docs.live2d.com/en/cubism-sdk-manual/cubism-sdk-for-web/
