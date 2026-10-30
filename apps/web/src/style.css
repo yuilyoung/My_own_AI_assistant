@@ -116,6 +116,21 @@ label {
   flex-direction: column;
   justify-content: center;
 }
+.avatar-inspector {
+  border-top: 1px solid #27364c;
+  padding-top: 14px;
+  margin: 14px 0;
+}
+.avatar-inspector button {
+  margin-top: 8px;
+  width: 100%;
+}
+.avatar-inspector small {
+  display: block;
+  margin-top: 8px;
+  color: #9db7df;
+  font-size: 11px;
+}
 .avatar-placeholder {
   font-size: 100px;
   text-align: center;
