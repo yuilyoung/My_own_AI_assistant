@@ -131,3 +131,36 @@ export function resolveModelAsset(
   }
   return asset.href;
 }
+
+/** Inspects a local-only model export; never loads the proprietary Core or claims rendering. */
+export async function inspectLocalModel3(
+  modelPath: string,
+  origin: string,
+  read: (url: string) => Promise<Response> = (url) =>
+    fetch(url, { cache: "no-store" }),
+): Promise<CubismModel3> {
+  const base = new URL(origin);
+  const model = new URL(modelPath, base);
+  if (
+    model.origin !== base.origin ||
+    !model.pathname.startsWith("/avatar-local/") ||
+    !model.pathname.endsWith(".model3.json") ||
+    model.search ||
+    model.hash
+  ) {
+    throw new Error("avatar-local 아래 동일 출처 model3.json만 검사할 수 있습니다.");
+  }
+  const response = await read(model.href);
+  if (!response.ok) {
+    throw new Error("모델 파일을 읽을 수 없습니다: HTTP " + response.status);
+  }
+  const source = await response.text();
+  if (source.length > 131072) {
+    throw new Error("model3.json의 크기가 128 KiB를 초과합니다.");
+  }
+  const manifest = parseModel3(JSON.parse(source) as unknown);
+  for (const file of manifest.referencedFiles) {
+    resolveModelAsset(model.href, file, origin);
+  }
+  return manifest;
+}
