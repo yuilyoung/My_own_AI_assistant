@@ -38,11 +38,6 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Formatter
         run: npm run format:check
-      - name: Diagnose formatter differences (temporary)
-        if: failure()
-        run: |
-          npx --no-install prettier --write src/AvatarInspector.tsx src/model3.ts
-          git diff -- src/AvatarInspector.tsx src/model3.ts
       - name: Lint
         run: npm run lint
       - name: Unit and React integration tests
