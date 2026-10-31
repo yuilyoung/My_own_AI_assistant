@@ -25,3 +25,9 @@ React 아바타 패널의 **모델 JSON 검사**는 캐릭터를 렌더링하지
 ## 검증된 자동 검사
 
 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/40980055255)에서 formatter, lint, TypeScript, Vitest **29개**, Vite 빌드, 합성 STT/TTS 브라우저 E2E와 Windows Gateway 운영 smoke가 성공했습니다. [Python CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/40980055226)는 Linux/Windows Python 3.11/3.13 조합과 Ruff를 검증했습니다. 이는 검증된 PR 소스 기준 결과로, 사용자 Windows PC에서 실제 Ollama/whisper.cpp/MeloTTS 모델과 마이크를 시험한 결과가 아닙니다.
+
+## 참조 파일 접근 검사 (추가 사전 점검)
+
+모델 JSON 검사를 통과한 뒤 **참조 파일 접근 검사**를 누르면 `.model3.json`에서 참조하는 고유 파일 각각에 동일 출처 `HEAD` 요청을 보내 접근 상태를 확인합니다. 요청은 최대 4개 병렬로 제한하며 외부 URL, 경로 탈출 및 리다이렉트를 허용하지 않습니다. HTTP 실패, 비어 있는 파일, `text/html` 응답(SPA fallback 가능)을 구분해 최대 10개까지 화면에 표시합니다.
+
+HEAD를 지원하지 않는 서버는 접근 실패로 표시될 수 있습니다. 이 검사는 파일 내용을 다운로드하지 않으므로 **MOC3 포맷 유효성·파일 내용/해시·SDK 호환성·캐릭터 사용권·실제 렌더링 또는 립싱크 동작을 증명하지 않습니다.** 모델 SDK/Core와 라이선스가 확인된 로컬 자산을 확보하기 전에는 실제 Live2D 렌더러를 활성화하지 않습니다.

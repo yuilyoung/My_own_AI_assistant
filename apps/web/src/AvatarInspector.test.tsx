@@ -4,9 +4,13 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AvatarInspector } from "./AvatarInspector";
 import { inspectLocalModel3 } from "./model3";
+import { verifyLocalModelResources } from "./model-assets";
 
 vi.mock("./model3", () => ({
   inspectLocalModel3: vi.fn(),
+}));
+vi.mock("./model-assets", () => ({
+  verifyLocalModelResources: vi.fn(),
 }));
 
 afterEach(() => {
@@ -53,4 +57,56 @@ it("shows missing or rejected asset errors to the user", async () => {
   expect((await screen.findByRole("alert")).textContent).toContain(
     "모델 파일을 읽을 수 없습니다",
   );
+});
+
+it("shows inaccessible Live2D asset references", async () => {
+  vi.mocked(verifyLocalModelResources).mockResolvedValue({
+    manifest: {
+      moc: "Haru.moc3",
+      textures: ["textures/0.png"],
+      referencedFiles: ["Haru.moc3", "textures/0.png"],
+      lipSyncIds: ["ParamMouthOpenY"],
+      expressions: {},
+      motions: {},
+    },
+    checked: 2,
+    available: 1,
+    issues: [{ path: "textures/0.png", reason: "HTTP 404" }],
+  });
+  const user = userEvent.setup();
+  render(<AvatarInspector />);
+  await user.type(
+    screen.getByLabelText("로컬 모델 export 경로 점검"),
+    "/avatar-local/Haru/Haru.model3.json",
+  );
+  await user.click(screen.getByRole("button", { name: "참조 파일 접근 검사" }));
+  expect((await screen.findByRole("status")).textContent).toContain(
+    "참조 파일 HEAD 확인: 1/2개",
+  );
+  expect(
+    screen.getByRole("list", { name: "문제가 있는 모델 자산" }).textContent,
+  ).toContain("textures/0.png: HTTP 404");
+  expect(verifyLocalModelResources).toHaveBeenCalledWith(
+    "/avatar-local/Haru/Haru.model3.json",
+    window.location.origin,
+    undefined,
+    expect.any(AbortSignal),
+  );
+});
+
+it("reports resource HEAD request failures", async () => {
+  vi.mocked(verifyLocalModelResources).mockRejectedValue(
+    new Error("HEAD 접근 거부"),
+  );
+  const user = userEvent.setup();
+  render(<AvatarInspector />);
+  await user.type(
+    screen.getByLabelText("로컬 모델 export 경로 점검"),
+    "/avatar-local/Haru/Haru.model3.json",
+  );
+  await user.click(screen.getByRole("button", { name: "참조 파일 접근 검사" }));
+  expect((await screen.findByRole("alert")).textContent).toContain(
+    "HEAD 접근 거부",
+  );
+  expect(screen.queryByRole("status")).toBeNull();
 });
