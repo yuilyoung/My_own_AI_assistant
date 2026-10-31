@@ -1,6 +1,6 @@
 # 구현·검증 상태 — React 음성·기억 통합
 
-최종 작업 확인일: 2026-10-30 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+최종 작업 확인일: 2026-10-31 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
 
 ## 현재 구현
 
@@ -13,7 +13,7 @@
 - Ollama 구조화 응답, 별도 MeloTTS 워커, whisper.cpp 실행 어댑터. 실제 모델 가중치는 포함하지 않는다.
 - Gateway가 운영 React 빌드를 우선 제공한다. 빌드가 없으면 진단 UI로 실행하며 `ASSISTANT_WEB_DIR`로 명시적 경로를 지정할 수 있다.
 - Windows의 레지스트리 MIME 설정과 무관하게 `.mjs`를 JavaScript로 제공한다.
-- React에서 로컬 Cubism model3 JSON의 참조 경로와 LipSync 그룹을 사전 점검할 수 있다. SDK/Core 렌더러는 없다.
+- React에서 로컬 Cubism model3 JSON의 참조 경로와 LipSync 그룹을 사전 점검할 수 있다. 별도 HEAD 검사로 고유 자산의 HTTP 접근 가능성·빈 응답·HTML fallback도 구분할 수 있다. SDK/Core 렌더러는 없다.
 
 기본 실행은 **demo 고정 응답 / TTS none / STT none**이다. UI는 이를 실제 AI 대화로 표시하지 않는다. API 버전은 0.2.0을 유지하며 이번 작업은 React 통합이다.
 
@@ -23,7 +23,7 @@
 |---|---|
 | Python 전체 | 59 passed |
 | 기존 Node 음성 모듈 | 21 passed |
-| Vitest/React | 29 passed (2026-10-30 PR CI) |
+| Vitest/React | **36 passed** (2026-10-31 PR CI, 8 files) |
 | Prettier / ESLint / TypeScript | 통과 |
 | Ruff formatter / lint | 통과 |
 | Vite 운영 빌드 | 통과, 별도 capture-worklet `.mjs` 생성 |
@@ -55,6 +55,15 @@
 - [Web CI #47](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/40980055255) **성공**: Prettier, ESLint, TypeScript/Vite 빌드, Vitest/React **29 passed (7 files)**, 합성 STT/TTS 기반 Chromium 운영 브라우저 E2E, Windows Gateway 운영 smoke. `web-dist` artifact **80,379 bytes**, artifact ID `12943984130`.
 - [Local engine CI #72](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/40980055226) **성공**: Ruff formatter/lint, gateway wheel, Windows·Linux × Python 3.11/3.13 매트릭스. Python 단위 테스트 **59 passed**, upstream 경고 1건은 남는다.
 - CI의 음성·브라우저·운영 Windows 검증은 demo 및 합성 공급자를 사용한다. 사용자 PC의 실제 Ollama/MeloTTS/whisper.cpp, 마이크·스피커, 한국어 품질·30분 안정성, 공식 Cubism Core/캐릭터 렌더링은 아직 미검증이다.
+
+## 2026-10-31 추가 구현 및 GitHub Actions 검증
+
+- [PR #3](https://github.com/yuilyoung/My_own_AI_assistant/pull/3)을 최종 CI 성공 뒤 squash 병합했다. 구현 커밋: [b18c30b](https://github.com/yuilyoung/My_own_AI_assistant/commit/b18c30b6d26fc3dec798f70b914215f753f5a671).
+- `apps/web/src/model-assets.ts`: 로컬 `.model3.json` 파싱 후 실제 참조 자산에 **동일 출처 HEAD**를 전송한다. 외부 URL·폴더 탈출·리다이렉트를 허용하지 않고, 최대 4개 동시 요청으로 제한한다. HTTP 오류/빈 파일/HTML(SPA fallback) 응답을 문제로 표시하며 중단 신호를 처리한다.
+- React `AvatarInspector`에 별도 **참조 파일 접근 검사** 버튼, 정상·실패 자산 수, 최대 10개 오류 표시를 추가했다. 기존 JSON 메타데이터 검사는 그대로 유지한다.
+- [Web CI #67](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/41152358783) **성공**: Prettier, ESLint, TypeScript/Vite 운영 빌드, Vitest/React **36 passed (8 files)**, Chromium 합성 음성 E2E, Windows Gateway 운영 smoke. `web-dist` artifact ID **13022654704**, **81,122 bytes**, 생성 확인.
+- [Local engine CI #95](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/41152358736) **성공**: Ruff 검사, Windows·Linux × Python 3.11/3.13 테스트(59 passed), Gateway wheel 산출물 ID **13023801633**, **15,267 bytes**.
+- **검증의 한계**: 새 검사에서 성공은 HEAD 응답 상태만 검증한다. 파일 내용, MOC3 무결성, Core/SDK 버전 호환성, 사용권, WebGL 렌더링, RMS 립싱크 동작 및 사용자 PC의 실제 STT/LLM/TTS·마이크/스피커는 미검증이다. 원본 자산은 저장소에 포함하지 않았다.
 
 ## 남은 필수 작업
 
