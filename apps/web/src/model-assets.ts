@@ -33,9 +33,8 @@ export async function verifyLocalModelResources(
     redirect: "error",
     signal,
   };
-  const manifest = await inspectLocalModel3(modelPath, origin, (url) =>
-    read(url, options),
-  );
+  const readMetadata = (url: string) => read(url, options);
+  const manifest = await inspectLocalModel3(modelPath, origin, readMetadata);
   const files = [...new Set(manifest.referencedFiles)];
   const issues: AssetIssue[] = [];
   let next = 0;
@@ -47,11 +46,8 @@ export async function verifyLocalModelResources(
       const url = resolveModelAsset(modelPath, path, origin);
       try {
         const response = await read(url, { ...options, method: "HEAD" });
-        const mime = response.headers
-          .get("content-type")
-          ?.split(";")[0]
-          .trim()
-          .toLowerCase();
+        const contentType = response.headers.get("content-type") || "";
+        const mime = contentType.split(";")[0].trim().toLowerCase();
         if (!response.ok) {
           issues.push({ path, reason: `HTTP ${response.status}` });
         } else if (mime === "text/html") {
@@ -65,9 +61,11 @@ export async function verifyLocalModelResources(
       }
     }
   }
-  await Promise.all(
-    Array.from({ length: Math.min(files.length, 4) }, () => worker()),
-  );
+  const workers: Promise<void>[] = [];
+  for (let i = 0; i < Math.min(files.length, 4); i++) {
+    workers.push(worker());
+  }
+  await Promise.all(workers);
   signal?.throwIfAborted();
   issues.sort((a, b) => files.indexOf(a.path) - files.indexOf(b.path));
   return {
