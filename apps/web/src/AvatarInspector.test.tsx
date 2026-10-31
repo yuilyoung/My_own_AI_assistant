@@ -59,7 +59,7 @@ it("shows missing or rejected asset errors to the user", async () => {
   );
 });
 
-it("reports accessible and missing referenced resources separately from JSON validation", async () => {
+it("shows inaccessible Live2D asset references", async () => {
   vi.mocked(verifyLocalModelResources).mockResolvedValue({
     manifest: {
       moc: "Haru.moc3",
@@ -79,9 +79,7 @@ it("reports accessible and missing referenced resources separately from JSON val
     screen.getByLabelText("로컬 모델 export 경로 점검"),
     "/avatar-local/Haru/Haru.model3.json",
   );
-  await user.click(
-    screen.getByRole("button", { name: "참조 파일 접근 검사" }),
-  );
+  await user.click(screen.getByRole("button", { name: "참조 파일 접근 검사" }));
   expect((await screen.findByRole("status")).textContent).toContain(
     "참조 파일 HEAD 확인: 1/2개",
   );
@@ -96,7 +94,7 @@ it("reports accessible and missing referenced resources separately from JSON val
   );
 });
 
-it("does not mask resource request errors as successful validation", async () => {
+it("reports resource HEAD request failures", async () => {
   vi.mocked(verifyLocalModelResources).mockRejectedValue(
     new Error("HEAD 접근 거부"),
   );
@@ -106,9 +104,7 @@ it("does not mask resource request errors as successful validation", async () =>
     screen.getByLabelText("로컬 모델 export 경로 점검"),
     "/avatar-local/Haru/Haru.model3.json",
   );
-  await user.click(
-    screen.getByRole("button", { name: "참조 파일 접근 검사" }),
-  );
+  await user.click(screen.getByRole("button", { name: "참조 파일 접근 검사" }));
   expect((await screen.findByRole("alert")).textContent).toContain(
     "HEAD 접근 거부",
   );
