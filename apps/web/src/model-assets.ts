@@ -51,7 +51,10 @@ export async function verifyLocalModelResources(
         if (!response.ok) {
           issues.push({ path, reason: `HTTP ${response.status}` });
         } else if (mime === "text/html") {
-          issues.push({ path, reason: "HTML 응답 (누락 파일의 SPA fallback 가능)" });
+          issues.push({
+            path,
+            reason: "HTML 응답 (누락 파일의 SPA fallback 가능)",
+          });
         } else if (response.headers.get("content-length") === "0") {
           issues.push({ path, reason: "비어 있는 파일" });
         }
