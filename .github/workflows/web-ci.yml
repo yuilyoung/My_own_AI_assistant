@@ -36,10 +36,6 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
-      - name: Diagnose Prettier mismatch (temporary)
-        run: |
-          npx prettier --write src/model-assets.ts
-          git diff -- src/model-assets.ts
       - name: Formatter
         run: npm run format:check
       - name: Lint
