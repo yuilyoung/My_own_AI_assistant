@@ -11,7 +11,10 @@ export type AssetAudit = {
   available: number;
   issues: AssetIssue[];
 };
-export type AssetReader = (url: string, options: RequestInit) => Promise<Response>;
+export type AssetReader = (
+  url: string,
+  options: RequestInit,
+) => Promise<Response>;
 
 /**
  * Verifies that each referenced local resource can be reached without
