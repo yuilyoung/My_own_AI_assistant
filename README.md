@@ -62,7 +62,7 @@ cd ../..
 
 ### Live2D 로컬 모델 사전 검사 (실제 렌더링 아님)
 
-공식 SDK와 캐릭터별 사용권을 직접 확인한 모델 export 전체 폴더를 `apps/web/public/avatar-local/Haru/` 같은 로컬 전용 경로에 넣고 React를 다시 빌드합니다. React 아바타 패널의 **모델 JSON 검사**에 `/avatar-local/Haru/Haru.model3.json`을 입력하면 모델 참조 경로와 LipSync 파라미터 목록을 검사합니다. 이 기능은 실제 Cubism Core/Framework를 실행하거나 모델을 그리지 않으며, 개별 자산 파일의 존재 또는 라이선스를 자동으로 증명하지도 않습니다. [자산 전달·검증 안내](docs/live2d-asset-handoff.md)를 참고하세요.
+공식 SDK와 캐릭터별 사용권을 직접 확인한 모델 export 전체 폴더를 `apps/web/public/avatar-local/Haru/` 같은 로컬 전용 경로에 넣고 React를 다시 빌드합니다. React 아바타 패널의 **모델 JSON 검사**에 `/avatar-local/Haru/Haru.model3.json`을 입력하면 모델 참조 경로와 LipSync 파라미터 목록을 검사합니다. 이 기능은 실제 Cubism Core/Framework를 실행하거나 모델을 그리지 않습니다. 추가로 **참조 파일 접근 검사**를 누르면 `.model3.json`에 명시된 고유 자산에 동일 출처 `HEAD` 요청(최대 4개 병렬)을 보내 HTTP 실패·빈 파일·HTML fallback을 보고합니다. 이는 현재 서버에서의 접근 가능성만 확인하며 파일 무결성, SDK 호환성, 이용 조건 또는 실제 렌더링을 증명하지 않습니다. [자산 전달·검증 안내](docs/live2d-asset-handoff.md)를 참고하세요.
 
 ### 로컬 대화 모델
 
