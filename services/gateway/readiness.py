@@ -89,20 +89,22 @@ def inspect_local_readiness(
         checks.append(Check("MeloTTS", "SKIP", "TTS 비활성화"))
     else:
         try:
-            # GET cannot trigger synthesis; the worker returns 405 for authenticated
-            # requests to the POST-only synthesis endpoint.
+            # The authenticated health endpoint never starts synthesis.
             response = client.get(
-                settings.melo_url + "/synthesize",
+                settings.melo_url + "/health",
                 headers={"Authorization": "Bearer " + settings.melo_token},
             )
-            valid = response.status_code == 405
-        except httpx.HTTPError:
+            valid = (
+                response.status_code == 200
+                and response.json() == {"status": "reachable", "worker": "melo-tts"}
+            )
+        except (httpx.HTTPError, ValueError, TypeError):
             valid = False
         checks.append(
             Check(
                 "MeloTTS",
                 "PASS" if valid else "FAIL",
-                "인증된 워커 라우트 접근 확인 (실제 합성은 미검증)"
+                "인증된 워커 health 응답 확인 (실제 합성은 미검증)"
                 if valid
                 else "MeloTTS 워커 실행 상태·주소·인증 토큰을 확인하세요",
             )
