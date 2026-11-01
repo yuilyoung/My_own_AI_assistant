@@ -28,7 +28,12 @@ def main(argv: list[str] | None = None) -> int:
         )
     except (ValueError, TypeError) as exc:
         if args.json:
-            print(json.dumps([{"component": "설정", "status": "FAIL", "detail": str(exc)}], ensure_ascii=False))
+            print(
+                json.dumps(
+                    [{"component": "설정", "status": "FAIL", "detail": str(exc)}],
+                    ensure_ascii=False,
+                )
+            )
         else:
             print("[FAIL] 설정: " + str(exc))
         return 1
