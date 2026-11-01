@@ -52,5 +52,12 @@ def test_worker_health_is_authenticated_and_never_runs_synthesis():
         result = client.get("/health", headers={"Authorization": "Bearer " + token})
         assert result.status_code == 200
         assert result.json() == {"status": "reachable", "worker": "melo-tts"}
-        assert client.get("/health", headers={"Origin": "http://127.0.0.1:8765", "Authorization": "Bearer " + token}).status_code == 403
+        refused = client.get(
+            "/health",
+            headers={
+                "Origin": "http://127.0.0.1:8765",
+                "Authorization": "Bearer " + token,
+            },
+        )
+        assert refused.status_code == 403
     assert invoked == []
