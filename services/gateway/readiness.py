@@ -94,10 +94,10 @@ def inspect_local_readiness(
                 settings.melo_url + "/health",
                 headers={"Authorization": "Bearer " + settings.melo_token},
             )
-            valid = (
-                response.status_code == 200
-                and response.json() == {"status": "reachable", "worker": "melo-tts"}
-            )
+            valid = response.status_code == 200 and response.json() == {
+                "status": "reachable",
+                "worker": "melo-tts",
+            }
         except (httpx.HTTPError, ValueError, TypeError):
             valid = False
         checks.append(
