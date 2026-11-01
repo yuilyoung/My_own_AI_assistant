@@ -41,3 +41,23 @@ def test_worker_does_not_leak_exception():
             "/synthesize", json={"text": "안녕"}, headers={"Authorization": "Bearer " + token}
         )
         assert r.status_code == 503 and "SECRET" not in r.text
+
+
+def test_worker_health_is_authenticated_and_never_runs_synthesis():
+    token = "separate-worker-test-token-of-long-length"
+    invoked = []
+    app = worker().create_app(token, lambda text: invoked.append(text))
+    with TestClient(app, base_url="http://127.0.0.1:8766") as client:
+        assert client.get("/health").status_code == 401
+        result = client.get("/health", headers={"Authorization": "Bearer " + token})
+        assert result.status_code == 200
+        assert result.json() == {"status": "reachable", "worker": "melo-tts"}
+        refused = client.get(
+            "/health",
+            headers={
+                "Origin": "http://127.0.0.1:8765",
+                "Authorization": "Bearer " + token,
+            },
+        )
+        assert refused.status_code == 403
+    assert invoked == []

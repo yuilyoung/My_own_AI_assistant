@@ -60,6 +60,18 @@ cd ../..
 
 콘솔에 표시되는 `http://127.0.0.1:8765/#token=...` 주소를 열고 **연결**을 누릅니다. React는 주소의 토큰을 즉시 지우고 메모리에만 보관합니다. `ASSISTANT_WEB_DIR=apps/diagnostics`를 지정하면 진단 화면을 선택할 수 있습니다. 토큰을 공유하지 마세요. 기본 모드는 **고정 응답 `demo` / TTS 없음 / STT 없음**입니다.
 
+### Windows 로컬 준비 상태 점검 (비침습적 검사)
+
+Gateway를 시작하기 전 현재 PC의 준비 상태를 확인할 수 있습니다. 빌드 파일, Ollama 로컬 모델 등록 여부, whisper.cpp 실행 파일·다국어 모델 경로, MeloTTS 인증 라우트를 확인합니다. **모델 추론·합성·마이크 녹음·SDK 로딩을 실행하지 않으며 네트워크는 구성된 loopback 주소로만 연결합니다.**
+
+```powershell
+.\scripts\check-readiness.ps1
+.\scripts\check-readiness.ps1 -Provider ollama -Voice -Microphone
+.\scripts\check-readiness.ps1 -Provider ollama -Voice -Microphone -Json
+```
+
+`PASS`는 해당 파일·API 사전 조건만 확인했다는 뜻입니다. `FAIL`은 빌드·설정·인증 등을 수정해야 함을 뜻하고, `SKIP`은 미설치 또는 수동 검증이 필요한 영역입니다. React 빌드가 없으면 FAIL로 표시하고, Live2D 렌더링·실제 한국어 추론·마이크/스피커·장시간 안정성은 **항상 수동 검증 대상으로 남깁니다.** 준비 상태 명령의 종료 코드는 FAIL이 하나라도 있으면 1입니다. 개인 토큰과 프롬프트는 출력하지 않습니다.
+
 ### Live2D 로컬 모델 사전 검사 (실제 렌더링 아님)
 
 공식 SDK와 캐릭터별 사용권을 직접 확인한 모델 export 전체 폴더를 `apps/web/public/avatar-local/Haru/` 같은 로컬 전용 경로에 넣고 React를 다시 빌드합니다. React 아바타 패널의 **모델 JSON 검사**에 `/avatar-local/Haru/Haru.model3.json`을 입력하면 모델 참조 경로와 LipSync 파라미터 목록을 검사합니다. 이 기능은 실제 Cubism Core/Framework를 실행하거나 모델을 그리지 않습니다. 추가로 **참조 파일 접근 검사**를 누르면 `.model3.json`에 명시된 고유 자산에 동일 출처 `HEAD` 요청(최대 4개 병렬)을 보내 HTTP 실패·빈 파일·HTML fallback을 보고합니다. 이는 현재 서버에서의 접근 가능성만 확인하며 파일 무결성, SDK 호환성, 이용 조건 또는 실제 렌더링을 증명하지 않습니다. [자산 전달·검증 안내](docs/live2d-asset-handoff.md)를 참고하세요.
