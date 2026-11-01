@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import sys
 from dataclasses import asdict, replace
 from pathlib import Path
 
@@ -12,6 +13,9 @@ from .readiness import inspect_local_readiness
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Some Windows runners default stdout to cp1252, which cannot encode Korean.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
     parser = argparse.ArgumentParser(description="Check local AI assistant MVP prerequisites")
     parser.add_argument("--provider", choices=["demo", "ollama"])
     parser.add_argument("--voice", action="store_true", help="Require MeloTTS worker")
@@ -31,7 +35,7 @@ def main(argv: list[str] | None = None) -> int:
             print(
                 json.dumps(
                     [{"component": "설정", "status": "FAIL", "detail": str(exc)}],
-                    ensure_ascii=False,
+                    ensure_ascii=True,
                 )
             )
         else:
