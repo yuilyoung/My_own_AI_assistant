@@ -55,6 +55,11 @@ def create_app(token, synthesize):
         finally:
             busy.release()
 
+    @app.get("/health")
+    async def health():
+        # Authentication is enforced by the shared middleware; no inference runs here.
+        return {"status": "reachable", "worker": "melo-tts"}
+
     @app.post("/synthesize")
     async def tts(body: TextInput):
         try:
