@@ -46,10 +46,10 @@ def test_local_provider_endpoints_and_files_are_checked_without_inference(tmp_pa
             assert request.method == "POST"
             assert request.content == b'{"model":"qwen3:4b"}'
             return httpx.Response(200, json={"details": {"family": "qwen3"}})
-        if request.url.path == "/synthesize":
+        if request.url.path == "/health":
             assert request.method == "GET"
             assert request.headers["Authorization"] == "Bearer " + "a" * 32
-            return httpx.Response(405)
+            return httpx.Response(200, json={"status": "reachable", "worker": "melo-tts"})
         raise AssertionError("Unexpected endpoint")
 
     with httpx.Client(transport=httpx.MockTransport(handler)) as client:
