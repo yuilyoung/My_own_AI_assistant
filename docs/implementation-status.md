@@ -65,6 +65,14 @@
 - [Local engine CI #95](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/41152358736) **성공**: Ruff 검사, Windows·Linux × Python 3.11/3.13 테스트(59 passed), Gateway wheel 산출물 ID **13023801633**, **15,267 bytes**.
 - **검증의 한계**: 새 검사에서 성공은 HEAD 응답 상태만 검증한다. 파일 내용, MOC3 무결성, Core/SDK 버전 호환성, 사용권, WebGL 렌더링, RMS 립싱크 동작 및 사용자 PC의 실제 STT/LLM/TTS·마이크/스피커는 미검증이다. 원본 자산은 저장소에 포함하지 않았다.
 
+## 2026-11-01 Windows 로컬 설치 준비도 점검
+
+- [PR #4](https://github.com/yuilyoung/My_own_AI_assistant/pull/4): `gateway.readiness_cli` 및 `scripts/check-readiness.ps1`를 추가했다. React 운영 빌드, Ollama 로컬 모델 목록·메타데이터, whisper.cpp CLI/다국어 모델 파일, MeloTTS 인증된 `/health`를 확인한다. 외부 네트워크 호출, 모델 추론, 합성·녹음, 자산 다운로드는 수행하지 않는다.
+- MeloTTS 워커에 인증을 요구하는 `GET /health`를 추가하고 성공·실패·모드 비활성화·토큰 출력 방지·실제 추론 미호출을 모의 테스트한다. Windows CI에서 demo 프로필 CLI를 별도로 실행한다.
+- CI 중복 실행을 줄이도록 워크플로별 최신 브랜치 실행만 남기는 concurrency 정책을 추가했다. 단, 이미 대기 중이던 과거 실행까지 소급하여 정리되는 것은 아니다.
+- **검증 상태**: PR #4의 최종 커밋 기준 Python/Windows/Web CI 결과 확인 전이다. 코드가 생성·푸시됐다는 사실을 테스트 통과로 간주하지 않는다. 최종 성공 실행 링크는 검증 이후 기록한다.
+- 실제 Windows 사용자 PC 모델·마이크·스피커, 한국어 품질, 30분 안정성 및 공식 Live2D 렌더링은 여전히 미검증이다.
+
 ## 남은 필수 작업
 
 **완성된 Live2D MVP가 아니다.** `UnavailableAvatar`는 안전한 대체 안내만 제공하며 실제 캐릭터 모델을 로딩하지 않는다. 현재 음성 레벨 막대는 캐릭터 입모양이 아니다.
