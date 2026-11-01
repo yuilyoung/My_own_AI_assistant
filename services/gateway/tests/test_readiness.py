@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import httpx
-
 from gateway.config import Settings
 from gateway.readiness import inspect_local_readiness
 
