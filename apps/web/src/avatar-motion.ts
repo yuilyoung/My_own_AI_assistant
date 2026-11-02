@@ -17,12 +17,7 @@ type Attached = {
   ready: boolean;
 };
 
-const expressionCues: ExpressionCue[] = [
-  "neutral",
-  "happy",
-  "concerned",
-  "surprised",
-];
+const expressionCues: ExpressionCue[] = ["neutral", "happy", "concerned", "surprised"];
 const motionCues: MotionCue[] = ["idle", "nod", "greeting"];
 
 export function validateAvatarBindings(
@@ -62,9 +57,7 @@ export class AvatarMotionBridge {
   }
 
   get lipSyncEnabled(): boolean {
-    return (
-      this.ready && (this.attached?.manifest.lipSyncIds.length ?? 0) > 0
-    );
+    return this.ready && (this.attached?.manifest.lipSyncIds.length ?? 0) > 0;
   }
 
   async attach(
