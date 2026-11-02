@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { FormEvent } from "react";
 import { GatewayClient } from "./gateway";
 import { AvatarInspector } from "./AvatarInspector";
+import { AvatarMotionBridge } from "./avatar-motion";
 import { Conversation } from "./conversation";
 import { Player } from "../../diagnostics/player.mjs";
 import { MicrophoneRecorder } from "../../diagnostics/recorder.mjs";
@@ -234,17 +235,28 @@ export function App() {
   );
   const [app, setApp] = useState<Conversation | null>(null),
     [level, setLevel] = useState(0);
+  const avatarBridge = useRef<AvatarMotionBridge | null>(null);
   useEffect(() => {
     if (location.hash)
       history.replaceState(null, "", location.pathname + location.search);
   }, []);
-  useEffect(() => () => app?.dispose(), [app]);
+  useEffect(
+    () => () => {
+      app?.dispose();
+      avatarBridge.current?.detach();
+    },
+    [app],
+  );
   const connect = (e: FormEvent) => {
     e.preventDefault();
     if (!token.trim()) return;
+    const bridge = (avatarBridge.current ??= new AvatarMotionBridge());
     const next = new Conversation(
       new GatewayClient(token.trim()),
-      new Player(setLevel),
+      new Player((value: number) => {
+        setLevel(value);
+        bridge.onAudioLevel(value);
+      }),
       new MicrophoneRecorder(),
     );
     setApp(next);
