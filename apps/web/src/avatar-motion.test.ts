@@ -3,6 +3,8 @@ import type { AvatarAdapter } from "./avatar";
 import { AvatarMotionBridge, validateAvatarBindings } from "./avatar-motion";
 import type { CubismModel3 } from "./model3";
 
+const MODEL_URL = "/avatar-local/Haru/Haru.model3.json";
+
 function manifest(withLipSync = true): CubismModel3 {
   return {
     moc: "Haru.moc3",
@@ -26,11 +28,11 @@ function fakeAdapter(load: () => Promise<void> = async () => {}) {
 }
 
 describe("licensed SDK boundary and audio-to-avatar bridge", () => {
-  it("rejects guessed or missing expression and motion names before loading", async () => {
+  it("rejects guessed expression and motion names", async () => {
     const adapter = fakeAdapter();
     const bridge = new AvatarMotionBridge();
     await expect(
-      bridge.attach(adapter, "/avatar-local/Haru/Haru.model3.json", manifest(), {
+      bridge.attach(adapter, MODEL_URL, manifest(), {
         expressions: { happy: "not-present" },
       }),
     ).rejects.toThrow(/표정 매핑/);
@@ -46,17 +48,16 @@ describe("licensed SDK boundary and audio-to-avatar bridge", () => {
     ).toThrow(/모션 매핑/);
   });
 
-  it("forwards normalized Player RMS and only configured semantic cues", async () => {
+  it("forwards normalized RMS and mapped semantic cues", async () => {
     const adapter = fakeAdapter();
     const bridge = new AvatarMotionBridge();
-    const modelUrl = "/avatar-local/Haru/Haru.model3.json";
     expect(
-      await bridge.attach(adapter, modelUrl, manifest(), {
+      await bridge.attach(adapter, MODEL_URL, manifest(), {
         expressions: { happy: "F01" },
         motions: { idle: "Idle" },
       }),
     ).toBe(true);
-    expect(adapter.load).toHaveBeenCalledWith(modelUrl);
+    expect(adapter.load).toHaveBeenCalledWith(MODEL_URL);
     expect(bridge.ready).toBe(true);
     expect(bridge.lipSyncEnabled).toBe(true);
     bridge.onAudioLevel(0.4);
@@ -83,10 +84,10 @@ describe("licensed SDK boundary and audio-to-avatar bridge", () => {
     expect(adapter.setLipSync).toHaveBeenCalledTimes(6);
   });
 
-  it("does not report mouth support for a model with no LipSync group", async () => {
+  it("does not enable lipsync without a LipSync group", async () => {
     const adapter = fakeAdapter();
     const bridge = new AvatarMotionBridge();
-    await bridge.attach(adapter, "/avatar-local/Haru/Haru.model3.json", manifest(false), {});
+    await bridge.attach(adapter, MODEL_URL, manifest(false), {});
     expect(bridge.ready).toBe(true);
     expect(bridge.lipSyncEnabled).toBe(false);
     bridge.onAudioLevel(0.9);
@@ -96,14 +97,14 @@ describe("licensed SDK boundary and audio-to-avatar bridge", () => {
     expect(adapter.dispose).toHaveBeenCalledOnce();
   });
 
-  it("never reactivates an adapter whose loading finished after detach", async () => {
+  it("rejects a late SDK load after detach", async () => {
     let finish!: () => void;
     const loading = new Promise<void>((resolve) => {
       finish = resolve;
     });
     const adapter = fakeAdapter(() => loading);
     const bridge = new AvatarMotionBridge();
-    const attached = bridge.attach(adapter, "/avatar-local/Haru/Haru.model3.json", manifest(), {});
+    const attached = bridge.attach(adapter, MODEL_URL, manifest(), {});
     bridge.detach();
     finish();
     expect(await attached).toBe(false);
@@ -112,13 +113,13 @@ describe("licensed SDK boundary and audio-to-avatar bridge", () => {
     expect(adapter.setLipSync).not.toHaveBeenCalled();
   });
 
-  it("disposes a renderer that fails to load without claiming it is ready", async () => {
+  it("disposes failed SDK loads", async () => {
     const adapter = fakeAdapter(async () => {
       throw new Error("SDK missing");
     });
     const bridge = new AvatarMotionBridge();
     await expect(
-      bridge.attach(adapter, "/avatar-local/Haru/Haru.model3.json", manifest(), {}),
+      bridge.attach(adapter, MODEL_URL, manifest(), {}),
     ).rejects.toThrow("SDK missing");
     expect(bridge.ready).toBe(false);
     expect(adapter.dispose).toHaveBeenCalledOnce();
