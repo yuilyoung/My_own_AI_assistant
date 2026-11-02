@@ -73,6 +73,13 @@
 - **검증 완료**: [PR #4](https://github.com/yuilyoung/My_own_AI_assistant/pull/4) 코드 SHA `0c54ce8e4a4ed714330dde1f7d814097ccf9dfcc`에서 [Local engine CI #132](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/41259268470) **성공**: Ruff 검사·wheel 빌드, Windows/Linux × Python 3.11/3.13 테스트 **64 passed**(Linux 3.11 기준), `gateway-wheel` artifact ID **13064113012**, **18,194 bytes**. [Web CI #95](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/41259268428) **성공**: Prettier/ESLint/TypeScript/Vite, Vitest **36 passed**, 합성 음성 Chromium 브라우저 E2E, Windows Gateway 운영 smoke 및 준비도 CLI. `web-dist` artifact ID **13064362738**, **81,122 bytes**. 이 두 실행은 해당 PR 코드 SHA에서 확인했으며 이후 문서 전용 커밋의 실행을 대신하지 않는다.
 - 실제 Windows 사용자 PC 모델·마이크·스피커, 한국어 품질, 30분 안정성 및 공식 Live2D 렌더링은 여전히 미검증이다.
 
+## 2026-11-02 오디오 → 아바타 브리지 구현 (SDK 실물 미검증)
+
+- [PR #5](https://github.com/yuilyoung/My_own_AI_assistant/pull/5): `AvatarMotionBridge`가 React `Player`의 정규화 RMS(0~1)를 `AvatarAdapter.setLipSync()`로 전달하도록 연결했다. 현재 렌더러 어댑터는 **부착되지 않았으며 실제 화면에 캐릭터가 나타나지 않는다.**
+- 실제 모델 JSON의 표정·모션 이름에 대해서만 의미별 매핑을 허용한다. LipSync 그룹이 없으면 립싱크를 사용하지 않는다. 중지/언로드에서 입 값을 0으로 초기화하고 지연된 SDK 로딩이 이전 세션을 되살리지 않도록 독립 단위 테스트를 추가했다.
+- `AvatarInspector`가 메타데이터의 표정 이름과 유효한 모션 그룹을 표시하도록 변경했다. SDK/Core/모델 파일, 실제 WebGL, PC 마이크·스피커는 이 PR에 포함하지 않았다.
+- **검증 기록:** PR CI 결과 확인 후 갱신한다. 코드 작성과 테스트 작성만으로 통과로 간주하지 않는다.
+
 ## 남은 필수 작업
 
 **완성된 Live2D MVP가 아니다.** `UnavailableAvatar`는 안전한 대체 안내만 제공하며 실제 캐릭터 모델을 로딩하지 않는다. 현재 음성 레벨 막대는 캐릭터 입모양이 아니다.

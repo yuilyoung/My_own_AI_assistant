@@ -27,3 +27,13 @@
 
 공식 Cubism Web Samples의 model3 예시: https://github.com/Live2D/CubismWebSamples/blob/develop/Samples/Resources/Haru/Haru.model3.json
 공식 Core 안내: https://docs.live2d.com/en/cubism-sdk-manual/cubism-sdk-for-web/
+
+## 2026-11-02: 오디오/표정 브리지 (실제 렌더러는 미연결)
+
+`apps/web/src/avatar-motion.ts`에 테스트 가능한 `AvatarMotionBridge`를 추가했다. 기존 `Player`의 정규화된 0~1 음성 레벨은 React에서 이 브리지로 전달된다. 현재 브리지에는 **렌더러가 부착되지 않았으므로 캐릭터 입모양이 움직이지 않는다.**
+
+공식 SDK로 작성할 실제 `AvatarAdapter`는 `load(modelUrl)`, `setLipSync(level)`, `setExpression(name)`, `setMotion(group)`, `dispose()`를 구현해야 한다. `attach()`가 성공한 뒤에만 RMS 값을 전송하고, 중지·언로드 시 입 파라미터를 0으로 복구한다. 모션/표정은 검사한 모델의 실제 이름을 명시적으로 매핑해야 하며 임의의 `F01` 또는 `Idle`을 보편적인 이름으로 가정해서는 안 된다. 모델에 LipSync 그룹이 없으면 RMS 립싱크를 활성화하지 않는다. SDK 로딩이 취소되거나 뒤늦게 끝나도 상태가 되살아나지 않도록 단위 테스트한다.
+
+React의 **모델 JSON 검사**는 이제 이 매핑에 필요한 표정 이름과 유효한 모션 그룹 이름도 표시한다. 이는 메타데이터 표시일 뿐 표정·모션 재생 또는 WebGL 렌더링 성공을 뜻하지 않는다.
+
+공식 SDK 다운로드: https://www.live2d.com/en/sdk/download/web/ . 다운로드 시 공식 Proprietary/Open Software License Agreement를 직접 확인해야 한다. Cubism Core는 GitHub에 포함되지 않고 공식 SDK 다운로드 패키지에 동봉된다: https://docs.live2d.com/en/cubism-sdk-manual/cubism-core/ . SDK/모델 파일은 로컬 비공개 경로에 보관하고, 별도 허가 없이 GitHub에 푸시하지 않는다. 공식 SDK/Core/모델의 실제 버전·사용 조건을 확정한 후, 해당 버전의 샘플 API로 렌더러를 구현하고 Windows 실기기에서 검증한다.
