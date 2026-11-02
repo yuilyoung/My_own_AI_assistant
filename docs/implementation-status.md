@@ -1,6 +1,6 @@
 # 구현·검증 상태 — React 음성·기억 통합
 
-최종 작업 확인일: 2026-10-31 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+최종 작업 확인일: 2026-11-02 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
 
 ## 현재 구현
 
@@ -75,10 +75,11 @@
 
 ## 2026-11-02 오디오 → 아바타 브리지 구현 (SDK 실물 미검증)
 
-- [PR #5](https://github.com/yuilyoung/My_own_AI_assistant/pull/5): `AvatarMotionBridge`가 React `Player`의 정규화 RMS(0~1)를 `AvatarAdapter.setLipSync()`로 전달하도록 연결했다. 현재 렌더러 어댑터는 **부착되지 않았으며 실제 화면에 캐릭터가 나타나지 않는다.**
+- [PR #5](https://github.com/yuilyoung/My_own_AI_assistant/pull/5) 병합 (코드 병합 SHA [`212ebb5`](https://github.com/yuilyoung/My_own_AI_assistant/commit/212ebb589accc6c874d62982211ed10d2bcb7111)): `AvatarMotionBridge`가 React `Player`의 정규화 RMS(0~1)를 `AvatarAdapter.setLipSync()`로 전달하도록 연결했다. 현재 렌더러 어댑터는 **부착되지 않았으며 실제 화면에 캐릭터가 나타나지 않는다.**
 - 실제 모델 JSON의 표정·모션 이름에 대해서만 의미별 매핑을 허용한다. LipSync 그룹이 없으면 립싱크를 사용하지 않는다. 중지/언로드에서 입 값을 0으로 초기화하고 지연된 SDK 로딩이 이전 세션을 되살리지 않도록 독립 단위 테스트를 추가했다.
 - `AvatarInspector`가 메타데이터의 표정 이름과 유효한 모션 그룹을 표시하도록 변경했다. SDK/Core/모델 파일, 실제 WebGL, PC 마이크·스피커는 이 PR에 포함하지 않았다.
-- **검증 기록:** PR CI 결과 확인 후 갱신한다. 코드 작성과 테스트 작성만으로 통과로 간주하지 않는다.
+- **PR 코드 SHA `16e63dadb8482bb2283d0a77080b814ef12c3a8c` 검증:** [Web frontend CI #111](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/41367987806) 성공 — Prettier, ESLint, TypeScript/Vite, Vitest **41 passed (9 files)**, 합성 STT/TTS Chromium E2E, Windows 운영 Gateway smoke. `web-dist` artifact ID **13107828306**, **81,764 bytes**, 생성 확인. [Local engine tests #150](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/41367987821) 성공 — Ruff, wheel, Windows/Linux × Python 3.11/3.13; Linux 3.11에서 **64 passed, upstream 경고 1건**; `gateway-wheel` artifact ID **13108260256**, **18,194 bytes**.
+- 이 두 실행은 **PR 코드 SHA 기준**이다. GitHub Actions 자체가 검증한 Windows 실행기는 사용자 PC 실기기와 다르며, 공식 Cubism SDK/Core·모델 렌더링·립싱크 실동작, Ollama/whisper.cpp/MeloTTS 실제 품질은 여전히 미검증이다.
 
 ## 남은 필수 작업
 
