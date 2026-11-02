@@ -24,8 +24,8 @@ it("inspects local model metadata without claiming that Cubism is loaded", async
     textures: ["Haru.2048/texture_00.png"],
     referencedFiles: ["Haru.moc3", "Haru.2048/texture_00.png"],
     lipSyncIds: ["ParamMouthOpenY"],
-    expressions: {},
-    motions: {},
+    expressions: { F01: "expressions/F01.exp3.json" },
+    motions: { Idle: ["motions/idle.motion3.json"] },
   });
   const user = userEvent.setup();
   render(<AvatarInspector />);
@@ -37,6 +37,7 @@ it("inspects local model metadata without claiming that Cubism is loaded", async
   expect((await screen.findByRole("status")).textContent).toContain(
     "실제 파일 존재·렌더링은 미검증",
   );
+  expect((await screen.findByRole("status")).textContent).toContain("표정 F01, 모션 Idle");
   expect(inspectLocalModel3).toHaveBeenCalledWith(
     "/avatar-local/Haru/Haru.model3.json",
     window.location.origin,
