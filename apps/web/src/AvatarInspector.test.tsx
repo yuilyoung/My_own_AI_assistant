@@ -37,7 +37,9 @@ it("inspects local model metadata without claiming that Cubism is loaded", async
   expect((await screen.findByRole("status")).textContent).toContain(
     "실제 파일 존재·렌더링은 미검증",
   );
-  expect((await screen.findByRole("status")).textContent).toContain("표정 F01, 모션 Idle");
+  expect((await screen.findByRole("status")).textContent).toContain(
+    "표정 F01, 모션 Idle",
+  );
   expect(inspectLocalModel3).toHaveBeenCalledWith(
     "/avatar-local/Haru/Haru.model3.json",
     window.location.origin,
