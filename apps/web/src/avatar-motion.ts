@@ -17,7 +17,12 @@ type Attached = {
   ready: boolean;
 };
 
-const expressionCues: ExpressionCue[] = ["neutral", "happy", "concerned", "surprised"];
+const expressionCues: ExpressionCue[] = [
+  "neutral",
+  "happy",
+  "concerned",
+  "surprised",
+];
 const motionCues: MotionCue[] = ["idle", "nod", "greeting"];
 
 export function validateAvatarBindings(
