@@ -23,8 +23,12 @@ export function AvatarInspector() {
     setResources(null);
     try {
       const manifest = await inspectLocalModel3(path.trim(), location.origin);
+      const expressions = Object.keys(manifest.expressions);
+      const motions = Object.entries(manifest.motions)
+        .filter(([, files]) => files.length > 0)
+        .map(([name]) => name);
       setResult(
-        `JSON 검사 완료: 참조 ${manifest.referencedFiles.length}개, LipSync 파라미터 ${manifest.lipSyncIds.join(", ") || "없음"}. 실제 파일 존재·렌더링은 미검증입니다.`,
+        `JSON 검사 완료: 참조 ${manifest.referencedFiles.length}개, LipSync 파라미터 ${manifest.lipSyncIds.join(", ") || "없음"}, 표정 ${expressions.join(", ") || "없음"}, 모션 ${motions.join(", ") || "없음"}. 실제 파일 존재·렌더링은 미검증입니다.`,
       );
     } catch (reason) {
       setError(String(reason));
