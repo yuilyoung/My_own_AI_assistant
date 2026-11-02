@@ -70,8 +70,10 @@ describe("licensed SDK boundary and audio-to-avatar bridge", () => {
     expect(bridge.setExpression("concerned")).toBe(false);
     expect(bridge.setMotion("idle")).toBe(true);
     expect(bridge.setMotion("nod")).toBe(false);
-    expect(adapter.setExpression).toHaveBeenCalledExactlyOnceWith("F01");
-    expect(adapter.setMotion).toHaveBeenCalledExactlyOnceWith("Idle");
+    expect(adapter.setExpression).toHaveBeenCalledTimes(1);
+    expect(adapter.setExpression).toHaveBeenCalledWith("F01");
+    expect(adapter.setMotion).toHaveBeenCalledTimes(1);
+    expect(adapter.setMotion).toHaveBeenCalledWith("Idle");
     bridge.reset();
     bridge.detach();
     expect(adapter.setLipSync).toHaveBeenLastCalledWith(0);
