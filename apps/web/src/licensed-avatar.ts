@@ -31,12 +31,10 @@ export async function loadLocalCubismAdapter(
     "setLipSync",
     "dispose",
   ] as const;
+  const methods = (adapter ?? {}) as Record<string, unknown>;
   if (
-    !adapter ||
     typeof adapter !== "object" ||
-    required.some(
-      (method) => !(method in adapter) || typeof adapter[method] !== "function",
-    )
+    required.some((method) => typeof methods[method] !== "function")
   ) {
     throw new Error("로컬 Cubism 어댑터의 필수 메서드가 누락됐습니다.");
   }
