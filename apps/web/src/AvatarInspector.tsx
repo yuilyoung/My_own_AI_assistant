@@ -2,17 +2,34 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { inspectLocalModel3 } from "./model3";
 import { verifyLocalModelResources, type AssetAudit } from "./model-assets";
+import type { AvatarAdapter } from "./avatar";
+import type { AvatarMotionBridge } from "./avatar-motion";
+import { loadLocalCubismAdapter } from "./licensed-avatar";
 
 /** Preflight only. The official Cubism SDK/Core must be installed separately. */
-export function AvatarInspector() {
+export function AvatarInspector({
+  bridge,
+  loadAdapter = loadLocalCubismAdapter,
+}: {
+  bridge?: AvatarMotionBridge;
+  loadAdapter?: (canvas: HTMLCanvasElement) => Promise<AvatarAdapter>;
+}) {
   const [path, setPath] = useState("");
   const [result, setResult] = useState("");
   const [resources, setResources] = useState<AssetAudit | null>(null);
   const [error, setError] = useState("");
+  const [runtimeStatus, setRuntimeStatus] = useState("");
+  const canvas = useRef<HTMLCanvasElement | null>(null);
   const [busy, setBusy] = useState(false);
   const pending = useRef<AbortController | null>(null);
 
-  useEffect(() => () => pending.current?.abort(), []);
+  useEffect(
+    () => () => {
+      pending.current?.abort();
+      bridge?.detach();
+    },
+    [bridge],
+  );
 
   const inspect = async (event: FormEvent) => {
     event.preventDefault();
@@ -21,6 +38,8 @@ export function AvatarInspector() {
     setError("");
     setResult("");
     setResources(null);
+    setRuntimeStatus("");
+    bridge?.detach();
     try {
       const manifest = await inspectLocalModel3(path.trim(), location.origin);
       const expressions = Object.keys(manifest.expressions);
@@ -42,6 +61,8 @@ export function AvatarInspector() {
     setBusy(true);
     setError("");
     setResources(null);
+    setRuntimeStatus("");
+    bridge?.detach();
     const controller = new AbortController();
     pending.current = controller;
     try {
@@ -52,6 +73,52 @@ export function AvatarInspector() {
         controller.signal,
       );
       if (!controller.signal.aborted) setResources(audit);
+    } catch (reason) {
+      if (!controller.signal.aborted) setError(String(reason));
+    } finally {
+      if (pending.current === controller) pending.current = null;
+      if (!controller.signal.aborted) setBusy(false);
+    }
+  };
+
+  const activate = async () => {
+    const audit = resources;
+    if (
+      busy ||
+      !bridge ||
+      !canvas.current ||
+      !audit ||
+      audit.available !== audit.checked
+    )
+      return;
+    const controller = new AbortController();
+    pending.current = controller;
+    setBusy(true);
+    setError("");
+    setRuntimeStatus("");
+    try {
+      const adapter = await loadAdapter(canvas.current);
+      if (controller.signal.aborted) {
+        adapter.dispose();
+        return;
+      }
+      const attached = await bridge.attach(
+        adapter,
+        path.trim(),
+        audit.manifest,
+        {},
+      );
+      if (controller.signal.aborted) {
+        bridge.detach();
+        return;
+      }
+      if (attached) {
+        setRuntimeStatus(
+          "로컬 어댑터 초기화 완료. 실제 WebGL 표시와 립싱크 동작은 수동으로 확인해야 합니다.",
+        );
+      } else {
+        setError("이전 로컬 어댑터 연결이 취소됐습니다.");
+      }
     } catch (reason) {
       if (!controller.signal.aborted) setError(String(reason));
     } finally {
@@ -74,6 +141,8 @@ export function AvatarInspector() {
           setResult("");
           setResources(null);
           setError("");
+          setRuntimeStatus("");
+          bridge?.detach();
         }}
         disabled={busy}
         placeholder="/avatar-local/Haru/Haru.model3.json"
@@ -106,6 +175,28 @@ export function AvatarInspector() {
               )}
             </ul>
           )}
+        </>
+      )}
+      {bridge && (
+        <>
+          <button
+            type="button"
+            disabled={
+              busy || !resources || resources.available !== resources.checked
+            }
+            onClick={() => void activate()}
+          >
+            로컬 Cubism 어댑터 연결
+          </button>
+          <canvas
+            ref={canvas}
+            className="avatar-canvas"
+            width={400}
+            height={500}
+            role="img"
+            aria-label="Live2D 로컬 캔버스"
+          />
+          {runtimeStatus && <p role="status">{runtimeStatus}</p>}
         </>
       )}
       {error && (
