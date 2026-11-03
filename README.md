@@ -78,6 +78,12 @@ Gateway를 시작하기 전 현재 PC의 준비 상태를 확인할 수 있습�
 
 > Live2D 진행 상황: React 음성 RMS → SDK 어댑터 브리지와 모델별 표정·모션 이름 확인은 구현했으나, 공식 Cubism Core/렌더러와 캐릭터는 미연결입니다. 실제 렌더링·립싱크는 미완료입니다.
 
+### 로컬 Cubism 어댑터 연결 (실제 SDK 별도 필요)
+
+참조 자산 HEAD 검사가 모두 통과한 경우에만 **로컬 Cubism 어댑터 연결** 버튼이 활성화됩니다. 해당 버튼은 저장소에 포함되지 않은 사용자 설치 모듈 `/avatar-local/runtime/adapter.js`를 명시적으로 불러와 `createAvatarAdapter(canvas)`로 어댑터를 만들고 오디오 RMS 브리지에 부착합니다. 모듈의 `load(modelUrl)`, `setExpression(name)`, `setMotion(group)`, `setLipSync(level)`, `dispose()`가 필요합니다. 설치 모듈을 제공하지 않으면 명확한 오류를 표시하며 가짜 렌더러로 대체하지 않습니다. 자산 경로는 `apps/web/public/avatar-local/runtime/`로 두고 다시 빌드합니다. 이 디렉터리는 Git에서 제외됩니다.
+
+**현재 저장소에는 이 인터페이스를 구현한 공식 SDK 렌더러가 없습니다.** 어댑터 초기화 성공은 WebGL 표시/동작 성공과 다릅니다. 신뢰하는 로컬 자산만 설치하고 Core·Framework·캐릭터 모델의 이용 조건을 직접 확인하세요. [자세한 연결 계약](docs/live2d-asset-handoff.md)을 참고하세요.
+
 ### 로컬 대화 모델
 
 Ollama와 모델을 별도 설치하고 Ollama 서버에 `OLLAMA_NO_CLOUD=1`을 적용한 뒤 시작합니다. Gateway 설정만 바꿔도 이미 실행 중인 Ollama가 바뀌는 것은 아닙니다.

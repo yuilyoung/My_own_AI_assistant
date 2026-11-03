@@ -7,7 +7,15 @@ import { Conversation } from "./conversation";
 import { Player } from "../../diagnostics/player.mjs";
 import { MicrophoneRecorder } from "../../diagnostics/recorder.mjs";
 
-function Workspace({ app, level }: { app: Conversation; level: number }) {
+function Workspace({
+  app,
+  level,
+  bridge,
+}: {
+  app: Conversation;
+  level: number;
+  bridge: AvatarMotionBridge;
+}) {
   const state = useSyncExternalStore(app.subscribe, app.snapshot);
   const [memory, setMemory] = useState(""),
     [note, setNote] = useState("");
@@ -57,14 +65,15 @@ function Workspace({ app, level }: { app: Conversation; level: number }) {
           <div className="avatar-placeholder" aria-hidden="true">
             ◇
           </div>
-          <h2>Live2D 미연결</h2>
+          <h2>Live2D 로컬 렌더러</h2>
           <p>
             공식 Cubism SDK와 사용권이 확인된 캐릭터 모델을 설치해야 합니다.
           </p>
           <p>
-            현재 화면은 음성·텍스트 대화용이며 캐릭터가 렌더링되지 않습니다.
+            어댑터 미설치 시 캐릭터는 렌더링되지 않습니다. 로컬 자산과 SDK를
+            준비한 뒤 명시적으로 연결해야 합니다.
           </p>
-          <AvatarInspector />
+          <AvatarInspector bridge={bridge} />
           <label>
             음성 레벨 <meter min="0" max="1" value={level} />
           </label>
@@ -270,9 +279,9 @@ export function App() {
         <h1>My own AI assistant</h1>
         <p>나를 돕는 비서, 이야기를 나누는 친구</p>
       </header>
-      {app ? (
+      {app && avatarBridge.current ? (
         <>
-          <Workspace app={app} level={level} />
+          <Workspace app={app} level={level} bridge={avatarBridge.current} />
           <button
             className="disconnect"
             onClick={() => {

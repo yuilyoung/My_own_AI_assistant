@@ -35,7 +35,7 @@ it("connects, labels demo, sends reviewed text and clears it on mode change", as
   await user.type(screen.getByLabelText("연결 토큰"), "a".repeat(32));
   await user.click(screen.getByRole("button", { name: "연결" }));
   expect(await screen.findByText(/DEMO · 고정 응답/)).toBeTruthy();
-  expect(screen.getByText(/Live2D 미연결/)).toBeTruthy();
+  expect(screen.getByText(/Live2D 로컬 렌더러/)).toBeTruthy();
   expect(
     (screen.getByRole("button", { name: "마이크로 입력" }) as HTMLButtonElement)
       .disabled,

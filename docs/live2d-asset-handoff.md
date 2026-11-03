@@ -37,3 +37,12 @@
 React의 **모델 JSON 검사**는 이제 이 매핑에 필요한 표정 이름과 유효한 모션 그룹 이름도 표시한다. 이는 메타데이터 표시일 뿐 표정·모션 재생 또는 WebGL 렌더링 성공을 뜻하지 않는다.
 
 공식 SDK 다운로드: https://www.live2d.com/en/sdk/download/web/ . 다운로드 시 공식 Proprietary/Open Software License Agreement를 직접 확인해야 한다. Cubism Core는 GitHub에 포함되지 않고 공식 SDK 다운로드 패키지에 동봉된다: https://docs.live2d.com/en/cubism-sdk-manual/cubism-core/ . SDK/모델 파일은 로컬 비공개 경로에 보관하고, 별도 허가 없이 GitHub에 푸시하지 않는다. 공식 SDK/Core/모델의 실제 버전·사용 조건을 확정한 후, 해당 버전의 샘플 API로 렌더러를 구현하고 Windows 실기기에서 검증한다.
+
+
+## 2026-11-03: 비공개 Cubism 어댑터 연결 진입점
+
+`apps/web/src/licensed-avatar.ts`에서 별도 설치한 ES 모듈 `/avatar-local/runtime/adapter.js`의 `createAvatarAdapter(canvas)`를 **사용자 버튼 클릭 시에만** 가져오는 진입점을 제공한다. 디스크 경로는 `apps/web/public/avatar-local/runtime/adapter.js`이며 `.gitignore`에 의해 Git 커밋에서 제외된다. React의 **참조 파일 접근 검사**에서 모든 참조 자산이 접근 가능해야 **로컬 Cubism 어댑터 연결** 버튼이 활성화된다. 모델 JSON·HEAD 검사 자체는 이 모듈을 실행하지 않는다.
+
+모듈은 공식 Cubism Web SDK/Core에 맞춰 사용자가 별도로 제작해야 한다. `createAvatarAdapter(canvas)`가 반환하는 객체에는 `load(modelUrl): Promise<void>`, `setExpression(name): void`, `setMotion(group): void`, `setLipSync(level): void`, `dispose(): void`가 필요하다. `setLipSync` 입력은 0~1이고 실제 파라미터 ID는 모델의 LipSync 그룹에 맞춰야 한다. 표정/모션도 실제 모델 export에 있는 이름에만 매핑한다. UI 언로드/모드 전환 시 브리지를 해제하여 `dispose()`를 호출한다.
+
+**이 연결 지점은 SDK 자체나 범용 Cubism WebGL 렌더러가 아니다.** Core, Framework, 모델, 실제 어댑터 구현은 아직 미제공이다. 로컬 모듈은 브라우저에서 실행되는 신뢰 코드이므로 출처·라이선스를 검증해야 한다. 성공 메시지는 `load()` 완료만 의미하고 WebGL 실제 화면, 립싱크·모션 및 사용자 PC 성능은 수동 검증이 필요하다.
