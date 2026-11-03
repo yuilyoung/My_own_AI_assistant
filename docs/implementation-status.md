@@ -92,3 +92,13 @@
 ## 게시 방식
 
 작업을 작은 로컬 커밋으로 나누고, 일반 git push의 자격 증명 부재 때문에 연결된 GitHub Git-data API로 같은 파일 트리를 main에 반영했다. 강제 업데이트 없이 예상 head를 확인했다. 이 방식에서는 로컬/원격 커밋 SHA가 다르며 파일 트리 SHA 일치로 소스 동일성을 검증한다.
+
+
+## 2026-11-03 사용자 설치 Cubism 어댑터 진입점 (실제 모델 미검증)
+
+- [PR #6](https://github.com/yuilyoung/My_own_AI_assistant/pull/6)을 CI 검증 뒤 squash 병합했다. 구현 병합 SHA: [19723cf](https://github.com/yuilyoung/My_own_AI_assistant/commit/19723cfe444ee9e1b87e6d9eb0225b44ce82a6b3).
+- `apps/web/src/licensed-avatar.ts`는 버튼 클릭에 한해 `/avatar-local/runtime/adapter.js`에서 비공개 `createAvatarAdapter(canvas)` 모듈을 가져온다. 필수 메서드를 검증하며 미설치·잘못된 계약은 오류로 처리한다. Core·Framework·모델을 다운로드하거나 리포지토리에 포함하지 않는다.
+- React 모델 패널은 JSON/HEAD 점검이 모두 성공한 경우에만 로컬 어댑터 연결을 허용한다. 기존 `AvatarMotionBridge`가 재생 음성 RMS를 어댑터로 전달하며 언로드 시 해제한다. 이 연결부는 **실제 SDK를 구현하지 않으며** 모의 어댑터 테스트로 검증했다. 사용자 신뢰 코드와 라이선스가 확인된 Core·SDK·모델 export가 여전히 필요하다.
+- **PR 코드 SHA `31a049b24e6255dc6072376867c37e46c335e1a2`에서 검증**: [Web frontend CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/41551784582) **성공** — Prettier·ESLint·TypeScript/Vite 빌드, Vitest **47 passed (10 files)**, Chromium 합성 마이크/STT/TTS E2E, GitHub Windows 운영 Gateway smoke. `web-dist` artifact **82,376 bytes** (ID `13193715673`) 생성 확인.
+- [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/41551784460) **성공** — Ruff 검사 및 wheel, Windows/Linux × Python 3.11·3.13, Linux 3.11에서 **64 passed, upstream 경고 1건**. `gateway-wheel` artifact **18,194 bytes** (ID `13191697569`) 생성 확인.
+- **미완료/외부 전제:** 공식 Cubism Web SDK/Core와 사용자 사용권이 확인된 캐릭터 및 실제 WebGL 렌더러 어댑터가 없으므로 아바타가 화면에 나타나거나 움직인다는 증거는 없다. Windows CI는 GitHub 호스팅 테스트 환경이며 사용자 PC의 실제 Ollama·whisper.cpp·MeloTTS·마이크·스피커 검증이 아니다. 실제 품질·지연·장시간 안정성도 미검증이다.
