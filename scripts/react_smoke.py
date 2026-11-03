@@ -144,7 +144,7 @@ def main():
                     page.get_by_role("button", name="연결", exact=True).click()
                     expect(page.get_by_text("대화 준비됨")).to_be_visible()
                     assert token not in page.url
-                    expect(page.get_by_text("Live2D 미연결")).to_be_visible()
+                    expect(page.get_by_text("Live2D 로컬 렌더러")).to_be_visible()
                     expect(page.get_by_text("DEMO · 고정 응답", exact=False)).to_be_visible()
                     page.get_by_label("기억할 내용").fill("비서 전용 기억")
                     page.get_by_role("button", name="기억 저장").click()
