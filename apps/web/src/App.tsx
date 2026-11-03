@@ -70,8 +70,8 @@ function Workspace({
             공식 Cubism SDK와 사용권이 확인된 캐릭터 모델을 설치해야 합니다.
           </p>
           <p>
-            어댑터 미설치 시 캐릭터는 렌더링되지 않습니다. 로컬 자산과
-            SDK를 준비한 뒤 명시적으로 연결해야 합니다.
+            어댑터 미설치 시 캐릭터는 렌더링되지 않습니다. 로컬 자산과 SDK를
+            준비한 뒤 명시적으로 연결해야 합니다.
           </p>
           <AvatarInspector bridge={bridge} />
           <label>

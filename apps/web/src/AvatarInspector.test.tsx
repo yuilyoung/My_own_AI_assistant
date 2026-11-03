@@ -128,9 +128,7 @@ function modelAudit(available: number) {
     checked: 2,
     available,
     issues:
-      available === 2
-        ? []
-        : [{ path: "textures/0.png", reason: "HTTP 404" }],
+      available === 2 ? [] : [{ path: "textures/0.png", reason: "HTTP 404" }],
   };
 }
 
@@ -156,7 +154,7 @@ it("connects an explicitly installed runtime only after local asset preflight", 
     "/avatar-local/Haru/Haru.model3.json",
   );
   await user.click(screen.getByRole("button", { name: "참조 파일 접근 검사" }));
-  expect((await screen.findByText(/참조 파일 HEAD 확인: 2\/2개/))).toBeTruthy();
+  expect(await screen.findByText(/참조 파일 HEAD 확인: 2\/2개/)).toBeTruthy();
   await waitFor(() => expect(connect.disabled).toBe(false));
   await user.click(connect);
   expect(await screen.findByText(/로컬 어댑터 초기화 완료/)).toBeTruthy();

@@ -206,7 +206,8 @@ export function AvatarInspector({
       )}
       <small>
         HEAD 요청은 파일 접근 여부만 확인합니다. HEAD를 지원하지 않는 서버는
-        오류로 보고될 수 있습니다. 검사만으로 Cubism Core/렌더러를 적재하지 않습니다.
+        오류로 보고될 수 있습니다. 검사만으로 Cubism Core/렌더러를 적재하지
+        않습니다.
       </small>
     </form>
   );

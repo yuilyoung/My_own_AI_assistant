@@ -35,8 +35,7 @@ export async function loadLocalCubismAdapter(
     !adapter ||
     typeof adapter !== "object" ||
     required.some(
-      (method) =>
-        !(method in adapter) || typeof adapter[method] !== "function",
+      (method) => !(method in adapter) || typeof adapter[method] !== "function",
     )
   ) {
     throw new Error("로컬 Cubism 어댑터의 필수 메서드가 누락됐습니다.");
