@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { AvatarMotionBridge } from "./avatar-motion";
 import userEvent from "@testing-library/user-event";
 import { AvatarInspector } from "./AvatarInspector";
 import { inspectLocalModel3 } from "./model3";
@@ -112,4 +113,121 @@ it("reports resource HEAD request failures", async () => {
     "HEAD 접근 거부",
   );
   expect(screen.queryByRole("status")).toBeNull();
+});
+
+function modelAudit(available: number) {
+  return {
+    manifest: {
+      moc: "Haru.moc3",
+      textures: ["textures/0.png"],
+      referencedFiles: ["Haru.moc3", "textures/0.png"],
+      lipSyncIds: ["ParamMouthOpenY"],
+      expressions: {},
+      motions: {},
+    },
+    checked: 2,
+    available,
+    issues:
+      available === 2
+        ? []
+        : [{ path: "textures/0.png", reason: "HTTP 404" }],
+  };
+}
+
+it("connects an explicitly installed runtime only after local asset preflight", async () => {
+  vi.mocked(verifyLocalModelResources).mockResolvedValue(modelAudit(2));
+  const adapter = {
+    load: vi.fn(async () => {}),
+    setExpression: vi.fn(),
+    setMotion: vi.fn(),
+    setLipSync: vi.fn(),
+    dispose: vi.fn(),
+  };
+  const loadAdapter = vi.fn(async () => adapter);
+  const bridge = new AvatarMotionBridge();
+  const user = userEvent.setup();
+  render(<AvatarInspector bridge={bridge} loadAdapter={loadAdapter} />);
+  const connect = screen.getByRole("button", {
+    name: "로컬 Cubism 어댑터 연결",
+  }) as HTMLButtonElement;
+  expect(connect.disabled).toBe(true);
+  await user.type(
+    screen.getByLabelText("로컬 모델 export 경로 점검"),
+    "/avatar-local/Haru/Haru.model3.json",
+  );
+  await user.click(screen.getByRole("button", { name: "참조 파일 접근 검사" }));
+  expect((await screen.findByText(/참조 파일 HEAD 확인: 2\/2개/))).toBeTruthy();
+  await waitFor(() => expect(connect.disabled).toBe(false));
+  await user.click(connect);
+  expect(await screen.findByText(/로컬 어댑터 초기화 완료/)).toBeTruthy();
+  expect(loadAdapter).toHaveBeenCalledWith(
+    screen.getByRole("img", { name: "Live2D 로컬 캔버스" }),
+  );
+  expect(bridge.ready).toBe(true);
+  bridge.onAudioLevel(0.4);
+  expect(adapter.setLipSync).toHaveBeenLastCalledWith(0.4);
+  cleanup();
+  expect(bridge.ready).toBe(false);
+  expect(adapter.dispose).toHaveBeenCalledOnce();
+});
+
+it("refuses SDK activation when even one referenced resource fails HEAD", async () => {
+  vi.mocked(verifyLocalModelResources).mockResolvedValue(modelAudit(1));
+  const loadAdapter = vi.fn();
+  const user = userEvent.setup();
+  render(
+    <AvatarInspector
+      bridge={new AvatarMotionBridge()}
+      loadAdapter={loadAdapter}
+    />,
+  );
+  await user.type(
+    screen.getByLabelText("로컬 모델 export 경로 점검"),
+    "/avatar-local/Haru/Haru.model3.json",
+  );
+  await user.click(screen.getByRole("button", { name: "참조 파일 접근 검사" }));
+  expect(await screen.findByText(/참조 파일 HEAD 확인: 1\/2개/)).toBeTruthy();
+  expect(
+    (
+      screen.getByRole("button", {
+        name: "로컬 Cubism 어댑터 연결",
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(true);
+  expect(loadAdapter).not.toHaveBeenCalled();
+});
+
+it("reports missing private SDK runtime rather than claiming a rendered avatar", async () => {
+  vi.mocked(verifyLocalModelResources).mockResolvedValue(modelAudit(2));
+  const bridge = new AvatarMotionBridge();
+  const user = userEvent.setup();
+  render(
+    <AvatarInspector
+      bridge={bridge}
+      loadAdapter={async () => {
+        throw new Error("Cubism SDK not installed");
+      }}
+    />,
+  );
+  await user.type(
+    screen.getByLabelText("로컬 모델 export 경로 점검"),
+    "/avatar-local/Haru/Haru.model3.json",
+  );
+  await user.click(screen.getByRole("button", { name: "참조 파일 접근 검사" }));
+  await waitFor(() =>
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "로컬 Cubism 어댑터 연결",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false),
+  );
+  await user.click(
+    screen.getByRole("button", { name: "로컬 Cubism 어댑터 연결" }),
+  );
+  expect((await screen.findByRole("alert")).textContent).toContain(
+    "Cubism SDK not installed",
+  );
+  expect(bridge.ready).toBe(false);
 });
