@@ -102,3 +102,13 @@
 - **PR 코드 SHA `31a049b24e6255dc6072376867c37e46c335e1a2`에서 검증**: [Web frontend CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/41551784582) **성공** — Prettier·ESLint·TypeScript/Vite 빌드, Vitest **47 passed (10 files)**, Chromium 합성 마이크/STT/TTS E2E, GitHub Windows 운영 Gateway smoke. `web-dist` artifact **82,376 bytes** (ID `13193715673`) 생성 확인.
 - [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/41551784460) **성공** — Ruff 검사 및 wheel, Windows/Linux × Python 3.11·3.13, Linux 3.11에서 **64 passed, upstream 경고 1건**. `gateway-wheel` artifact **18,194 bytes** (ID `13191697569`) 생성 확인.
 - **미완료/외부 전제:** 공식 Cubism Web SDK/Core와 사용자 사용권이 확인된 캐릭터 및 실제 WebGL 렌더러 어댑터가 없으므로 아바타가 화면에 나타나거나 움직인다는 증거는 없다. Windows CI는 GitHub 호스팅 테스트 환경이며 사용자 PC의 실제 Ollama·whisper.cpp·MeloTTS·마이크·스피커 검증이 아니다. 실제 품질·지연·장시간 안정성도 미검증이다.
+
+
+## 2026-11-04 모델별 표정·모션 연결 및 수동 호출 시험
+
+- [PR #7](https://github.com/yuilyoung/My_own_AI_assistant/pull/7)을 CI 검증 후 squash 병합했다. 기능 병합 커밋: [1323095](https://github.com/yuilyoung/My_own_AI_assistant/commit/13230957b13a0144584079fb2ed6156ced8cccba).
+- 기존 UI는 로컬 어댑터를 항상 빈 매핑 `{}`으로 부착하므로 실제 export의 표정/모션 그룹을 의미별로 지정할 수 없었다. 이제 모델 JSON과 동일 출처 HEAD 접근 검사를 통과하면, React에서 **중립·기쁨·걱정·놀람 / 대기·끄덕임·인사**를 실제 모델 이름에 명시적으로 연결할 수 있다. 모델에 없는 이름은 선택할 수 없다. 초기 설정은 모두 미연결이다.
+- 로컬 어댑터가 성공적으로 부착되었을 때만 표시되는 테스트 버튼이 `AvatarMotionBridge.setExpression/setMotion`을 호출한다. 매핑을 바꾸면 기존 어댑터를 폐기하고 다시 연결하도록 한다. 이 동작은 모의 어댑터 기반 컴포넌트/React 테스트로 검증했으며 **공식 Cubism Core/Framework 또는 실제 모델을 포함하지 않는다.**
+- **PR 코드 SHA `7595fe39809d31cf4300c760df65afca138bb046`의 검증:** [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/41746757438) 성공 — Prettier, ESLint, TypeScript, Vite build, Vitest **50 passed (11 files)**, Chromium 합성 음성 E2E, Windows demo Gateway smoke. `web-dist` artifact ID `13283698229` (**83,067 bytes**) 생성 확인.
+- [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/41746757431) 성공 — Ruff, wheel 및 Windows/Linux × Python 3.11/3.13 매트릭스, Linux Python 3.11 기준 **64 passed, 1 warning**. `gateway-wheel` artifact ID `13283777562` (**18,194 bytes**) 생성 확인. 검증은 PR head SHA 기준이며 병합 뒤 main의 상태와 구분한다.
+- **여전히 미완료:** 공식 Cubism SDK/Core 및 사용권을 확인한 캐릭터 export를 이용한 실제 WebGL 렌더러, 화면 속 표정·모션·RMS 입모양의 육안 동작 확인; 사용자 Windows PC의 Ollama·whisper.cpp·MeloTTS·마이크·스피커 통합과 한국어 품질·지연·장시간 안정성. GitHub의 Windows runner에서 통과한 demo 테스트를 사용자 실기기 검증으로 간주하지 않는다.
