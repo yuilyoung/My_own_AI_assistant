@@ -3,7 +3,8 @@ import type { FormEvent } from "react";
 import { inspectLocalModel3 } from "./model3";
 import { verifyLocalModelResources, type AssetAudit } from "./model-assets";
 import type { AvatarAdapter } from "./avatar";
-import type { AvatarMotionBridge } from "./avatar-motion";
+import type { AvatarMotionBridge, AvatarBindings } from "./avatar-motion";
+import { AvatarBindingEditor } from "./AvatarBindingEditor";
 import { loadLocalCubismAdapter } from "./licensed-avatar";
 
 /** Preflight only. The official Cubism SDK/Core must be installed separately. */
@@ -19,6 +20,7 @@ export function AvatarInspector({
   const [resources, setResources] = useState<AssetAudit | null>(null);
   const [error, setError] = useState("");
   const [runtimeStatus, setRuntimeStatus] = useState("");
+  const [bindings, setBindings] = useState<AvatarBindings>({});
   const canvas = useRef<HTMLCanvasElement | null>(null);
   const [busy, setBusy] = useState(false);
   const pending = useRef<AbortController | null>(null);
@@ -39,6 +41,7 @@ export function AvatarInspector({
     setResult("");
     setResources(null);
     setRuntimeStatus("");
+    setBindings({});
     bridge?.detach();
     try {
       const manifest = await inspectLocalModel3(path.trim(), location.origin);
@@ -62,6 +65,7 @@ export function AvatarInspector({
     setError("");
     setResources(null);
     setRuntimeStatus("");
+    setBindings({});
     bridge?.detach();
     const controller = new AbortController();
     pending.current = controller;
@@ -106,7 +110,7 @@ export function AvatarInspector({
         adapter,
         path.trim(),
         audit.manifest,
-        {},
+        bindings,
       );
       if (controller.signal.aborted) {
         bridge.detach();
@@ -142,6 +146,7 @@ export function AvatarInspector({
           setResources(null);
           setError("");
           setRuntimeStatus("");
+          setBindings({});
           bridge?.detach();
         }}
         disabled={busy}
@@ -179,6 +184,35 @@ export function AvatarInspector({
       )}
       {bridge && (
         <>
+          {resources && resources.available === resources.checked && (
+            <AvatarBindingEditor
+              manifest={resources.manifest}
+              bindings={bindings}
+              disabled={busy}
+              ready={bridge.ready && !!runtimeStatus}
+              onChange={(next) => {
+                bridge.detach();
+                setRuntimeStatus("");
+                setBindings(next);
+              }}
+              onExpression={(cue) => {
+                try {
+                  if (!bridge.setExpression(cue))
+                    setError("선택한 표정을 재생할 수 없습니다.");
+                } catch (reason) {
+                  setError(String(reason));
+                }
+              }}
+              onMotion={(cue) => {
+                try {
+                  if (!bridge.setMotion(cue))
+                    setError("선택한 모션을 재생할 수 없습니다.");
+                } catch (reason) {
+                  setError(String(reason));
+                }
+              }}
+            />
+          )}
           <button
             type="button"
             disabled={
