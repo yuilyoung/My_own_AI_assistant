@@ -229,3 +229,47 @@ it("reports missing private SDK runtime rather than claiming a rendered avatar",
   );
   expect(bridge.ready).toBe(false);
 });
+
+it("forwards explicitly mapped preview cues to the licensed adapter", async () => {
+  const audit = modelAudit(2);
+  audit.manifest.expressions = { F01: "expressions/F01.exp3.json" };
+  audit.manifest.motions = { Idle: ["motions/idle.motion3.json"] };
+  vi.mocked(verifyLocalModelResources).mockResolvedValue(audit);
+  const adapter = {
+    load: vi.fn(async () => {}),
+    setExpression: vi.fn(),
+    setMotion: vi.fn(),
+    setLipSync: vi.fn(),
+    dispose: vi.fn(),
+  };
+  const bridge = new AvatarMotionBridge();
+  const user = userEvent.setup();
+  render(<AvatarInspector bridge={bridge} loadAdapter={async () => adapter} />);
+  await user.type(
+    screen.getByLabelText("로컬 모델 export 경로 점검"),
+    "/avatar-local/Haru/Haru.model3.json",
+  );
+  await user.click(screen.getByRole("button", { name: "참조 파일 접근 검사" }));
+  await screen.findByText(/참조 파일 HEAD 확인: 2\/2개/);
+  await user.selectOptions(screen.getByLabelText("표정: 기쁨"), "F01");
+  await user.selectOptions(screen.getByLabelText("모션: 대기"), "Idle");
+  await user.click(
+    screen.getByRole("button", { name: "로컬 Cubism 어댑터 연결" }),
+  );
+  expect(await screen.findByText(/로컬 어댑터 초기화 완료/)).toBeTruthy();
+  await user.click(screen.getByRole("button", { name: "표정 테스트: 기쁨" }));
+  await user.click(screen.getByRole("button", { name: "모션 테스트: 대기" }));
+  expect(adapter.setExpression).toHaveBeenCalledExactlyOnceWith("F01");
+  expect(adapter.setMotion).toHaveBeenCalledExactlyOnceWith("Idle");
+
+  await user.selectOptions(screen.getByLabelText("표정: 기쁨"), "");
+  expect(bridge.ready).toBe(false);
+  expect(adapter.dispose).toHaveBeenCalledOnce();
+  expect(
+    (
+      screen.getByRole("button", {
+        name: "로컬 Cubism 어댑터 연결",
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(false);
+});

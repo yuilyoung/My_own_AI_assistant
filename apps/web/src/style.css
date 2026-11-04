@@ -48,6 +48,7 @@ nav,
 }
 button,
 input,
+select,
 textarea {
   font: inherit;
   border-radius: 10px;
@@ -70,11 +71,13 @@ button:disabled {
 }
 button:focus-visible,
 input:focus-visible,
+select:focus-visible,
 textarea:focus-visible {
   outline: 2px solid #8bb6fb;
   outline-offset: 3px;
 }
 input,
+select,
 textarea {
   background: #10192b;
   color: inherit;
@@ -130,6 +133,18 @@ label {
   margin-top: 8px;
   color: #9db7df;
   font-size: 11px;
+}
+.avatar-bindings {
+  border-top: 1px solid #33415c;
+  margin-top: 16px;
+  padding-top: 12px;
+}
+.avatar-binding-row {
+  margin-top: 10px;
+}
+.avatar-binding-row button {
+  margin-top: 5px;
+  font-size: 12px;
 }
 .avatar-canvas {
   display: block;

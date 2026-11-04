@@ -39,6 +39,12 @@ React의 **모델 JSON 검사**는 이제 이 매핑에 필요한 표정 이름�
 공식 SDK 다운로드: https://www.live2d.com/en/sdk/download/web/ . 다운로드 시 공식 Proprietary/Open Software License Agreement를 직접 확인해야 한다. Cubism Core는 GitHub에 포함되지 않고 공식 SDK 다운로드 패키지에 동봉된다: https://docs.live2d.com/en/cubism-sdk-manual/cubism-core/ . SDK/모델 파일은 로컬 비공개 경로에 보관하고, 별도 허가 없이 GitHub에 푸시하지 않는다. 공식 SDK/Core/모델의 실제 버전·사용 조건을 확정한 후, 해당 버전의 샘플 API로 렌더러를 구현하고 Windows 실기기에서 검증한다.
 
 
+## 2026-11-04: 모델별 의미 매핑 및 수동 동작 시험
+
+참조 자산 HEAD 검사를 통과한 다음 React 아바타 패널에서 실제 `.model3.json`에 기록된 표정 이름과 비어 있지 않은 모션 그룹을 선택할 수 있다. 매핑의 기본값은 미연결이며, 사용자가 선택한 `neutral/happy/concerned/surprised`, `idle/nod/greeting`만 `AvatarMotionBridge.attach()`로 전달된다. 기존 연결 중 매핑을 바꾸면 먼저 렌더러를 정리하므로 새 설정을 적용하려면 재연결해야 한다. SDK 어댑터가 부착된 뒤에만 수동 표정·모션 테스트 버튼이 나타난다.
+
+이 기능은 애니메이션 이름을 정확하게 전달하기 위한 **UI/계약 검증 경로**이다. SDK, 캐릭터, 실제 WebGL/표정/모션 시각적 검증을 대체하지 않는다.
+
 ## 2026-11-03: 비공개 Cubism 어댑터 연결 진입점
 
 `apps/web/src/licensed-avatar.ts`에서 별도 설치한 ES 모듈 `/avatar-local/runtime/adapter.js`의 `createAvatarAdapter(canvas)`를 **사용자 버튼 클릭 시에만** 가져오는 진입점을 제공한다. 디스크 경로는 `apps/web/public/avatar-local/runtime/adapter.js`이며 `.gitignore`에 의해 Git 커밋에서 제외된다. React의 **참조 파일 접근 검사**에서 모든 참조 자산이 접근 가능해야 **로컬 Cubism 어댑터 연결** 버튼이 활성화된다. 모델 JSON·HEAD 검사 자체는 이 모듈을 실행하지 않는다.
