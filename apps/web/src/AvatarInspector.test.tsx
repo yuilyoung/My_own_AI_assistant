@@ -266,8 +266,10 @@ it("forwards explicitly mapped preview cues to the licensed adapter", async () =
   expect(bridge.ready).toBe(false);
   expect(adapter.dispose).toHaveBeenCalledOnce();
   expect(
-    (screen.getByRole("button", {
-      name: "로컬 Cubism 어댑터 연결",
-    }) as HTMLButtonElement).disabled,
+    (
+      screen.getByRole("button", {
+        name: "로컬 Cubism 어댑터 연결",
+      }) as HTMLButtonElement
+    ).disabled,
   ).toBe(false);
 });

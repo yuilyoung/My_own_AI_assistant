@@ -1,12 +1,13 @@
 import type { AvatarBindings, ExpressionCue, MotionCue } from "./avatar-motion";
 import type { CubismModel3 } from "./model3";
 
-export const expressionCues: readonly { cue: ExpressionCue; label: string }[] = [
-  { cue: "neutral", label: "중립" },
-  { cue: "happy", label: "기쁨" },
-  { cue: "concerned", label: "걱정" },
-  { cue: "surprised", label: "놀람" },
-];
+export const expressionCues: readonly { cue: ExpressionCue; label: string }[] =
+  [
+    { cue: "neutral", label: "중립" },
+    { cue: "happy", label: "기쁨" },
+    { cue: "concerned", label: "걱정" },
+    { cue: "surprised", label: "놀람" },
+  ];
 export const motionCues: readonly { cue: MotionCue; label: string }[] = [
   { cue: "idle", label: "대기" },
   { cue: "nod", label: "끄덕임" },
@@ -60,10 +61,16 @@ export function AvatarBindingEditor({
             onChange={(e) => changeExpression(cue, e.target.value)}
           >
             <option value="">연결 안 함</option>
-            {expressions.map((name) => <option key={name} value={name}>{name}</option>)}
+            {expressions.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
           </select>
           {ready && bindings.expressions?.[cue] && (
-            <button type="button" onClick={() => onExpression(cue)}>표정 테스트: {label}</button>
+            <button type="button" onClick={() => onExpression(cue)}>
+              표정 테스트: {label}
+            </button>
           )}
         </div>
       ))}
@@ -77,10 +84,16 @@ export function AvatarBindingEditor({
             onChange={(e) => changeMotion(cue, e.target.value)}
           >
             <option value="">연결 안 함</option>
-            {motions.map((name) => <option key={name} value={name}>{name}</option>)}
+            {motions.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
           </select>
           {ready && bindings.motions?.[cue] && (
-            <button type="button" onClick={() => onMotion(cue)}>모션 테스트: {label}</button>
+            <button type="button" onClick={() => onMotion(cue)}>
+              모션 테스트: {label}
+            </button>
           )}
         </div>
       ))}
