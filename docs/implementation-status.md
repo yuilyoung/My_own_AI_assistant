@@ -1,6 +1,6 @@
 # 구현·검증 상태 — React 음성·기억 통합
 
-최종 작업 확인일: 2026-11-02 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+최종 작업 확인일: 2026-11-05 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
 
 ## 현재 구현
 
@@ -17,7 +17,7 @@
 
 기본 실행은 **demo 고정 응답 / TTS none / STT none**이다. UI는 이를 실제 AI 대화로 표시하지 않는다. API 버전은 0.2.0을 유지하며 이번 작업은 React 통합이다.
 
-## 검증
+## 초기 React 통합 검증 (2026-10-31 당시 기록)
 
 | 검사 | 결과 |
 |---|---|
@@ -112,3 +112,12 @@
 - **PR 코드 SHA `7595fe39809d31cf4300c760df65afca138bb046`의 검증:** [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/41746757438) 성공 — Prettier, ESLint, TypeScript, Vite build, Vitest **50 passed (11 files)**, Chromium 합성 음성 E2E, Windows demo Gateway smoke. `web-dist` artifact ID `13283698229` (**83,067 bytes**) 생성 확인.
 - [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/41746757431) 성공 — Ruff, wheel 및 Windows/Linux × Python 3.11/3.13 매트릭스, Linux Python 3.11 기준 **64 passed, 1 warning**. `gateway-wheel` artifact ID `13283777562` (**18,194 bytes**) 생성 확인. 검증은 PR head SHA 기준이며 병합 뒤 main의 상태와 구분한다.
 - **여전히 미완료:** 공식 Cubism SDK/Core 및 사용권을 확인한 캐릭터 export를 이용한 실제 WebGL 렌더러, 화면 속 표정·모션·RMS 입모양의 육안 동작 확인; 사용자 Windows PC의 Ollama·whisper.cpp·MeloTTS·마이크·스피커 통합과 한국어 품질·지연·장시간 안정성. GitHub의 Windows runner에서 통과한 demo 테스트를 사용자 실기기 검증으로 간주하지 않는다.
+
+## 2026-11-05 로컬 SDK 비동기 로딩 취소·정리 (PR 코드 CI 검증 완료)
+
+- `AvatarMotionBridge.attach`는 `AbortSignal`을 어댑터 `load`에 전달한다. 이전 연결 해제 시 초기화 중단을 요청하고, 늦은 로딩 성공·취소 오류가 준비 완료 상태를 다시 활성화하지 않도록 한다.
+- 모델 메타데이터의 표정/모션 이름 검증이 실패해도 전달된 어댑터를 정리하며, 로컬 런타임 팩토리가 불완전한 객체를 반환하면 사용 가능한 `dispose`로 부분 생성 리소스를 정리한다.
+- 신규 모의 단위 테스트는 비동기 취소·취소 후 오류·부정확한 계약 정리 경로를 검사한다. 실제 WebGL, 공식 SDK/Core, 캐릭터, 사용자 PC 음성 장치는 이번 변경에서도 미검증이다.
+- **PR 코드 SHA [`cf59b91`](https://github.com/yuilyoung/My_own_AI_assistant/commit/cf59b91dbfcad78be8f10310ee736b4c8f9a616b) 기준 검증**: [Web frontend CI #153](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/41940995781) **성공** — Prettier, ESLint, TypeScript/Vite 운영 빌드, Vitest/React **52 passed (11 files)**, Chromium 합성 STT/TTS E2E, GitHub Actions Windows demo Gateway smoke. `web-dist` artifact ID `13376138388` (**83,139 bytes**), 생성 확인.
+- [Local engine tests #213](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/41940995547) **성공** — Ruff, wheel 패키지, Windows/Linux × Python 3.11/3.13 전체 검사. Python **64 passed**, Starlette/AnyIO 관련 upstream 경고 1건. `gateway-wheel` artifact ID `13376692263` (**18,194 bytes**), 생성 확인.
+- 위 자동화는 모의 SDK/합성 음성/demo 기준이며 공식 Cubism Core의 WebGL 출력이나 사용자 소유 Windows PC의 로컬 LLM/STT/TTS·마이크·스피커를 검증하지 않는다. 이후 문서 전용 커밋은 별도 SHA이므로 검증 범위를 구분한다.

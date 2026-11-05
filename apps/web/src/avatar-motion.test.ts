@@ -16,9 +16,11 @@ function manifest(withLipSync = true): CubismModel3 {
   };
 }
 
-function fakeAdapter(load: () => Promise<void> = async () => {}) {
+function fakeAdapter(
+  load?: (modelUrl: string, signal?: AbortSignal) => Promise<void>,
+) {
   const adapter: AvatarAdapter = {
-    load: vi.fn(load),
+    load: vi.fn(load ?? (async () => {})),
     setExpression: vi.fn(),
     setMotion: vi.fn(),
     setLipSync: vi.fn(),
@@ -37,6 +39,7 @@ describe("licensed SDK boundary and audio-to-avatar bridge", () => {
       }),
     ).rejects.toThrow(/표정 매핑/);
     expect(adapter.load).not.toHaveBeenCalled();
+    expect(adapter.dispose).toHaveBeenCalledOnce();
     expect(bridge.ready).toBe(false);
     expect(() =>
       validateAvatarBindings(manifest(), { motions: { nod: "Empty" } }),
@@ -57,7 +60,10 @@ describe("licensed SDK boundary and audio-to-avatar bridge", () => {
         motions: { idle: "Idle" },
       }),
     ).toBe(true);
-    expect(adapter.load).toHaveBeenCalledWith(MODEL_URL);
+    expect(adapter.load).toHaveBeenCalledWith(
+      MODEL_URL,
+      expect.any(AbortSignal),
+    );
     expect(bridge.ready).toBe(true);
     expect(bridge.lipSyncEnabled).toBe(true);
     bridge.onAudioLevel(0.4);
@@ -105,12 +111,33 @@ describe("licensed SDK boundary and audio-to-avatar bridge", () => {
     const adapter = fakeAdapter(() => loading);
     const bridge = new AvatarMotionBridge();
     const attached = bridge.attach(adapter, MODEL_URL, manifest(), {});
+    const signal = vi.mocked(adapter.load).mock.calls[0][1];
     bridge.detach();
+    expect(signal?.aborted).toBe(true);
     finish();
     expect(await attached).toBe(false);
     expect(bridge.ready).toBe(false);
     expect(adapter.dispose).toHaveBeenCalledOnce();
     expect(adapter.setLipSync).not.toHaveBeenCalled();
+  });
+
+  it("treats a canceled asynchronous SDK rejection as a stale load", async () => {
+    const adapter = fakeAdapter(
+      async (_modelUrl, signal) =>
+        new Promise<void>((_resolve, reject) => {
+          signal?.addEventListener(
+            "abort",
+            () => reject(new Error("SDK initialization canceled")),
+            { once: true },
+          );
+        }),
+    );
+    const bridge = new AvatarMotionBridge();
+    const attaching = bridge.attach(adapter, MODEL_URL, manifest(), {});
+    bridge.detach();
+    await expect(attaching).resolves.toBe(false);
+    expect(bridge.ready).toBe(false);
+    expect(adapter.dispose).toHaveBeenCalledOnce();
   });
 
   it("disposes failed SDK loads", async () => {

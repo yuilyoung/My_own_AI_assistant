@@ -1,6 +1,7 @@
 export type AvatarState = "unavailable" | "loading" | "ready" | "error";
 export type AvatarAdapter = {
-  load(modelUrl: string): Promise<void>;
+  /** Optional signal lets a licensed renderer cancel pending SDK/model initialization. */
+  load(modelUrl: string, signal?: AbortSignal): Promise<void>;
   setExpression(name: string): void;
   setMotion(name: string): void;
   setLipSync(value: number): void;

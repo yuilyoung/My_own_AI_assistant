@@ -36,6 +36,15 @@ export async function loadLocalCubismAdapter(
     typeof adapter !== "object" ||
     required.some((method) => typeof methods[method] !== "function")
   ) {
+    // A partially initialized runtime may have allocated a WebGL context.
+    // Clean it up if its factory already supplied a usable dispose hook.
+    if (typeof methods.dispose === "function") {
+      try {
+        methods.dispose.call(adapter);
+      } catch {
+        // Keep the contract error; cleanup is best-effort for foreign code.
+      }
+    }
     throw new Error("로컬 Cubism 어댑터의 필수 메서드가 누락됐습니다.");
   }
   return adapter as AvatarAdapter;
