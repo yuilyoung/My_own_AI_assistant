@@ -1,6 +1,6 @@
 # 구현·검증 상태 — React 음성·기억 통합
 
-최종 작업 확인일: 2026-11-02 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+최종 작업 확인일: 2026-11-05 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
 
 ## 현재 구현
 
@@ -112,3 +112,10 @@
 - **PR 코드 SHA `7595fe39809d31cf4300c760df65afca138bb046`의 검증:** [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/41746757438) 성공 — Prettier, ESLint, TypeScript, Vite build, Vitest **50 passed (11 files)**, Chromium 합성 음성 E2E, Windows demo Gateway smoke. `web-dist` artifact ID `13283698229` (**83,067 bytes**) 생성 확인.
 - [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/41746757431) 성공 — Ruff, wheel 및 Windows/Linux × Python 3.11/3.13 매트릭스, Linux Python 3.11 기준 **64 passed, 1 warning**. `gateway-wheel` artifact ID `13283777562` (**18,194 bytes**) 생성 확인. 검증은 PR head SHA 기준이며 병합 뒤 main의 상태와 구분한다.
 - **여전히 미완료:** 공식 Cubism SDK/Core 및 사용권을 확인한 캐릭터 export를 이용한 실제 WebGL 렌더러, 화면 속 표정·모션·RMS 입모양의 육안 동작 확인; 사용자 Windows PC의 Ollama·whisper.cpp·MeloTTS·마이크·스피커 통합과 한국어 품질·지연·장시간 안정성. GitHub의 Windows runner에서 통과한 demo 테스트를 사용자 실기기 검증으로 간주하지 않는다.
+
+## 2026-11-05 로컬 SDK 비동기 로딩 취소·정리 (CI 검증 대기)
+
+- `AvatarMotionBridge.attach`는 `AbortSignal`을 어댑터 `load`에 전달한다. 이전 연결 해제 시 초기화 중단을 요청하고, 늦은 로딩 성공·취소 오류가 준비 완료 상태를 다시 활성화하지 않도록 한다.
+- 모델 메타데이터의 표정/모션 이름 검증이 실패해도 전달된 어댑터를 정리하며, 로컬 런타임 팩토리가 불완전한 객체를 반환하면 사용 가능한 `dispose`로 부분 생성 리소스를 정리한다.
+- 신규 모의 단위 테스트는 비동기 취소·취소 후 오류·부정확한 계약 정리 경로를 검사한다. 실제 WebGL, 공식 SDK/Core, 캐릭터, 사용자 PC 음성 장치는 이번 변경에서도 미검증이다.
+- PR의 GitHub Actions 결과·테스트 수·산출물 생성 여부는 성공 확인 후 별도 기록한다.
