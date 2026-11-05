@@ -15,6 +15,7 @@ type Attached = {
   manifest: CubismModel3;
   bindings: AvatarBindings;
   ready: boolean;
+  controller: AbortController;
 };
 
 const expressionCues: ExpressionCue[] = [
@@ -71,23 +72,34 @@ export class AvatarMotionBridge {
     manifest: CubismModel3,
     bindings: AvatarBindings,
   ): Promise<boolean> {
-    validateAvatarBindings(manifest, bindings);
+    try {
+      validateAvatarBindings(manifest, bindings);
+    } catch (error) {
+      // The bridge owns a supplied adapter even if its manifest is invalid.
+      adapter.dispose();
+      throw error;
+    }
     this.detach();
     const attached: Attached = {
       adapter,
       manifest,
       bindings,
       ready: false,
+      controller: new AbortController(),
     };
     this.attached = attached;
     try {
-      await adapter.load(modelUrl);
-      if (this.attached !== attached) return false;
+      await adapter.load(modelUrl, attached.controller.signal);
+      if (this.attached !== attached || attached.controller.signal.aborted)
+        return false;
       attached.ready = true;
       if (manifest.lipSyncIds.length) adapter.setLipSync(0);
       return true;
     } catch (error) {
+      const cancelled =
+        attached.controller.signal.aborted || this.attached !== attached;
       if (this.attached === attached) this.detach();
+      if (cancelled) return false;
       throw error;
     }
   }
@@ -122,6 +134,8 @@ export class AvatarMotionBridge {
     const current = this.attached;
     this.attached = null;
     if (!current) return;
+    // Ask the runtime to stop loading before destroying WebGL resources.
+    current.controller.abort();
     try {
       if (current.ready && current.manifest.lipSyncIds.length) {
         current.adapter.setLipSync(0);
