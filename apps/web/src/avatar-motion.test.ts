@@ -17,10 +17,10 @@ function manifest(withLipSync = true): CubismModel3 {
 }
 
 function fakeAdapter(
-  load: (modelUrl: string, signal?: AbortSignal) => Promise<void> = async () => {},
+  load?: (modelUrl: string, signal?: AbortSignal) => Promise<void>,
 ) {
   const adapter: AvatarAdapter = {
-    load: vi.fn(load),
+    load: vi.fn(load ?? (async () => {})),
     setExpression: vi.fn(),
     setMotion: vi.fn(),
     setLipSync: vi.fn(),
