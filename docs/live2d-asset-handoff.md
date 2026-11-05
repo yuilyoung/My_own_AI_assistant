@@ -52,3 +52,9 @@ React의 **모델 JSON 검사**는 이제 이 매핑에 필요한 표정 이름�
 모듈은 공식 Cubism Web SDK/Core에 맞춰 사용자가 별도로 제작해야 한다. `createAvatarAdapter(canvas)`가 반환하는 객체에는 `load(modelUrl): Promise<void>`, `setExpression(name): void`, `setMotion(group): void`, `setLipSync(level): void`, `dispose(): void`가 필요하다. `setLipSync` 입력은 0~1이고 실제 파라미터 ID는 모델의 LipSync 그룹에 맞춰야 한다. 표정/모션도 실제 모델 export에 있는 이름에만 매핑한다. UI 언로드/모드 전환 시 브리지를 해제하여 `dispose()`를 호출한다.
 
 **이 연결 지점은 SDK 자체나 범용 Cubism WebGL 렌더러가 아니다.** Core, Framework, 모델, 실제 어댑터 구현은 아직 미제공이다. 로컬 모듈은 브라우저에서 실행되는 신뢰 코드이므로 출처·라이선스를 검증해야 한다. 성공 메시지는 `load()` 완료만 의미하고 WebGL 실제 화면, 립싱크·모션 및 사용자 PC 성능은 수동 검증이 필요하다.
+
+## 2026-11-05: SDK 로딩 취소·부분 초기화 정리
+
+로컬 어댑터의 `load(modelUrl, signal?)` 두 번째 매개변수로 표준 `AbortSignal`을 전달한다. 패널 언로드·모드 전환·기존 모델 교체 시 브리지가 먼저 `abort()`를 호출하고 `dispose()`로 리소스를 정리한다. 이미 취소된 비동기 로드가 늦게 완료되거나 취소 오류를 던져도 현재 모델을 준비 완료로 표시하지 않는다. 지원되는 SDK 로더는 `signal.aborted`를 검사하고 파일 가져오기·텍스처/모델 초기화 과정에서도 가능한 한 조기에 중단해야 한다.
+
+기존 1인자 `load(modelUrl)` 어댑터는 호출 호환성을 유지하지만, AbortSignal을 무시하면 비동기 리소스 생성까지 중단된다는 보장은 없다. 이 경우 로컬 런타임의 `dispose()`와 자체적인 생성 토큰 검사가 반드시 필요하다. 모듈이 잘못된 메서드 집합을 반환하더라도 `dispose`가 있으면 정리를 시도한다. **이는 모의 단위 테스트 대상이며 실제 Cubism Core의 취소·리소스 해제 성공으로 볼 수 없다.**
