@@ -36,6 +36,16 @@ describe("private licensed Cubism adapter entry point", () => {
     ).rejects.toThrow(/필수 메서드/);
   });
 
+  it("disposes a partially constructed adapter when its contract is invalid", async () => {
+    const dispose = vi.fn();
+    await expect(
+      loadLocalCubismAdapter(canvas, async () => ({
+        createAvatarAdapter: () => ({ load: async () => {}, dispose }),
+      })),
+    ).rejects.toThrow(/필수 메서드/);
+    expect(dispose).toHaveBeenCalledOnce();
+  });
+
   it("does not silently substitute a fake renderer for a failed SDK import", async () => {
     await expect(
       loadLocalCubismAdapter(canvas, async () => {
