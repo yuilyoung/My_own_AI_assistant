@@ -39,10 +39,6 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
-      - name: Show exact Prettier changes for local SDK UI
-        run: |
-          npx prettier --write src/AvatarInspector.tsx src/AvatarInspector.test.tsx
-          git diff -- src/AvatarInspector.tsx src/AvatarInspector.test.tsx
       - name: Formatter
         run: npm run format:check
       - name: Lint
