@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { AvatarMotionBridge } from "./avatar-motion";
 import userEvent from "@testing-library/user-event";
 import { AvatarInspector } from "./AvatarInspector";
@@ -164,6 +164,16 @@ it("connects an explicitly installed runtime only after local asset preflight", 
   expect(bridge.ready).toBe(true);
   bridge.onAudioLevel(0.4);
   expect(adapter.setLipSync).toHaveBeenLastCalledWith(0.4);
+  const slider = screen.getByRole("slider", {
+    name: /수동 입모양 테스트 강도/,
+  });
+  fireEvent.change(slider, { target: { value: "0.75" } });
+  expect(adapter.setLipSync).toHaveBeenLastCalledWith(0.75);
+  fireEvent.pointerUp(slider);
+  expect(adapter.setLipSync).toHaveBeenLastCalledWith(0);
+  fireEvent.change(slider, { target: { value: "0.5" } });
+  await user.click(screen.getByRole("button", { name: "입모양 닫기" }));
+  expect(adapter.setLipSync).toHaveBeenLastCalledWith(0);
   cleanup();
   expect(bridge.ready).toBe(false);
   expect(adapter.dispose).toHaveBeenCalledOnce();
@@ -272,4 +282,34 @@ it("forwards explicitly mapped preview cues to the licensed adapter", async () =
       }) as HTMLButtonElement
     ).disabled,
   ).toBe(false);
+});
+
+it("does not enable manual lipsync for a model without LipSync parameters", async () => {
+  const audit = modelAudit(2);
+  audit.manifest.lipSyncIds = [];
+  vi.mocked(verifyLocalModelResources).mockResolvedValue(audit);
+  const adapter = {
+    load: vi.fn(async () => {}),
+    setExpression: vi.fn(),
+    setMotion: vi.fn(),
+    setLipSync: vi.fn(),
+    dispose: vi.fn(),
+  };
+  const user = userEvent.setup();
+  render(
+    <AvatarInspector
+      bridge={new AvatarMotionBridge()}
+      loadAdapter={async () => adapter}
+    />,
+  );
+  await user.type(
+    screen.getByLabelText("로컬 모델 export 경로 점검"),
+    "/avatar-local/Haru/Haru.model3.json",
+  );
+  await user.click(screen.getByRole("button", { name: "참조 파일 접근 검사" }));
+  await screen.findByText(/참조 파일 HEAD 확인: 2\/2개/);
+  await user.click(screen.getByRole("button", { name: "로컬 Cubism 어댑터 연결" }));
+  await screen.findByText(/로컬 어댑터 초기화 완료/);
+  expect(screen.queryByRole("slider", { name: /수동 입모양/ })).toBeNull();
+  expect(adapter.setLipSync).not.toHaveBeenCalled();
 });
