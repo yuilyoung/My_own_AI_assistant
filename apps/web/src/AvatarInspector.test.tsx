@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { AvatarMotionBridge } from "./avatar-motion";
 import userEvent from "@testing-library/user-event";
 import { AvatarInspector } from "./AvatarInspector";
@@ -308,7 +314,9 @@ it("does not enable manual lipsync for a model without LipSync parameters", asyn
   );
   await user.click(screen.getByRole("button", { name: "참조 파일 접근 검사" }));
   await screen.findByText(/참조 파일 HEAD 확인: 2\/2개/);
-  await user.click(screen.getByRole("button", { name: "로컬 Cubism 어댑터 연결" }));
+  await user.click(
+    screen.getByRole("button", { name: "로컬 Cubism 어댑터 연결" }),
+  );
   await screen.findByText(/로컬 어댑터 초기화 완료/);
   expect(screen.queryByRole("slider", { name: /수동 입모양/ })).toBeNull();
   expect(adapter.setLipSync).not.toHaveBeenCalled();
