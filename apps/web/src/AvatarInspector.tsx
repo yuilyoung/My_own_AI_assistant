@@ -37,13 +37,8 @@ function LipSyncTester({ bridge }: { bridge: AvatarMotionBridge }) {
         onKeyUp={reset}
         onBlur={reset}
       />
-      <button type="button" onClick={reset}>
-        입모양 닫기
-      </button>
-      <small>
-        SDK에 수치만 전달합니다. 캐릭터 입모양이 실제 움직였는지는
-        사용자가 화면에서 확인해야 합니다. 음성 재생과 동시에 시험하지 마세요.
-      </small>
+      <button type="button" onClick={reset}>입모양 닫기</button>
+      <small>실제 입모양은 화면에서 확인하세요. 음성 재생 중엔 시험하지 마세요.</small>
     </div>
   );
 }
