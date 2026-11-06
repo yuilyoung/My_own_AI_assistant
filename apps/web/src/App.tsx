@@ -73,7 +73,8 @@ function Workspace({
             어댑터 미설치 시 캐릭터는 렌더링되지 않습니다. 로컬 자산과 SDK를
             준비한 뒤 명시적으로 연결해야 합니다.
           </p>
-          <AvatarInspector bridge={bridge} />
+          {/* A mode switch must also unload private SDK/character state. */}
+          <AvatarInspector key={state.mode} bridge={bridge} />
           <label>
             음성 레벨 <meter min="0" max="1" value={level} />
           </label>

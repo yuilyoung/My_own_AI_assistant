@@ -7,6 +7,46 @@ import type { AvatarMotionBridge, AvatarBindings } from "./avatar-motion";
 import { AvatarBindingEditor } from "./AvatarBindingEditor";
 import { loadLocalCubismAdapter } from "./licensed-avatar";
 
+/** Sends a manual 0–1 test level to an explicitly connected, licensed renderer. */
+function LipSyncTester({ bridge }: { bridge: AvatarMotionBridge }) {
+  const [level, setLevel] = useState(0);
+  const reset = () => {
+    bridge.reset();
+    setLevel(0);
+  };
+  useEffect(() => () => bridge.reset(), [bridge]);
+
+  return (
+    <div className="avatar-lip-test">
+      <label htmlFor="avatar-lip-level">
+        수동 입모양 테스트 강도: {Math.round(level * 100)}%
+      </label>
+      <input
+        id="avatar-lip-level"
+        type="range"
+        min="0"
+        max="1"
+        step="0.05"
+        value={level}
+        onChange={(event) => {
+          const next = Number(event.target.value);
+          setLevel(next);
+          bridge.onAudioLevel(next);
+        }}
+        onPointerUp={reset}
+        onKeyUp={reset}
+        onBlur={reset}
+      />
+      <button type="button" onClick={reset}>
+        입모양 닫기
+      </button>
+      <small>
+        실제 입모양은 화면에서 확인하세요. 음성 재생 중엔 시험하지 마세요.
+      </small>
+    </div>
+  );
+}
+
 /** Preflight only. The official Cubism SDK/Core must be installed separately. */
 export function AvatarInspector({
   bridge,
@@ -231,6 +271,9 @@ export function AvatarInspector({
             aria-label="Live2D 로컬 캔버스"
           />
           {runtimeStatus && <p role="status">{runtimeStatus}</p>}
+          {bridge.ready && !!runtimeStatus && bridge.lipSyncEnabled && (
+            <LipSyncTester bridge={bridge} />
+          )}
         </>
       )}
       {error && (

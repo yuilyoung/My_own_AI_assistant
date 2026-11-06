@@ -44,6 +44,10 @@ it("connects, labels demo, sends reviewed text and clears it on mode change", as
   expect(requests.filter((p) => p.endsWith("/turns"))).toHaveLength(0);
   await user.click(screen.getByRole("button", { name: "전송" }));
   expect(await screen.findByText("테스트 답변")).toBeTruthy();
+  await user.type(
+    screen.getByLabelText("로컬 모델 export 경로 점검"),
+    "/avatar-local/Haru/Haru.model3.json",
+  );
   await user.type(screen.getByLabelText("메시지"), "이전 모드 초안");
   await user.click(screen.getByRole("button", { name: "가상 소개팅" }));
   await waitFor(() =>
@@ -51,6 +55,10 @@ it("connects, labels demo, sends reviewed text and clears it on mode change", as
       "",
     ),
   );
+  expect(
+    (screen.getByLabelText("로컬 모델 export 경로 점검") as HTMLInputElement)
+      .value,
+  ).toBe("");
   expect(screen.queryByText("테스트 답변")).toBeNull();
   expect(screen.queryByLabelText("비서 메모")).toBeNull();
 });
