@@ -2,6 +2,7 @@ import hmac
 import mimetypes
 import re
 from contextlib import asynccontextmanager
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
@@ -27,12 +28,16 @@ class LocalGuard:
             return await self.app(scope, receive, send)
         headers = dict(scope.get("headers", []))
         allowed_hosts = {f"127.0.0.1:{self.s.port}", f"localhost:{self.s.port}"}
+        allowed_origins = {"http://" + h for h in allowed_hosts}
+        if self.s.public_origin:
+            allowed_hosts.add(urlsplit(self.s.public_origin).netloc)
+            allowed_origins.add(self.s.public_origin)
         host = headers.get(b"host", b"").decode("latin1")
         origin = headers.get(b"origin", b"").decode("latin1")
         code = None
         if host not in allowed_hosts:
             code = 400
-        elif origin and origin not in {"http://" + h for h in allowed_hosts}:
+        elif origin and origin not in allowed_origins:
             code = 403
         elif scope["path"].startswith("/api/"):
             supplied = headers.get(b"authorization", b"")

@@ -1,0 +1,10 @@
+.git
+.venv
+.local-data
+.env
+.env.*
+**/node_modules
+**/dist
+**/__pycache__
+apps/web/public/avatar-local
+apps/web/public/avatar-runtime

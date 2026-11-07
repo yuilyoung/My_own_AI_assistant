@@ -36,6 +36,8 @@ def default_web_dir() -> Path:
 class Settings:
     data_dir: Path = field(default_factory=lambda: Path(".local-data"))
     token: str = ""
+    host: str = "127.0.0.1"
+    public_origin: str = ""
     port: int = 8765
     llm: Literal["demo", "ollama"] = "demo"
     tts: Literal["none", "melo"] = "none"
@@ -50,6 +52,25 @@ class Settings:
     web_dir: Path = field(default_factory=default_web_dir)
 
     def __post_init__(self):
+        if self.host not in {"127.0.0.1", "0.0.0.0"}:
+            raise ValueError("Unsupported bind address")
+        if self.public_origin:
+            u = urlsplit(self.public_origin)
+            if (
+                u.scheme != "https"
+                or not u.hostname
+                or u.username
+                or u.password
+                or u.path
+                or u.query
+                or u.fragment
+                or u.port not in (None, 443)
+            ):
+                raise ValueError("Public origin must be an HTTPS origin without a path")
+            if len(self.token) < 32:
+                raise ValueError("Public deployment requires an explicit access token")
+        if self.host == "0.0.0.0" and not self.public_origin:
+            raise ValueError("Public binding requires ASSISTANT_PUBLIC_ORIGIN")
         loopback_endpoint(self.ollama_url)
         loopback_endpoint(self.melo_url)
         if self.stt not in {"none", "whisper_cpp"}:
@@ -83,7 +104,9 @@ class Settings:
             else default_web_dir(),
             data_dir=Path(os.getenv("ASSISTANT_DATA_DIR", ".local-data")),
             token=os.getenv("ASSISTANT_TOKEN", ""),
-            port=int(os.getenv("ASSISTANT_PORT", "8765")),
+            host=os.getenv("ASSISTANT_HOST", "127.0.0.1"),
+            public_origin=os.getenv("ASSISTANT_PUBLIC_ORIGIN", ""),
+            port=int(os.getenv("PORT", os.getenv("ASSISTANT_PORT", "8765"))),
             llm=os.getenv("LLM_PROVIDER", "demo"),
             tts=os.getenv("TTS_PROVIDER", "none"),
             stt=os.getenv("STT_PROVIDER", "none"),
