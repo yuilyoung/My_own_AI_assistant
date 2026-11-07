@@ -15,17 +15,21 @@ export class Player {
   stop() {
     ++this.generation;
     cancelAnimationFrame(this.frame);
-    if(this.source) { try { this.source.stop(); } catch {} this.source.disconnect(); this.source=null; }
+    if(this.source) { const source=this.source; this.source=null; source.onended=null; try { source.stop(); } catch {} source.disconnect(); }
     this.finish?.();this.finish=null;this.onLevel(0);
   }
   async play(bytes,isCurrent) {
     this.stop(); const generation=this.generation;
     await this.unlock();
-    const buffer=await this.context.decodeAudioData(bytes);
+    // A mode change or stop may happen before AudioContext.resume() completes.
     if(generation!==this.generation || !isCurrent()) return;
-    const source=this.context.createBufferSource();
-    const analyser=this.context.createAnalyser();analyser.fftSize=512;
-    source.buffer=buffer;source.connect(analyser);analyser.connect(this.context.destination);this.source=source;
+    const context=this.context;
+    if(!context) return;
+    const buffer=await context.decodeAudioData(bytes);
+    if(generation!==this.generation || !isCurrent()) return;
+    const source=context.createBufferSource();
+    const analyser=context.createAnalyser();analyser.fftSize=512;
+    source.buffer=buffer;source.connect(analyser);analyser.connect(context.destination);this.source=source;
     const samples=new Float32Array(analyser.fftSize);
     const render=()=>{
       if(generation!==this.generation || !isCurrent()) { this.stop();return; }
@@ -35,6 +39,7 @@ export class Player {
     await new Promise(resolve=>{
       this.finish=()=>{analyser.disconnect();resolve();};
       source.onended=()=>{
+        source.disconnect();
         if(generation===this.generation) {
           cancelAnimationFrame(this.frame);this.source=null;this.onLevel(0);this.finish?.();this.finish=null;
         }
