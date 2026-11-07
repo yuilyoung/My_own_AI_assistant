@@ -132,9 +132,10 @@
 - 기존 Prettier 실패는 포맷 자동 변경 diff를 임시 CI 진단으로 확인하고 **소스에 반영한 후 진단 단계를 제거**했다. 최종 CI는 다시 엄격한 `prettier --check`로 성공했다.
 - **차단 요인/미검증:** 공식 Cubism SDK/Core, 사용권 확인된 캐릭터 모델 export 및 실제 `adapter.js` 구현이 저장소에 없다. 따라서 WebGL 캐릭터 실제 렌더링·표정·모션·립싱크 육안 확인, 사용자 Windows PC의 Ollama·whisper.cpp·MeloTTS·마이크/스피커 및 30분 안정성은 여전히 미완료다. 다음 우선순위는 해당 자산·런타임 확보 후 실제 모델로 렌더링과 취소/해제 검증, 이어서 Windows 실기기 음성 품질·성능 확인이다.
 
-## 2026-11-07 오디오 재생 수명주기 보강 (CI 검증 전)
+## 2026-11-07 오디오 재생 수명주기 보강 (PR #10 병합, PR CI 통과)
 
 - 진단/React가 공유하는 `apps/diagnostics/player.mjs`에서 `AudioContext.resume()`가 대기하는 동안 사용자가 중지·모드 변경을 수행한 경우, 뒤늦은 unlock 이후 오디오를 디코딩하거나 새 소스를 만들지 않도록 generation/current 검사를 추가했다.
 - 음성 재생이 자연스럽게 끝난 경우 `AudioBufferSourceNode.disconnect()`를 호출해 오디오 노드 연결을 정리한다. 명시적 중지에서는 `onended`를 해제하고 자체 정리하므로 늦은 이벤트가 상태를 건드리지 않는다.
-- Node 회귀 테스트에 *resume 도중 중지*, *재생 종료의 노드 정리 및 입모양 0 복원* 두 시나리오를 추가했다. GitHub Actions의 `Local engine tests` 워크플로에서 실행될 예정이다. **본 섹션은 CI 실행 전 작성됐으므로 통과 결과를 주장하지 않는다.**
+- Node 회귀 테스트에 *resume 도중 중지*, *재생 종료의 노드 정리 및 입모양 0 복원* 두 시나리오를 추가했다. GitHub Actions의 `Local engine tests` 워크플로에서 Windows/Linux × Python 3.11/3.13 전체 및 Node 테스트가 성공했다.
+- [PR #10](https://github.com/yuilyoung/My_own_AI_assistant/pull/10)을 [6162f93](https://github.com/yuilyoung/My_own_AI_assistant/commit/6162f9368eb0518ec23328534ec0296ddababeef)으로 squash 병합했다. PR head `d79d7affdec00b2a2a095b23efee5f85e2fc7652`의 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42316742803) 성공: frontend(build/formatter/lint/React/Chromium) 및 Windows demo Gateway smoke; `web-dist` 산출물 83,403 bytes (ID `13551700321`). [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42316742786) 성공: Python matrix, Ruff, Node diagnostics 테스트; `gateway-wheel` 산출물 18,201 bytes (ID `13551405808`). **이 결과는 PR head 기준이며 병합 후 main의 별도 검증과 구별한다.**
 - 이번 변경은 음성 재생 lifecycle에 한정되며 공식 Cubism Core/캐릭터/로컬 `adapter.js`와 실제 WebGL 렌더링을 구현하지 않는다. 사용자 Windows PC의 마이크·스피커와 Ollama·whisper.cpp·MeloTTS 실측도 미완료다.
