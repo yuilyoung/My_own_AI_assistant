@@ -83,12 +83,20 @@ export function AvatarInspector({
       event.preventDefault(); // Permit the browser to restore the context.
       pending.current?.abort();
       pending.current = null;
-      bridge.detach();
+      let cleanupFailed = false;
+      try {
+        bridge.detach();
+      } catch {
+        // A foreign SDK may throw while deleting already-lost GPU resources.
+        cleanupFailed = true;
+      }
       setBusy(false);
       setContextLost(true);
       setRuntimeStatus("");
       setError(
-        "WebGL 컨텍스트가 손실되었습니다. 복구 후 어댑터를 다시 연결하세요.",
+        cleanupFailed
+          ? "WebGL 컨텍스트가 손실되었고 렌더러 정리에도 실패했습니다. 복구 후 다시 연결하세요."
+          : "WebGL 컨텍스트가 손실되었습니다. 복구 후 어댑터를 다시 연결하세요.",
       );
     };
     const onRestored = () => {
