@@ -63,6 +63,7 @@ export function AvatarInspector({
   const [bindings, setBindings] = useState<AvatarBindings>({});
   const canvas = useRef<HTMLCanvasElement | null>(null);
   const [busy, setBusy] = useState(false);
+  const [contextLost, setContextLost] = useState(false);
   const pending = useRef<AbortController | null>(null);
 
   useEffect(
@@ -72,6 +73,45 @@ export function AvatarInspector({
     },
     [bridge],
   );
+
+  // A lost WebGL context invalidates the private renderer even when its
+  // adapter object still exists. Never send subsequent audio to that object.
+  useEffect(() => {
+    const node = canvas.current;
+    if (!node || !bridge) return;
+    const onLost = (event: Event) => {
+      event.preventDefault(); // Permit the browser to restore the context.
+      pending.current?.abort();
+      pending.current = null;
+      let cleanupFailed = false;
+      try {
+        bridge.detach();
+      } catch {
+        // A foreign SDK may throw while deleting already-lost GPU resources.
+        cleanupFailed = true;
+      }
+      setBusy(false);
+      setContextLost(true);
+      setRuntimeStatus("");
+      setError(
+        cleanupFailed
+          ? "WebGL 컨텍스트가 손실되었고 렌더러 정리에도 실패했습니다. 복구 후 다시 연결하세요."
+          : "WebGL 컨텍스트가 손실되었습니다. 복구 후 어댑터를 다시 연결하세요.",
+      );
+    };
+    const onRestored = () => {
+      setContextLost(false);
+      setError(
+        "WebGL 컨텍스트가 복구되었습니다. 로컬 Cubism 어댑터를 다시 연결하세요.",
+      );
+    };
+    node.addEventListener("webglcontextlost", onLost);
+    node.addEventListener("webglcontextrestored", onRestored);
+    return () => {
+      node.removeEventListener("webglcontextlost", onLost);
+      node.removeEventListener("webglcontextrestored", onRestored);
+    };
+  }, [bridge]);
 
   const inspect = async (event: FormEvent) => {
     event.preventDefault();
@@ -129,6 +169,7 @@ export function AvatarInspector({
     const audit = resources;
     if (
       busy ||
+      contextLost ||
       !bridge ||
       !canvas.current ||
       !audit ||
@@ -256,7 +297,10 @@ export function AvatarInspector({
           <button
             type="button"
             disabled={
-              busy || !resources || resources.available !== resources.checked
+              busy ||
+              contextLost ||
+              !resources ||
+              resources.available !== resources.checked
             }
             onClick={() => void activate()}
           >
