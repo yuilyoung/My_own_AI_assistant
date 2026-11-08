@@ -407,3 +407,41 @@ it("cancels an in-flight adapter factory after WebGL context loss", async () => 
   expect(bridge.ready).toBe(false);
   expect(screen.queryByText(/로컬 어댑터 초기화 완료/)).toBeNull();
 });
+
+
+it("preserves recovery controls if the GPU cleanup throws", async () => {
+  vi.mocked(verifyLocalModelResources).mockResolvedValue(modelAudit(2));
+  const adapter = {
+    load: vi.fn(async () => {}),
+    setExpression: vi.fn(),
+    setMotion: vi.fn(),
+    setLipSync: vi.fn(),
+    dispose: vi.fn(() => {
+      throw new Error("driver lost");
+    }),
+  };
+  const bridge = new AvatarMotionBridge();
+  const user = userEvent.setup();
+  render(<AvatarInspector bridge={bridge} loadAdapter={async () => adapter} />);
+  await user.type(
+    screen.getByLabelText("로컬 모델 export 경로 점검"),
+    "/avatar-local/Haru/Haru.model3.json",
+  );
+  await user.click(screen.getByRole("button", { name: "참조 파일 접근 검사" }));
+  await screen.findByText(/참조 파일 HEAD 확인: 2\/2개/);
+  const connect = screen.getByRole("button", {
+    name: "로컬 Cubism 어댑터 연결",
+  }) as HTMLButtonElement;
+  await user.click(connect);
+  await screen.findByText(/로컬 어댑터 초기화 완료/);
+  const canvas = screen.getByRole("img", {
+    name: "Live2D 로컬 캔버스",
+  });
+  fireEvent(canvas, new Event("webglcontextlost", { cancelable: true }));
+  expect(bridge.ready).toBe(false);
+  expect(adapter.dispose).toHaveBeenCalledOnce();
+  expect(screen.getByRole("alert").textContent).toContain("정리에도 실패");
+  expect(connect.disabled).toBe(true);
+  fireEvent(canvas, new Event("webglcontextrestored"));
+  expect(connect.disabled).toBe(false);
+});
