@@ -322,7 +322,6 @@ it("does not enable manual lipsync for a model without LipSync parameters", asyn
   expect(adapter.setLipSync).not.toHaveBeenCalled();
 });
 
-
 it("detaches a licensed adapter when WebGL is lost and waits for restoration", async () => {
   vi.mocked(verifyLocalModelResources).mockResolvedValue(modelAudit(2));
   const adapter = {
@@ -407,7 +406,6 @@ it("cancels an in-flight adapter factory after WebGL context loss", async () => 
   expect(bridge.ready).toBe(false);
   expect(screen.queryByText(/로컬 어댑터 초기화 완료/)).toBeNull();
 });
-
 
 it("preserves recovery controls if the GPU cleanup throws", async () => {
   vi.mocked(verifyLocalModelResources).mockResolvedValue(modelAudit(2));
