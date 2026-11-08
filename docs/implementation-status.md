@@ -140,8 +140,10 @@
 - [PR #10](https://github.com/yuilyoung/My_own_AI_assistant/pull/10)을 [6162f93](https://github.com/yuilyoung/My_own_AI_assistant/commit/6162f9368eb0518ec23328534ec0296ddababeef)으로 squash 병합했다. PR head `d79d7affdec00b2a2a095b23efee5f85e2fc7652`의 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42316742803) 성공: frontend(build/formatter/lint/React/Chromium) 및 Windows demo Gateway smoke; `web-dist` 산출물 83,403 bytes (ID `13551700321`). [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42316742786) 성공: Python matrix, Ruff, Node diagnostics 테스트; `gateway-wheel` 산출물 18,201 bytes (ID `13551405808`). **이 결과는 PR head 기준이며 병합 후 main의 별도 검증과 구별한다.**
 - 이번 변경은 음성 재생 lifecycle에 한정되며 공식 Cubism Core/캐릭터/로컬 `adapter.js`와 실제 WebGL 렌더링을 구현하지 않는다. 사용자 Windows PC의 마이크·스피커와 Ollama·whisper.cpp·MeloTTS 실측도 미완료다.
 
-## 2026-11-08 WebGL 컨텍스트 손실 복구 경계 보강 (검증 대기)
+## 2026-11-08 WebGL 컨텍스트 손실 복구 경계 보강 (PR #11 병합·CI 통과)
 
 - React `AvatarInspector`가 `webglcontextlost` 이벤트에 반응하도록 수정했다. 외부 SDK 어댑터를 해제하고 음성 립싱크 전달을 정지하며, 진행 중인 로컬 런타임 팩토리 작업을 취소한다. 손실 상태에서는 재연결 버튼을 비활성화하고 `webglcontextrestored` 이후 사용자 재연결을 요구한다.
-- 모의 SDK 및 브라우저 이벤트 기반 회귀 테스트 2개를 추가했다: 연결된 어댑터 정리·입모양 0 복귀·재연결 게이트와 비동기 팩토리의 지연 응답 폐기. 테스트 성공 여부는 GitHub Actions 결과를 확인한 뒤 별도로 기록한다.
+- 모의 SDK 및 브라우저 이벤트 기반 회귀 테스트 **3개**를 추가했다: 연결된 어댑터 정리·입모양 0 복귀·재연결 게이트, 비동기 팩토리의 지연 응답 폐기, GPU 손실로 외부 `dispose()`가 예외를 던져도 복구 UI 유지. 이는 SDK 실제 WebGL 출력 테스트가 아니다.
+- [PR #11](https://github.com/yuilyoung/My_own_AI_assistant/pull/11)을 **[8ef35aa](https://github.com/yuilyoung/My_own_AI_assistant/commit/8ef35aafa43564da5689c2ff084b0aa4ae1d222f)**로 squash 병합했다. PR head `a52091ee820dd2cb235189871198196b8b4eed4b` 기준 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42430834716) 성공: Prettier, ESLint, TypeScript/Vite 빌드, Vitest **56 passed (11 files)**, Chromium 합성 STT/TTS 브라우저 E2E 및 GitHub 호스팅 Windows Gateway demo smoke. `web-dist` 산출물 **83,648 bytes** (artifact ID `13596943110`)를 생성했다.
+- 같은 PR head 기준 [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42430834784) 성공: Ruff, wheel 및 Windows/Linux × Python 3.11·3.13 매트릭스, Python **64 passed (upstream 경고 1건)**, Node 진단 **23 passed**. `gateway-wheel` 산출물 **18,194 bytes** (artifact ID `13596599153`)를 생성했다. 위 검증 결과는 PR head의 자동 테스트이며 사용자 실기기 검증이나 실제 GPU 강제 손실 검증이 아니다.
 - **남은 차단 요인:** 공식 Cubism SDK/Core·사용권 확인된 캐릭터 모델·실제 `adapter.js`는 여전히 미포함. 실제 WebGL 복원·모델 렌더링·GPU 자원 반환, 사용자 Windows PC의 Ollama/whisper.cpp/MeloTTS·마이크·스피커·30분 안정성은 확인하지 않았다.
