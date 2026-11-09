@@ -44,7 +44,21 @@ export class Player {
           cancelAnimationFrame(this.frame);this.source=null;this.onLevel(0);this.finish?.();this.finish=null;
         }
       };
-      source.start(); render();
+      try {
+        source.start(); render();
+      } catch (error) {
+        // AudioBufferSourceNode.start or the first analyzer callback can fail.
+        // A rejected playback must not retain audio nodes or a pending finish.
+        cancelAnimationFrame(this.frame);
+        source.onended=null;
+        if(this.source===source) this.source=null;
+        try { source.stop(); } catch {}
+        try { source.disconnect(); } catch {}
+        analyser.disconnect();
+        this.finish=null;
+        this.onLevel(0);
+        reject(error);
+      }
     });
   }
   async close() {this.stop();if(this.context)await this.context.close();this.context=null;}
