@@ -2,14 +2,14 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {Player} from '../player.mjs';
 
-function environment(decode=()=>Promise.resolve({}),resume=()=>Promise.resolve()){
+function environment(decode=()=>Promise.resolve({}),resume=()=>Promise.resolve(),start=()=>{}){
  const sources=[]; const levels=[];
  globalThis.requestAnimationFrame=()=>1;globalThis.cancelAnimationFrame=()=>{};
  globalThis.AudioContext=class {
   destination={};
   resume(){return resume();} close(){return Promise.resolve();}
   decodeAudioData(){return decode();}
-  createBufferSource(){const source={connect(){},disconnect(){this.disconnections=(this.disconnections??0)+1;},start(){this.started=true;},stop(){this.onended?.();}};sources.push(source);return source;}
+  createBufferSource(){const source={connect(){},disconnect(){this.disconnections=(this.disconnections??0)+1;},start(){start();this.started=true;},stop(){this.onended?.();}};sources.push(source);return source;}
   createAnalyser(){return {fftSize:512,connect(){},disconnect(){},getFloatTimeDomainData(data){data.fill(.1);}};}
  };
  return {sources,levels,player:new Player(level=>levels.push(level))};
@@ -45,5 +45,21 @@ test('natural audio completion disconnects the audio node and closes the mouth',
  assert.equal(sources[0].disconnections,1);
  assert.equal(levels.at(-1),0);
  assert.equal(player.source,null);
+ await player.close();
+});
+
+test('failed audio source startup releases nodes and allows the next playback',async()=>{
+ let fail=true;
+ const {player,sources,levels}=environment(undefined,undefined,()=>{
+  if(fail) {fail=false;throw new Error('audio output unavailable');}
+ });
+ await assert.rejects(()=>player.play(new ArrayBuffer(4),()=>true),/audio output unavailable/);
+ assert.equal(player.source,null);
+ assert.equal(player.finish,null);
+ assert.equal(sources[0].disconnections,1);
+ assert.equal(levels.at(-1),0);
+ const next=player.play(new ArrayBuffer(4),()=>true);await tick();
+ assert.equal(sources[1].started,true);
+ player.stop();await next;
  await player.close();
 });
