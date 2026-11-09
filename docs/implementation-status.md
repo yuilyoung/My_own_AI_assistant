@@ -1,6 +1,6 @@
 # 구현·검증 상태 — React 음성·기억 통합
 
-최종 작업 확인일: 2026-11-06 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+최종 작업 확인일: 2026-11-09 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
 
 ## 현재 구현
 
@@ -148,8 +148,10 @@
 - 같은 PR head 기준 [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42430834784) 성공: Ruff, wheel 및 Windows/Linux × Python 3.11·3.13 매트릭스, Python **64 passed (upstream 경고 1건)**, Node 진단 **23 passed**. `gateway-wheel` 산출물 **18,194 bytes** (artifact ID `13596599153`)를 생성했다. 위 검증 결과는 PR head의 자동 테스트이며 사용자 실기기 검증이나 실제 GPU 강제 손실 검증이 아니다.
 - **남은 차단 요인:** 공식 Cubism SDK/Core·사용권 확인된 캐릭터 모델·실제 `adapter.js`는 여전히 미포함. 실제 WebGL 복원·모델 렌더링·GPU 자원 반환, 사용자 Windows PC의 Ollama/whisper.cpp/MeloTTS·마이크·스피커·30분 안정성은 확인하지 않았다.
 
-## 2026-11-09 음성 재생 시작 실패 복구 (CI 결과 확인 전)
+## 2026-11-09 음성 재생 시작 실패 복구 (PR #12 병합·PR CI 통과)
 
 - `apps/diagnostics/player.mjs`: `AudioBufferSourceNode.start()` 또는 초기 분석 콜백 예외 시 오디오 소스/분석기 연결과 활성 프레임을 정리하고 입모양 레벨을 0으로 반환한다. 실패는 `play()`의 rejection으로 전파되어 React의 기존 텍스트 유지·오류 표시 경로가 작동하도록 한다.
 - `apps/diagnostics/tests/player.test.mjs`: 첫 시작 실패 뒤 소스가 정리되고 다음 음성 재생이 가능한지 모의 AudioContext로 검증하는 회귀 테스트를 추가했다.
-- 변경 사항의 GitHub Actions 결과는 PR head에서 별도 확인하며, 아래 작업의 실제 Windows 마이크·스피커나 공식 Live2D 렌더링은 여전히 미검증이다.
+- [PR #12](https://github.com/yuilyoung/My_own_AI_assistant/pull/12)를 [4aa0a8d](https://github.com/yuilyoung/My_own_AI_assistant/commit/4aa0a8dbb32654f59e23936194952d3b7a769aee)로 squash 병합했다. PR head SHA `2b58c933bcd8dd8068bad78b986de0edcc812dbf` 기준 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42541109712) **성공**: Prettier, ESLint, TypeScript/Vite 빌드, React/Vitest **56 passed (11 files)**, Chromium 합성 음성 E2E 및 GitHub 호스팅 Windows Gateway demo smoke. `web-dist` artifact **83,704 bytes** (ID `13641472263`) 생성 확인.
+- 같은 PR head 기준 [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42541109741) **성공**: Ruff formatter/lint, Gateway wheel, Windows/Linux × Python 3.11·3.13 전체 매트릭스 통과. Linux 3.11에서 Python **64 passed, upstream 경고 1건**, Node 진단 **24 passed**. `gateway-wheel` artifact **18,194 bytes** (ID `13641770866`) 생성 확인.
+- 이 결과는 CI의 모의 오디오 및 GitHub Windows runner 기준이다. 실제 Windows PC의 AudioContext 시작 실패 재현, Ollama·whisper.cpp·MeloTTS, 실제 마이크·스피커, 30분 안정성과 공식 Cubism WebGL 캐릭터 출력·립싱크는 **아직 미검증**이다.
