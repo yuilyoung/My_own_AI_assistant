@@ -36,7 +36,7 @@ export class Player {
       analyser.getFloatTimeDomainData(samples);this.onLevel(mouthLevel(samples));
       this.frame=requestAnimationFrame(render);
     };
-    await new Promise(resolve=>{
+    await new Promise((resolve,reject)=>{
       this.finish=()=>{analyser.disconnect();resolve();};
       source.onended=()=>{
         source.disconnect();
