@@ -147,3 +147,9 @@
 - [PR #11](https://github.com/yuilyoung/My_own_AI_assistant/pull/11)을 **[8ef35aa](https://github.com/yuilyoung/My_own_AI_assistant/commit/8ef35aafa43564da5689c2ff084b0aa4ae1d222f)**로 squash 병합했다. PR head `a52091ee820dd2cb235189871198196b8b4eed4b` 기준 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42430834716) 성공: Prettier, ESLint, TypeScript/Vite 빌드, Vitest **56 passed (11 files)**, Chromium 합성 STT/TTS 브라우저 E2E 및 GitHub 호스팅 Windows Gateway demo smoke. `web-dist` 산출물 **83,648 bytes** (artifact ID `13596943110`)를 생성했다.
 - 같은 PR head 기준 [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42430834784) 성공: Ruff, wheel 및 Windows/Linux × Python 3.11·3.13 매트릭스, Python **64 passed (upstream 경고 1건)**, Node 진단 **23 passed**. `gateway-wheel` 산출물 **18,194 bytes** (artifact ID `13596599153`)를 생성했다. 위 검증 결과는 PR head의 자동 테스트이며 사용자 실기기 검증이나 실제 GPU 강제 손실 검증이 아니다.
 - **남은 차단 요인:** 공식 Cubism SDK/Core·사용권 확인된 캐릭터 모델·실제 `adapter.js`는 여전히 미포함. 실제 WebGL 복원·모델 렌더링·GPU 자원 반환, 사용자 Windows PC의 Ollama/whisper.cpp/MeloTTS·마이크·스피커·30분 안정성은 확인하지 않았다.
+
+## 2026-11-09 음성 재생 시작 실패 복구 (CI 결과 확인 전)
+
+- `apps/diagnostics/player.mjs`: `AudioBufferSourceNode.start()` 또는 초기 분석 콜백 예외 시 오디오 소스/분석기 연결과 활성 프레임을 정리하고 입모양 레벨을 0으로 반환한다. 실패는 `play()`의 rejection으로 전파되어 React의 기존 텍스트 유지·오류 표시 경로가 작동하도록 한다.
+- `apps/diagnostics/tests/player.test.mjs`: 첫 시작 실패 뒤 소스가 정리되고 다음 음성 재생이 가능한지 모의 AudioContext로 검증하는 회귀 테스트를 추가했다.
+- 변경 사항의 GitHub Actions 결과는 PR head에서 별도 확인하며, 아래 작업의 실제 Windows 마이크·스피커나 공식 Live2D 렌더링은 여전히 미검증이다.
