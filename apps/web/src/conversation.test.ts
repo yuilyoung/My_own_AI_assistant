@@ -29,7 +29,9 @@ function setup() {
   };
   const recorder = {
     cancel: vi.fn(),
-    start: vi.fn(async (_onLimit?: () => void, _onFailure?: (error: Error) => void) => {}),
+    start: vi.fn(
+      async (_onLimit?: () => void, _onFailure?: (error: Error) => void) => {},
+    ),
     finish: vi.fn(async () => new ArrayBuffer(44)),
   };
   const app = new Conversation(client, player, recorder, 0);
