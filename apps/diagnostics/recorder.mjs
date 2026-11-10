@@ -8,7 +8,8 @@ export class MicrophoneRecorder {
     this.capture = null;
   }
   release(capture) {
-    if (!capture) return;
+    if (!capture || capture.released) return;
+    capture.released = true;
     clearTimeout(capture.timer);
     for (const track of capture.tracks ?? []) track.removeEventListener?.('ended', capture.onEnded);
     capture.stream?.getTracks().forEach(track => track.stop());
