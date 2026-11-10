@@ -156,9 +156,12 @@
 - 같은 PR head 기준 [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42541109741) **성공**: Ruff formatter/lint, Gateway wheel, Windows/Linux × Python 3.11·3.13 전체 매트릭스 통과. Linux 3.11에서 Python **64 passed, upstream 경고 1건**, Node 진단 **24 passed**. `gateway-wheel` artifact **18,194 bytes** (ID `13641770866`) 생성 확인.
 - 이 결과는 CI의 모의 오디오 및 GitHub Windows runner 기준이다. 실제 Windows PC의 AudioContext 시작 실패 재현, Ollama·whisper.cpp·MeloTTS, 실제 마이크·스피커, 30분 안정성과 공식 Cubism WebGL 캐릭터 출력·립싱크는 **아직 미검증**이다.
 
-## 2026-11-10 예기치 않은 마이크 장치 종료 복구 (CI 검증 대기)
+## 2026-11-10 예기치 않은 마이크 장치 종료 복구 (PR #13 병합·main CI 통과)
 
 - `apps/diagnostics/recorder.mjs`: 녹음 중 오디오 트랙의 `ended` 이벤트를 구독해 USB 장치 분리·입력 중단·권한 철회 등의 경우 녹음과 오디오 리소스를 해제한다. 정상 중지 시에는 이벤트 핸들러도 제거하며, 취소 후 지연된 `AudioContext.resume()`가 끝나도 AudioWorklet을 다시 시작하지 않도록 검사한다.
 - `apps/diagnostics/voice-input.mjs`: 예기치 않은 마이크 종료를 세션 단위 취소·오류 표시로 연결하며, 이전 세션에 속한 지연 이벤트가 새 녹음을 중단시키지 않도록 generation으로 보호한다.
 - `apps/diagnostics/tests/voice.test.mjs`: 모의 마이크 트랙 종료 후 리소스 반환, UI 상태 복구, 이전 녹음의 뒤늦은 종료 알림 무시, AudioContext 재개 대기 중 취소를 검증하는 Node 회귀 테스트를 추가했다.
-- **검증 경계:** 현재 문서 반영 시점에는 이번 브랜치의 GitHub Actions 결과를 아직 확인하지 않았다. 실제 Windows USB 마이크 분리·OS 권한 변경·한국어 STT/TTS 품질은 미검증이다. 실제 공식 Cubism SDK/Core·사용권 모델·WebGL 출력·립싱크도 여전히 미완료다.
+- [PR #13](https://github.com/yuilyoung/My_own_AI_assistant/pull/13)을 검증 대상 head `42f274cefdbf0023e8bd412f3ea20e5661c09118`에서 자동 테스트 통과 후 [7a5c601](https://github.com/yuilyoung/My_own_AI_assistant/commit/7a5c601281a3c2947947646a7918656bb067d5e5)으로 squash 병합했다. 초기 Node 테스트에서 중복 `track.stop()` 호출을 발견하고 release를 멱등적으로 수정했으며 React Prettier 오류도 정리했다.
+- 병합된 코드 SHA `7a5c601281a3c2947947646a7918656bb067d5e5` 기준 [main Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42731083237) **성공**: Prettier·ESLint·TypeScript/Vite 빌드, Vitest **57 passed (11 files)**, Chromium 합성 음성 E2E, GitHub Windows Gateway demo smoke. `web-dist` artifact **83,926 bytes** (ID `13723973885`) 생성 확인.
+- 같은 병합 SHA 기준 [main Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42731083528) **성공**: Ruff formatter/lint, Gateway wheel, Windows/Linux × Python 3.11·3.13 매트릭스 전부 통과. Linux 3.11에서 Python **64 passed**(upstream 경고 1건) 및 Node 진단 **27 passed**. `gateway-wheel` artifact **18,194 bytes** (ID `13725415591`) 생성 확인.
+- **검증 경계:** 자동화는 모의 `MediaStreamTrack.ended`와 합성 음성·GitHub 호스팅 Windows runner 기준이다. 실제 Windows USB 마이크 분리·OS 권한 변경·한국어 STT/TTS 품질·30분 사용은 미검증이다. 공식 Cubism SDK/Core·사용권 모델·WebGL 출력·립싱크도 여전히 미완료다. 이 문서 전용 후속 커밋은 위 병합 SHA 이후이므로 CI 증거 범위를 구분해야 한다.
