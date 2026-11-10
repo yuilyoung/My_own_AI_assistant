@@ -110,3 +110,71 @@ test('recording uses actual context rate, resamples to PCM16/16k and stops track
  assert.equal(rate,16000);assert.equal(count,1600);assert.equal(wav.byteLength,3244);
  assert(stopped>=1);assert(closed>=1);assert.equal(recorder.capture,null);
 });
+
+test('unexpected microphone track end releases the stream and reports a device error',async()=>{
+ const {MicrophoneRecorder}=await import('../recorder.mjs');
+ let ended,stopped=0,removed=0,closed=0;const failures=[];
+ const track={
+  stop(){stopped++;},
+  addEventListener(type,handler){if(type==='ended')ended=handler;},
+  removeEventListener(type,handler){if(type==='ended'&&handler===ended)removed++;}
+ };
+ class Context {
+  sampleRate=16000;destination={};audioWorklet={addModule:async()=>{}};
+  async resume(){} async close(){closed++;}
+  createMediaStreamSource(){return {connect(){},disconnect(){}};}
+ }
+ class Worklet {
+  port={onmessage:null,postMessage(){}};
+  connect(){} disconnect(){}
+ }
+ const recorder=new MicrophoneRecorder({
+  mediaDevices:{getUserMedia:async()=>({getAudioTracks:()=>[track],getTracks:()=>[track]})},
+  AudioContext:Context,AudioWorkletNode:Worklet,
+ });
+ await recorder.start(()=>{},error=>failures.push(error.message));
+ assert.equal(typeof ended,'function');
+ ended();
+ assert.equal(recorder.capture,null);
+ assert.equal(stopped,1);assert.equal(removed,1);assert.equal(closed,1);
+ assert.match(failures[0],/마이크 연결이 중단/);
+ ended(); // A late device event must not report another failure.
+ assert.equal(failures.length,1);
+});
+
+test('voice session returns to idle after a microphone disconnect; stale events cannot cancel a new session',async()=>{
+ const {VoiceInput}=await loadVoice();
+ const callbacks=[],errors=[];const recorder=fakeRecorder();
+ recorder.start=async(_limit,onFailure)=>{callbacks.push(onFailure);};
+ const voice=new VoiceInput({recorder,request:async()=>null,onError:error=>errors.push(String(error))});
+ await voice.start('old-session');
+ assert.equal(voice.kind,'recording');
+ callbacks[0](new Error('device unplugged'));
+ assert.equal(voice.kind,'idle');
+ assert.equal(recorder.cancelled,true);
+ assert.deepEqual(errors,['Error: device unplugged']);
+ await voice.start('new-session');
+ callbacks[0](new Error('stale error'));
+ assert.equal(voice.kind,'recording');
+ assert.equal(errors.length,1);
+ voice.cancel();
+});
+
+test('cancelled recorder does not load a worklet after its AudioContext resumes late',async()=>{
+ const {MicrophoneRecorder}=await import('../recorder.mjs');
+ const resumed=deferred();let modules=0,stopped=0;
+ class Context {
+  sampleRate=16000;destination={};audioWorklet={addModule:async()=>{modules++;}};
+  resume(){return resumed.promise;}
+  async close(){}
+ }
+ const recorder=new MicrophoneRecorder({
+  mediaDevices:{getUserMedia:async()=>({getTracks:()=>[{stop(){stopped++;}}]})},
+  AudioContext:Context,
+ });
+ const starting=recorder.start();
+ await new Promise(resolve=>setImmediate(resolve));
+ recorder.cancel();resumed.resolve();
+ await assert.rejects(starting,{name:'AbortError'});
+ assert.equal(modules,0);assert.equal(stopped,1);
+});

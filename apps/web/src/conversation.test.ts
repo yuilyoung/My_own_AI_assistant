@@ -29,7 +29,9 @@ function setup() {
   };
   const recorder = {
     cancel: vi.fn(),
-    start: vi.fn(async () => {}),
+    start: vi.fn(
+      async (_onLimit?: () => void, _onFailure?: (error: Error) => void) => {},
+    ),
     finish: vi.fn(async () => new ArrayBuffer(44)),
   };
   const app = new Conversation(client, player, recorder, 0);
@@ -99,6 +101,25 @@ it("puts a transcript in the composer without creating a chat turn", async () =>
   expect(create).not.toHaveBeenCalled();
   expect(app.state.voice).toBe("idle");
 });
+it("resets React voice state and reports a device disconnect without sending a turn", async () => {
+  const { app, client, recorder } = setup();
+  await app.connect();
+  app.state.status!.stt_enabled = true;
+  let onFailure: ((error: Error) => void) | undefined;
+  recorder.start.mockImplementation(async (_onLimit, failure) => {
+    onFailure = failure;
+  });
+  const createTurn = vi.spyOn(client, "createTurn");
+  await app.toggleMicrophone();
+  expect(app.state.voice).toBe("recording");
+  expect(onFailure).toBeDefined();
+  onFailure?.(new Error("마이크 분리"));
+  expect(app.state.voice).toBe("idle");
+  expect(app.state.error).toContain("마이크 분리");
+  expect(recorder.cancel).toHaveBeenCalled();
+  expect(createTurn).not.toHaveBeenCalled();
+});
+
 it("ignores stale memory lists when the mode changes", async () => {
   const { app, client } = setup();
   const old = deferred<unknown>();
