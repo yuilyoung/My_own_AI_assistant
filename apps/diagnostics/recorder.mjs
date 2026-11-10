@@ -10,6 +10,7 @@ export class MicrophoneRecorder {
   release(capture) {
     if (!capture) return;
     clearTimeout(capture.timer);
+    for (const track of capture.tracks ?? []) track.removeEventListener?.('ended', capture.onEnded);
     capture.stream?.getTracks().forEach(track => track.stop());
     try { capture.source?.disconnect(); capture.node?.disconnect(); } catch {}
     if (capture.node) capture.node.port.onmessage = null;
@@ -22,7 +23,7 @@ export class MicrophoneRecorder {
     if (capture) capture.chunks = [];
     this.release(capture);
   }
-  async start(onLimit = () => {}) {
+  async start(onLimit = () => {}, onFailure = () => {}) {
     this.cancel();
     const generation = this.generation;
     const capture = {chunks: [], frames: 0, done: false};
@@ -33,10 +34,21 @@ export class MicrophoneRecorder {
       const stream = await media.getUserMedia({audio: {channelCount: 1, echoCancellation: true, noiseSuppression: true}, video: false});
       if (generation !== this.generation) { stream.getTracks().forEach(track => track.stop()); throw aborted(); }
       capture.stream = stream;
+      const tracks = stream.getAudioTracks?.() ?? stream.getTracks();
+      if (!tracks.length) throw new Error('마이크 오디오 트랙이 없습니다.');
+      capture.tracks = tracks;
+      capture.onEnded = () => {
+        if (generation !== this.generation || this.capture !== capture) return;
+        // A device unplug or permission revocation must not leave the UI recording.
+        this.cancel();
+        onFailure(new Error('마이크 연결이 중단되었습니다. 장치와 권한을 확인하세요.'));
+      };
+      for (const track of tracks) track.addEventListener?.('ended', capture.onEnded);
       const Context = this.deps.AudioContext ?? globalThis.AudioContext;
       capture.context = new Context();
       capture.rate = capture.context.sampleRate;
       await capture.context.resume();
+      if (generation !== this.generation) throw aborted();
       await capture.context.audioWorklet.addModule(new URL('./capture-worklet.mjs', import.meta.url));
       if (generation !== this.generation) throw aborted();
       const Worklet = this.deps.AudioWorkletNode ?? globalThis.AudioWorkletNode;
