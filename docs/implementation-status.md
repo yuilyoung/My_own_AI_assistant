@@ -1,6 +1,6 @@
 # 구현·검증 상태 — React 음성·기억 통합
 
-최종 작업 확인일: 2026-11-09 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+최종 작업 확인일: 2026-11-10 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
 
 ## 현재 구현
 
@@ -155,3 +155,10 @@
 - [PR #12](https://github.com/yuilyoung/My_own_AI_assistant/pull/12)를 [4aa0a8d](https://github.com/yuilyoung/My_own_AI_assistant/commit/4aa0a8dbb32654f59e23936194952d3b7a769aee)로 squash 병합했다. PR head SHA `2b58c933bcd8dd8068bad78b986de0edcc812dbf` 기준 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42541109712) **성공**: Prettier, ESLint, TypeScript/Vite 빌드, React/Vitest **56 passed (11 files)**, Chromium 합성 음성 E2E 및 GitHub 호스팅 Windows Gateway demo smoke. `web-dist` artifact **83,704 bytes** (ID `13641472263`) 생성 확인.
 - 같은 PR head 기준 [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42541109741) **성공**: Ruff formatter/lint, Gateway wheel, Windows/Linux × Python 3.11·3.13 전체 매트릭스 통과. Linux 3.11에서 Python **64 passed, upstream 경고 1건**, Node 진단 **24 passed**. `gateway-wheel` artifact **18,194 bytes** (ID `13641770866`) 생성 확인.
 - 이 결과는 CI의 모의 오디오 및 GitHub Windows runner 기준이다. 실제 Windows PC의 AudioContext 시작 실패 재현, Ollama·whisper.cpp·MeloTTS, 실제 마이크·스피커, 30분 안정성과 공식 Cubism WebGL 캐릭터 출력·립싱크는 **아직 미검증**이다.
+
+## 2026-11-10 예기치 않은 마이크 장치 종료 복구 (CI 검증 대기)
+
+- `apps/diagnostics/recorder.mjs`: 녹음 중 오디오 트랙의 `ended` 이벤트를 구독해 USB 장치 분리·입력 중단·권한 철회 등의 경우 녹음과 오디오 리소스를 해제한다. 정상 중지 시에는 이벤트 핸들러도 제거하며, 취소 후 지연된 `AudioContext.resume()`가 끝나도 AudioWorklet을 다시 시작하지 않도록 검사한다.
+- `apps/diagnostics/voice-input.mjs`: 예기치 않은 마이크 종료를 세션 단위 취소·오류 표시로 연결하며, 이전 세션에 속한 지연 이벤트가 새 녹음을 중단시키지 않도록 generation으로 보호한다.
+- `apps/diagnostics/tests/voice.test.mjs`: 모의 마이크 트랙 종료 후 리소스 반환, UI 상태 복구, 이전 녹음의 뒤늦은 종료 알림 무시, AudioContext 재개 대기 중 취소를 검증하는 Node 회귀 테스트를 추가했다.
+- **검증 경계:** 현재 문서 반영 시점에는 이번 브랜치의 GitHub Actions 결과를 아직 확인하지 않았다. 실제 Windows USB 마이크 분리·OS 권한 변경·한국어 STT/TTS 품질은 미검증이다. 실제 공식 Cubism SDK/Core·사용권 모델·WebGL 출력·립싱크도 여전히 미완료다.
