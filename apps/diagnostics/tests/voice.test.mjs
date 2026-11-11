@@ -178,3 +178,55 @@ test('cancelled recorder does not load a worklet after its AudioContext resumes 
  await assert.rejects(starting,{name:'AbortError'});
  assert.equal(modules,0);assert.equal(stopped,1);
 });
+
+test('AudioWorklet processor crash cancels capture and reports failure only once',async()=>{
+ const {MicrophoneRecorder}=await import('../recorder.mjs');
+ let node,stopped=0,closed=0,removed=0;const failures=[];
+ const track={stop(){stopped++;},addEventListener(){},removeEventListener(){}};
+ class Context {
+  sampleRate=16000;destination={};audioWorklet={addModule:async()=>{}};
+  async resume(){} async close(){closed++;}
+  createMediaStreamSource(){return {connect(){},disconnect(){}};}
+ }
+ class Worklet {
+  constructor(){node=this;this.port={onmessage:null,postMessage(){}};}
+  addEventListener(type,listener){if(type==='processorerror')this.crash=listener;}
+  removeEventListener(type,listener){if(type==='processorerror'&&this.crash===listener)removed++;}
+  connect(){} disconnect(){}
+ }
+ const recorder=new MicrophoneRecorder({
+  mediaDevices:{getUserMedia:async()=>({getAudioTracks:()=>[track],getTracks:()=>[track]})},
+  AudioContext:Context,AudioWorkletNode:Worklet,
+ });
+ await recorder.start(()=>{},error=>failures.push(error.message));
+ const crash=node.crash;assert.equal(typeof crash,'function');
+ crash();
+ assert.equal(recorder.capture,null);assert.equal(stopped,1);assert.equal(closed,1);assert.equal(removed,1);
+ assert.match(failures[0],/오디오 처리기/);
+ crash(); // An event from the disposed worklet must not affect the next capture.
+ assert.equal(failures.length,1);
+});
+
+test('invalid or overlong worklet data aborts capture instead of leaving voice recording',async()=>{
+ const {MicrophoneRecorder}=await import('../recorder.mjs');
+ for(const samples of [new Int16Array([1,2]),new Float32Array(480001)]){
+  let node,stopped=0;const failures=[];
+  class Context {
+   sampleRate=16000;destination={};audioWorklet={addModule:async()=>{}};
+   async resume(){} async close(){}
+   createMediaStreamSource(){return {connect(){},disconnect(){}};}
+  }
+  class Worklet {
+   constructor(){node=this;this.port={onmessage:null,postMessage(){}};}
+   connect(){} disconnect(){}
+  }
+  const recorder=new MicrophoneRecorder({
+   mediaDevices:{getUserMedia:async()=>({getTracks:()=>[{stop(){stopped++;}}]})},
+   AudioContext:Context,AudioWorkletNode:Worklet,
+  });
+  await recorder.start(()=>{},error=>failures.push(error.message));
+  node.port.onmessage({data:{type:'samples',samples}});
+  assert.equal(recorder.capture,null);assert.equal(stopped,1);
+  assert.match(failures[0],/녹음 데이터/);
+ }
+});
