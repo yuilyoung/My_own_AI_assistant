@@ -14,7 +14,10 @@ export class MicrophoneRecorder {
     for (const track of capture.tracks ?? []) track.removeEventListener?.('ended', capture.onEnded);
     capture.stream?.getTracks().forEach(track => track.stop());
     try { capture.source?.disconnect(); capture.node?.disconnect(); } catch {}
-    if (capture.node) capture.node.port.onmessage = null;
+    if (capture.node) {
+      capture.node.removeEventListener?.('processorerror', capture.onProcessorError);
+      capture.node.port.onmessage = null;
+    }
     capture.context?.close().catch(() => {});
   }
   cancel() {
@@ -54,12 +57,21 @@ export class MicrophoneRecorder {
       if (generation !== this.generation) throw aborted();
       const Worklet = this.deps.AudioWorkletNode ?? globalThis.AudioWorkletNode;
       capture.node = new Worklet(capture.context, 'local-pcm-capture', {numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]});
+      capture.onProcessorError = () => {
+        if (generation !== this.generation || this.capture !== capture) return;
+        // A dead AudioWorklet cannot produce a final WAV. Tell the UI to leave recording mode.
+        this.cancel();
+        onFailure(new Error('마이크 오디오 처리기가 중단되었습니다. 다시 녹음하세요.'));
+      };
+      capture.node.addEventListener?.('processorerror', capture.onProcessorError);
       capture.node.port.onmessage = event => {
         if (generation !== this.generation) return;
         if (event.data.type === 'samples') {
           const chunk = event.data.samples;
           if (!(chunk instanceof Float32Array) || capture.frames + chunk.length > capture.rate * 30) {
-            this.cancel(); return;
+            this.cancel();
+            onFailure(new Error('마이크 녹음 데이터가 유효하지 않거나 30초를 초과했습니다. 다시 녹음하세요.'));
+            return;
           }
           capture.chunks.push(chunk); capture.frames += chunk.length;
         } else if (event.data.type === 'done') {
