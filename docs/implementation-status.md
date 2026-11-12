@@ -182,3 +182,12 @@
 - 이전 음성 재생의 RAF 콜백이 이미 브라우저 실행 큐에 들어간 상태에서는 `cancelAnimationFrame` 이후에도 늦게 호출될 수 있다. 과거 콜백이 `Player.stop()`을 호출하면 뒤이어 시작한 새 음성까지 중단될 가능성이 있어, **재생 generation 불일치 시 현재 플레이어를 건드리지 않고 반환**하도록 수정했다. 현재 재생의 `isCurrent()`가 false라면 기존처럼 재생을 중단한다.
 - `apps/diagnostics/tests/player.test.mjs`에 이미 예약된 구 세대 RAF를 새 재생 시작 후 강제로 호출하는 회귀 테스트를 추가했다. 모의 AudioContext 및 수동 실행 콜백을 사용한다.
 - GitHub Actions Node/React/Python 및 운영 빌드 결과와 병합 SHA는 별도 검증 후 기록한다. 실제 Windows 스피커, 구독 모델, 공식 Cubism 렌더링/립싱크, 사용자 PC 30분 장시간 실행은 이 변경으로 확인되지 않는다.
+
+
+### PR #16 병합 및 CI 증거 (2026-11-12, 검증 후 기록)
+
+- PR [#16](https://github.com/yuilyoung/My_own_AI_assistant/pull/16)은 리뷰 대상 최종 코드 SHA `841e6316e41e3b3a377dac4a22b8cb077ff8669b`의 CI 전체 성공 이후 squash 병합했다. 병합 SHA: [ea7a2be](https://github.com/yuilyoung/My_own_AI_assistant/commit/ea7a2be0d6e2eb47e4530f590a3aba4965609b95). 앞선 PR #15는 동일 작업의 구버전으로 닫았고 병합하지 않았다.
+- [PR Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43131598614) **성공**: Prettier, ESLint, TypeScript, Vite 운영 빌드, Vitest/React **57 passed**, 합성 음성 Chromium E2E, GitHub Windows Gateway demo smoke. `web-dist` 산출물 **84,023 bytes**.
+- [PR Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43131598677) **성공**: Python Ruff 형식·lint, Windows/Linux × Python 3.11/3.13 전체 매트릭스, Python **64 passed (upstream 경고 1건)**, Node **31 passed**, `gateway-wheel` 생성.
+- [병합 후 main Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43131783559) **성공**, `web-dist` **84,023 bytes**. [병합 후 main Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43131783617) **성공**, `gateway-wheel` **18,194 bytes**. 이 실행들은 병합 커밋 `ea7a2be` 기준이며 본 증거 문서 커밋의 검증을 대신하지 않는다.
+- **실제 동작 경계:** 구 세대 RAF와 현재 턴의 무효화에 관한 테스트는 모의 브라우저 오디오 장치 기반이다. 공식 Cubism Core/SDK/캐릭터 자산, 실제 Live2D WebGL 렌더링과 립싱크, 사용자 Windows PC의 Ollama·whisper.cpp·MeloTTS·마이크·스피커/30분 안정성 검증은 여전히 미완료다.
