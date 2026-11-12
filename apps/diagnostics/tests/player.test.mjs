@@ -72,6 +72,24 @@ test('a stale animation frame from prior audio cannot stop replacement playback'
  await player.close();
 });
 
+
+test('the current audio frame stops when its application turn is obsolete',async()=>{
+ const {player,sources,levels}=environment();
+ const frames=[];
+ globalThis.requestAnimationFrame=callback=>{frames.push(callback);return frames.length;};
+ let current=true;
+ const playback=player.play(new ArrayBuffer(4),()=>current);
+ await tick();
+ assert.equal(sources[0].started,true);
+ current=false;
+ frames[0]();
+ await playback;
+ assert.equal(player.source,null);
+ assert.equal(sources[0].disconnections,1);
+ assert.equal(levels.at(-1),0);
+ await player.close();
+});
+
 test('failed audio source startup releases nodes and allows the next playback',async()=>{
  let fail=true;
  const {player,sources,levels}=environment(undefined,undefined,()=>{
