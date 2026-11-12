@@ -1,6 +1,6 @@
 # 구현·검증 상태 — React 음성·기억 통합
 
-최종 작업 확인일: 2026-11-10 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+최종 작업 확인일: 2026-11-12 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
 
 ## 현재 구현
 
@@ -175,3 +175,10 @@
 - 병합 코드 SHA 기준 [main Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42931948143) **성공**: Ruff 검사/포맷, wheel, Windows/Linux × Python 3.11·3.13 매트릭스. PR 검증 로그의 Ubuntu Python 3.11 실행 기준 Python **64 passed** 및 Node **29 passed**를 확인했다. `gateway-wheel` **18,194 bytes** (artifact ID `13816860853`) 생성 확인. **위 검사 수치는 PR head의 로그에 기반하며 main 실행의 개별 테스트 수를 재인용한 값은 아니다.**
 - 실제 SDK/Core·사용권이 확인된 캐릭터 모델 및 `adapter.js` 기반 WebGL 렌더러는 여전히 미구현이며 가짜 렌더러를 제공하지 않는다. 사용자 Windows PC에서 실제 Ollama, whisper.cpp, MeloTTS, 마이크·스피커, 음성 지연·한국어 품질, 30분 안정성, SDK 모델 동작도 미검증이다.
 - **다음 작업:** 공식 Cubism 5 SDK for Web의 버전 및 모델 사용 조건을 확인하고 로컬에 원본 SDK/Core와 실행용 모델 export를 설치한 다음, 신뢰할 수 있는 비공개 `adapter.js` 구현과 실제 캐릭터/입모양/모션 시각 시험을 수행한다. 사용자 PC 접근이 가능해지면 Windows 마이크/스피커 및 로컬 STT/TTS/LLM 연동 검증을 실시한다.
+
+
+## 2026-11-12 예약된 오디오 animation frame 세대 격리
+
+- 이전 음성 재생의 RAF 콜백이 이미 브라우저 실행 큐에 들어간 상태에서는 `cancelAnimationFrame` 이후에도 늦게 호출될 수 있다. 과거 콜백이 `Player.stop()`을 호출하면 뒤이어 시작한 새 음성까지 중단될 가능성이 있어, **재생 generation 불일치 시 현재 플레이어를 건드리지 않고 반환**하도록 수정했다. 현재 재생의 `isCurrent()`가 false라면 기존처럼 재생을 중단한다.
+- `apps/diagnostics/tests/player.test.mjs`에 이미 예약된 구 세대 RAF를 새 재생 시작 후 강제로 호출하는 회귀 테스트를 추가했다. 모의 AudioContext 및 수동 실행 콜백을 사용한다.
+- GitHub Actions Node/React/Python 및 운영 빌드 결과와 병합 SHA는 별도 검증 후 기록한다. 실제 Windows 스피커, 구독 모델, 공식 Cubism 렌더링/립싱크, 사용자 PC 30분 장시간 실행은 이 변경으로 확인되지 않는다.
