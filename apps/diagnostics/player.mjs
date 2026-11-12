@@ -32,7 +32,8 @@ export class Player {
     source.buffer=buffer;source.connect(analyser);analyser.connect(context.destination);this.source=source;
     const samples=new Float32Array(analyser.fftSize);
     const render=()=>{
-      if(generation!==this.generation) return; // A queued callback from older playback is not this source.\n      if(!isCurrent()) { this.stop();return; }
+      if(generation!==this.generation) return; // A queued callback from older playback is not this source.
+      if(!isCurrent()) { this.stop();return; }
       analyser.getFloatTimeDomainData(samples);this.onLevel(mouthLevel(samples));
       this.frame=requestAnimationFrame(render);
     };
