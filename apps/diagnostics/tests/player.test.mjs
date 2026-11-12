@@ -48,6 +48,30 @@ test('natural audio completion disconnects the audio node and closes the mouth',
  await player.close();
 });
 
+test('a stale animation frame from prior audio cannot stop replacement playback',async()=>{
+ const {player,sources,levels}=environment();
+ const callbacks=[];
+ globalThis.requestAnimationFrame=callback=>{callbacks.push(callback);return callbacks.length;};
+ globalThis.cancelAnimationFrame=()=>{}; // Simulate a callback already queued to execute.
+ const first=player.play(new ArrayBuffer(4),()=>true);
+ await tick();
+ const staleFrame=callbacks[0];
+ assert.equal(typeof staleFrame,'function');
+ const second=player.play(new ArrayBuffer(4),()=>true);
+ await first;
+ await tick();
+ assert.equal(sources.length,2);
+ assert.equal(sources[1].started,true);
+ assert.equal(player.source,sources[1]);
+ staleFrame();
+ assert.equal(player.source,sources[1],'old RAF must not stop new source');
+ assert.equal(sources[1].disconnections??0,0);
+ player.stop();
+ await second;
+ assert.equal(levels.at(-1),0);
+ await player.close();
+});
+
 test('failed audio source startup releases nodes and allows the next playback',async()=>{
  let fail=true;
  const {player,sources,levels}=environment(undefined,undefined,()=>{
