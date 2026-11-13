@@ -68,7 +68,12 @@ export class MicrophoneRecorder {
         if (generation !== this.generation) return;
         if (event.data.type === 'samples') {
           const chunk = event.data.samples;
-          if (!(chunk instanceof Float32Array) || capture.frames + chunk.length > capture.rate * 30) {
+          if (
+            !(chunk instanceof Float32Array) ||
+            chunk.length === 0 ||
+            !chunk.every(Number.isFinite) ||
+            capture.frames + chunk.length > capture.rate * 30
+          ) {
             this.cancel();
             onFailure(new Error('마이크 녹음 데이터가 유효하지 않거나 30초를 초과했습니다. 다시 녹음하세요.'));
             return;

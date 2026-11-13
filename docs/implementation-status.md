@@ -1,6 +1,6 @@
 # 구현·검증 상태 — React 음성·기억 통합
 
-최종 작업 확인일: 2026-11-12 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+최종 작업 확인일: 2026-11-13 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
 
 ## 현재 구현
 
@@ -191,3 +191,11 @@
 - [PR Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43131598677) **성공**: Python Ruff 형식·lint, Windows/Linux × Python 3.11/3.13 전체 매트릭스, Python **64 passed (upstream 경고 1건)**, Node **31 passed**, `gateway-wheel` 생성.
 - [병합 후 main Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43131783559) **성공**, `web-dist` **84,023 bytes**. [병합 후 main Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43131783617) **성공**, `gateway-wheel` **18,194 bytes**. 이 실행들은 병합 커밋 `ea7a2be` 기준이며 본 증거 문서 커밋의 검증을 대신하지 않는다.
 - **실제 동작 경계:** 구 세대 RAF와 현재 턴의 무효화에 관한 테스트는 모의 브라우저 오디오 장치 기반이다. 공식 Cubism Core/SDK/캐릭터 자산, 실제 Live2D WebGL 렌더링과 립싱크, 사용자 Windows PC의 Ollama·whisper.cpp·MeloTTS·마이크·스피커/30분 안정성 검증은 여전히 미완료다.
+
+
+## 2026-11-13 오디오 워크릿 비유한·빈 PCM 조기 차단
+
+- `apps/diagnostics/recorder.mjs`: AudioWorklet에서 Float32Array의 빈 샘플이나 NaN·Infinity를 포함한 PCM 조각을 전달하면 **WAV 인코딩을 기다리지 않고** 즉시 녹음을 취소한다. 기존의 잘못된 자료형·30초 초과 데이터 차단과 같은 오류/UI 복구 경로를 사용한다.
+- `apps/diagnostics/tests/voice.test.mjs`: 기존 자료형/길이 회귀 테스트를 빈 조각·NaN·Infinity 입력으로 확장하고 모의 스트림 해제 및 오류 전달을 검사한다. 실제 Windows 마이크 불량 재현이나 한국어 STT 품질을 검증한 것은 아니다.
+- [PR #17](https://github.com/yuilyoung/My_own_AI_assistant/pull/17)에서 변경했다. CI 실행 결과는 종료 후 개별 링크·결과를 확인하여 기록한다. 미확인 테스트를 통과로 표시하지 않는다.
+- **미완료:** 공식 Cubism SDK/Core 및 사용권 확인 모델, 실제 WebGL 캐릭터 렌더러와 립싱크, 사용자 Windows PC Ollama·whisper.cpp·MeloTTS·마이크·스피커 및 30분 안정성 시험. GitHub Windows runner의 합성 검사는 실기기를 대체하지 않는다.
