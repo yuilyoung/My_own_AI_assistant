@@ -207,9 +207,15 @@ test('AudioWorklet processor crash cancels capture and reports failure only once
  assert.equal(failures.length,1);
 });
 
-test('invalid or overlong worklet data aborts capture instead of leaving voice recording',async()=>{
+test('invalid, non-finite, empty or overlong worklet PCM aborts capture immediately',async()=>{
  const {MicrophoneRecorder}=await import('../recorder.mjs');
- for(const samples of [new Int16Array([1,2]),new Float32Array(480001)]){
+ for(const samples of [
+  new Int16Array([1,2]),
+  new Float32Array(0),
+  new Float32Array([0.1, NaN]),
+  new Float32Array([Infinity]),
+  new Float32Array(480001),
+ ]){
   let node,stopped=0;const failures=[];
   class Context {
    sampleRate=16000;destination={};audioWorklet={addModule:async()=>{}};
