@@ -197,5 +197,8 @@
 
 - `apps/diagnostics/recorder.mjs`: AudioWorklet에서 Float32Array의 빈 샘플이나 NaN·Infinity를 포함한 PCM 조각을 전달하면 **WAV 인코딩을 기다리지 않고** 즉시 녹음을 취소한다. 기존의 잘못된 자료형·30초 초과 데이터 차단과 같은 오류/UI 복구 경로를 사용한다.
 - `apps/diagnostics/tests/voice.test.mjs`: 기존 자료형/길이 회귀 테스트를 빈 조각·NaN·Infinity 입력으로 확장하고 모의 스트림 해제 및 오류 전달을 검사한다. 실제 Windows 마이크 불량 재현이나 한국어 STT 품질을 검증한 것은 아니다.
-- [PR #17](https://github.com/yuilyoung/My_own_AI_assistant/pull/17)에서 변경했다. CI 실행 결과는 종료 후 개별 링크·결과를 확인하여 기록한다. 미확인 테스트를 통과로 표시하지 않는다.
+- [PR #17](https://github.com/yuilyoung/My_own_AI_assistant/pull/17): head `9af0e30c230e338a71099fc84574c4f361d3ba09`의 CI 성공 뒤 squash 병합. 기능 병합 SHA [75376a2](https://github.com/yuilyoung/My_own_AI_assistant/commit/75376a2e0ac3fb178d3f85a1b145a106ec55ae8b).
+- [PR Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43339255179) **성공** — Prettier, ESLint, TypeScript/Vite, Vitest **57 passed (11 files)**, 합성 STT/TTS 기반 Chromium E2E, GitHub Windows Gateway demo smoke; `web-dist` **84,043 bytes**.
+- [PR Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43339255325) **성공** — Ruff, Python **64 passed/1 warning**, Node 음성·진단 **31 passed**, Windows/Linux × Python 3.11/3.13, `gateway-wheel` **18,194 bytes**.
+- 병합 SHA 기준 [main Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43339491773) 및 [main Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43339491771) **모두 성공**. main의 `web-dist` **84,043 bytes**, `gateway-wheel` **18,194 bytes** 생성 확인. 아래 기록을 추가하는 문서 전용 커밋의 CI와 별도임.
 - **미완료:** 공식 Cubism SDK/Core 및 사용권 확인 모델, 실제 WebGL 캐릭터 렌더러와 립싱크, 사용자 Windows PC Ollama·whisper.cpp·MeloTTS·마이크·스피커 및 30분 안정성 시험. GitHub Windows runner의 합성 검사는 실기기를 대체하지 않는다.
