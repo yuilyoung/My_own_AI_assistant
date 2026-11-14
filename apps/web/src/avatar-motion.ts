@@ -57,6 +57,7 @@ export function validateAvatarBindings(
  */
 export class AvatarMotionBridge {
   private attached: Attached | null = null;
+  lastFailure = "";
 
   get ready(): boolean {
     return this.attached?.ready ?? false;
@@ -94,6 +95,7 @@ export class AvatarMotionBridge {
         return false;
       attached.ready = true;
       if (manifest.lipSyncIds.length) adapter.setLipSync(0);
+      this.lastFailure = "";
       return true;
     } catch (error) {
       const cancelled =
@@ -108,7 +110,12 @@ export class AvatarMotionBridge {
    * A user-installed SDK can fail after a GPU/context loss. Revoke the bridge
    * before swallowing its cleanup error, so audio frames cannot call it again.
    */
-  private discardFailedRenderer(): void {
+  private discardFailedRenderer(error: unknown): void {
+    try {
+      this.lastFailure = String(error);
+    } catch {
+      this.lastFailure = "알 수 없는 로컬 SDK 오류";
+    }
     try {
       this.detach();
     } catch {
@@ -121,9 +128,9 @@ export class AvatarMotionBridge {
     if (!this.lipSyncEnabled) return;
     try {
       this.attached?.adapter.setLipSync(normalizedLipSync(level, 1));
-    } catch {
+    } catch (error) {
       // This callback runs in Player's animation frame: preserve audio output.
-      this.discardFailedRenderer();
+      this.discardFailedRenderer(error);
     }
   }
 
@@ -134,7 +141,7 @@ export class AvatarMotionBridge {
     try {
       current.adapter.setExpression(name);
     } catch (error) {
-      this.discardFailedRenderer();
+      this.discardFailedRenderer(error);
       throw error;
     }
     return true;
@@ -147,7 +154,7 @@ export class AvatarMotionBridge {
     try {
       current.adapter.setMotion(name);
     } catch (error) {
-      this.discardFailedRenderer();
+      this.discardFailedRenderer(error);
       throw error;
     }
     return true;
@@ -157,8 +164,8 @@ export class AvatarMotionBridge {
     if (!this.lipSyncEnabled) return;
     try {
       this.attached?.adapter.setLipSync(0);
-    } catch {
-      this.discardFailedRenderer();
+    } catch (error) {
+      this.discardFailedRenderer(error);
     }
   }
 
