@@ -477,6 +477,8 @@ it("shows an SDK callback failure instead of stale connected status", async () =
 
   expect(bridge.ready).toBe(false);
   expect(adapter.dispose).toHaveBeenCalledOnce();
-  expect(screen.getByRole("alert").textContent).toContain("GPU callback failed");
+  expect(screen.getByRole("alert").textContent).toContain(
+    "GPU callback failed",
+  );
   expect(screen.queryByText(/로컬 어댑터 초기화 완료/)).toBeNull();
 });
