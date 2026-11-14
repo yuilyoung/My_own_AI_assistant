@@ -464,7 +464,7 @@ it("shows an SDK callback failure instead of stale connected status", async () =
     "/avatar-local/Haru/Haru.model3.json",
   );
   await user.click(screen.getByRole("button", { name: "참조 파일 접근 검사" }));
-  await screen.findByText(/참조 파일 HEAD 확인: 2\\/2개/);
+  await screen.findByText(/참조 파일 HEAD 확인: 2\/2개/);
   await user.click(
     screen.getByRole("button", { name: "로컬 Cubism 어댑터 연결" }),
   );
