@@ -202,3 +202,11 @@
 - [PR Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43339255325) **성공** — Ruff, Python **64 passed/1 warning**, Node 음성·진단 **31 passed**, Windows/Linux × Python 3.11/3.13, `gateway-wheel` **18,194 bytes**.
 - 병합 SHA 기준 [main Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43339491773) 및 [main Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43339491771) **모두 성공**. main의 `web-dist` **84,043 bytes**, `gateway-wheel` **18,194 bytes** 생성 확인. 아래 기록을 추가하는 문서 전용 커밋의 CI와 별도임.
 - **미완료:** 공식 Cubism SDK/Core 및 사용권 확인 모델, 실제 WebGL 캐릭터 렌더러와 립싱크, 사용자 Windows PC Ollama·whisper.cpp·MeloTTS·마이크·스피커 및 30분 안정성 시험. GitHub Windows runner의 합성 검사는 실기기를 대체하지 않는다.
+
+
+## 2026-11-14 비공개 Cubism 어댑터 콜백 오류 격리 (검증 진행)
+
+- `apps/web/src/avatar-motion.ts`: 사용자 설치 `setLipSync`, `setExpression`, `setMotion`에서 예외가 발생하면 브리지 상태를 먼저 비활성화하고 `dispose`를 시도한다. 이때 GPU 정리 자체가 실패해도 오류를 처리하여 음성 애니메이션 콜백이 예외를 밖으로 전파하지 않도록 보강했다. 수동 표정/모션 명령은 원본 오류를 UI에 전달한다.
+- `apps/web/src/AvatarInspector.tsx`: 사용 중 SDK 콜백 실패로 연결이 끊어지면 이전의 '초기화 완료' 표시 대신 오류 원인과 재연결 안내를 표시한다.
+- 모의 SDK가 립싱크·수동 모션·입모양 초기화에 실패하거나 GPU 정리 시 예외를 던지는 회귀 테스트 및 React 연결 상태 표시 테스트를 추가했다. **공식 SDK, 실제 캐릭터 파일 또는 사용자 Windows 실기기가 없어 시각적 렌더링·GPU 손실 재현·실제 TTS/STT 장치 시험은 수행하지 않았다.**
+- 코드 변경의 CI 결과와 병합 여부는 PR 실행 완료 후 별도 증거로만 기록한다. 현재도 공식 SDK/Core·사용권 확인 캐릭터·실제 `adapter.js`·사용자 PC 접근이 필요한 실기기 시험이 최종 MVP 완료의 차단 요인이다.

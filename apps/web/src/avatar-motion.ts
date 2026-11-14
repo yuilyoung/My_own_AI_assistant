@@ -57,6 +57,7 @@ export function validateAvatarBindings(
  */
 export class AvatarMotionBridge {
   private attached: Attached | null = null;
+  lastFailure = "";
 
   get ready(): boolean {
     return this.attached?.ready ?? false;
@@ -94,6 +95,7 @@ export class AvatarMotionBridge {
         return false;
       attached.ready = true;
       if (manifest.lipSyncIds.length) adapter.setLipSync(0);
+      this.lastFailure = "";
       return true;
     } catch (error) {
       const cancelled =
@@ -104,17 +106,44 @@ export class AvatarMotionBridge {
     }
   }
 
+  /**
+   * A user-installed SDK can fail after a GPU/context loss. Revoke the bridge
+   * before swallowing its cleanup error, so audio frames cannot call it again.
+   */
+  private discardFailedRenderer(error: unknown): void {
+    try {
+      this.lastFailure = String(error);
+    } catch {
+      this.lastFailure = "알 수 없는 로컬 SDK 오류";
+    }
+    try {
+      this.detach();
+    } catch {
+      // Foreign GPU cleanup can throw. The adapter is already disconnected.
+    }
+  }
+
   /** Player already provides a 0–1 level; do not amplify it twice. */
   onAudioLevel(level: number): void {
     if (!this.lipSyncEnabled) return;
-    this.attached?.adapter.setLipSync(normalizedLipSync(level, 1));
+    try {
+      this.attached?.adapter.setLipSync(normalizedLipSync(level, 1));
+    } catch (error) {
+      // This callback runs in Player's animation frame: preserve audio output.
+      this.discardFailedRenderer(error);
+    }
   }
 
   setExpression(cue: ExpressionCue): boolean {
     const current = this.attached;
     const name = current?.bindings.expressions?.[cue];
     if (!current?.ready || !name) return false;
-    current.adapter.setExpression(name);
+    try {
+      current.adapter.setExpression(name);
+    } catch (error) {
+      this.discardFailedRenderer(error);
+      throw error;
+    }
     return true;
   }
 
@@ -122,12 +151,22 @@ export class AvatarMotionBridge {
     const current = this.attached;
     const name = current?.bindings.motions?.[cue];
     if (!current?.ready || !name) return false;
-    current.adapter.setMotion(name);
+    try {
+      current.adapter.setMotion(name);
+    } catch (error) {
+      this.discardFailedRenderer(error);
+      throw error;
+    }
     return true;
   }
 
   reset(): void {
-    if (this.lipSyncEnabled) this.attached?.adapter.setLipSync(0);
+    if (!this.lipSyncEnabled) return;
+    try {
+      this.attached?.adapter.setLipSync(0);
+    } catch (error) {
+      this.discardFailedRenderer(error);
+    }
   }
 
   detach(): void {

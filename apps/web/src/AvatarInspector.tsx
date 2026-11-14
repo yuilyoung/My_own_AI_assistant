@@ -314,7 +314,16 @@ export function AvatarInspector({
             role="img"
             aria-label="Live2D 로컬 캔버스"
           />
-          {runtimeStatus && <p role="status">{runtimeStatus}</p>}
+          {runtimeStatus &&
+            (bridge.ready ? (
+              <p role="status">{runtimeStatus}</p>
+            ) : (
+              <p role="alert" className="error">
+                로컬 Cubism 어댑터가 오류로 해제되었습니다:{" "}
+                {bridge.lastFailure || "렌더러가 연결 해제됨"}. SDK와 모델을
+                확인한 뒤 다시 연결하세요.
+              </p>
+            ))}
           {bridge.ready && !!runtimeStatus && bridge.lipSyncEnabled && (
             <LipSyncTester bridge={bridge} />
           )}

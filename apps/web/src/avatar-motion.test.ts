@@ -151,4 +151,54 @@ describe("licensed SDK boundary and audio-to-avatar bridge", () => {
     expect(bridge.ready).toBe(false);
     expect(adapter.dispose).toHaveBeenCalledOnce();
   });
+  it("isolates a failing lip-sync SDK from the audio animation frame", async () => {
+    const adapter = fakeAdapter();
+    const bridge = new AvatarMotionBridge();
+    await bridge.attach(adapter, MODEL_URL, manifest(), {});
+    vi.mocked(adapter.setLipSync).mockImplementation(() => {
+      throw new Error("WebGL device lost");
+    });
+    vi.mocked(adapter.dispose).mockImplementation(() => {
+      throw new Error("GPU cleanup failed");
+    });
+
+    expect(() => bridge.onAudioLevel(0.5)).not.toThrow();
+    expect(bridge.ready).toBe(false);
+    expect(adapter.dispose).toHaveBeenCalledOnce();
+    const calls = vi.mocked(adapter.setLipSync).mock.calls.length;
+    bridge.onAudioLevel(0.8);
+    expect(adapter.setLipSync).toHaveBeenCalledTimes(calls);
+  });
+
+  it("preserves the original motion error while invalidating a failed SDK", async () => {
+    const adapter = fakeAdapter();
+    const bridge = new AvatarMotionBridge();
+    await bridge.attach(adapter, MODEL_URL, manifest(), {
+      motions: { idle: "Idle" },
+    });
+    vi.mocked(adapter.setMotion).mockImplementation(() => {
+      throw new Error("motion failed");
+    });
+    vi.mocked(adapter.dispose).mockImplementation(() => {
+      throw new Error("dispose failed");
+    });
+
+    expect(() => bridge.setMotion("idle")).toThrow("motion failed");
+    expect(bridge.ready).toBe(false);
+    expect(adapter.dispose).toHaveBeenCalledOnce();
+    expect(bridge.setMotion("idle")).toBe(false);
+  });
+
+  it("recovers from a failed manual lip-sync reset without keeping the SDK alive", async () => {
+    const adapter = fakeAdapter();
+    const bridge = new AvatarMotionBridge();
+    await bridge.attach(adapter, MODEL_URL, manifest(), {});
+    vi.mocked(adapter.setLipSync).mockImplementation(() => {
+      throw new Error("reset failed");
+    });
+
+    expect(() => bridge.reset()).not.toThrow();
+    expect(bridge.ready).toBe(false);
+    expect(adapter.dispose).toHaveBeenCalledOnce();
+  });
 });
