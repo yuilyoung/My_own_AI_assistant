@@ -201,5 +201,4 @@ describe("licensed SDK boundary and audio-to-avatar bridge", () => {
     expect(bridge.ready).toBe(false);
     expect(adapter.dispose).toHaveBeenCalledOnce();
   });
-
 });
