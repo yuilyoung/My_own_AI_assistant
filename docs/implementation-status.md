@@ -204,9 +204,13 @@
 - **미완료:** 공식 Cubism SDK/Core 및 사용권 확인 모델, 실제 WebGL 캐릭터 렌더러와 립싱크, 사용자 Windows PC Ollama·whisper.cpp·MeloTTS·마이크·스피커 및 30분 안정성 시험. GitHub Windows runner의 합성 검사는 실기기를 대체하지 않는다.
 
 
-## 2026-11-14 비공개 Cubism 어댑터 콜백 오류 격리 (검증 진행)
+## 2026-11-14 비공개 Cubism 어댑터 콜백 오류 격리 (PR #18 병합·main CI 통과)
 
 - `apps/web/src/avatar-motion.ts`: 사용자 설치 `setLipSync`, `setExpression`, `setMotion`에서 예외가 발생하면 브리지 상태를 먼저 비활성화하고 `dispose`를 시도한다. 이때 GPU 정리 자체가 실패해도 오류를 처리하여 음성 애니메이션 콜백이 예외를 밖으로 전파하지 않도록 보강했다. 수동 표정/모션 명령은 원본 오류를 UI에 전달한다.
 - `apps/web/src/AvatarInspector.tsx`: 사용 중 SDK 콜백 실패로 연결이 끊어지면 이전의 '초기화 완료' 표시 대신 오류 원인과 재연결 안내를 표시한다.
 - 모의 SDK가 립싱크·수동 모션·입모양 초기화에 실패하거나 GPU 정리 시 예외를 던지는 회귀 테스트 및 React 연결 상태 표시 테스트를 추가했다. **공식 SDK, 실제 캐릭터 파일 또는 사용자 Windows 실기기가 없어 시각적 렌더링·GPU 손실 재현·실제 TTS/STT 장치 시험은 수행하지 않았다.**
-- 코드 변경의 CI 결과와 병합 여부는 PR 실행 완료 후 별도 증거로만 기록한다. 현재도 공식 SDK/Core·사용권 확인 캐릭터·실제 `adapter.js`·사용자 PC 접근이 필요한 실기기 시험이 최종 MVP 완료의 차단 요인이다.
+- [PR #18](https://github.com/yuilyoung/My_own_AI_assistant/pull/18)은 최종 head `5f01dd4605d35433e0e2a3a742e199874d2fd8ff`의 자동 테스트가 전체 통과한 뒤 squash 병합했다. 기능 병합 SHA: [e9e5dd3](https://github.com/yuilyoung/My_own_AI_assistant/commit/e9e5dd3b57f68259c139a2038ef5b79f18c66ff6). 초기 Prettier 형식 실패는 정확한 diff를 확인한 뒤 원본 테스트 파일에 적용하고 임시 진단 CI 단계를 제거했다.
+- 최종 PR head 기준 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43536452322) **성공** — Prettier·ESLint·TypeScript/Vite, React/Vitest **61 passed**, 합성 STT/TTS Chromium E2E 및 GitHub Windows Gateway demo smoke. `web-dist` **84,181 bytes**. [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43536452353) **성공** — Ruff, Windows/Linux × Python 3.11/3.13 전체 매트릭스, Python **64 passed/1 warning**, Node 진단 **31 passed**, `gateway-wheel` **18,194 bytes**.
+- 병합 SHA `e9e5dd3` 기준 [main Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43536678756) 및 [main Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43536678737) **모두 성공**. main artifact: `web-dist` **84,181 bytes** (ID `14090830082`), `gateway-wheel` **18,194 bytes** (ID `14090690223`). 이후 문서만 갱신한 커밋과는 검증 SHA를 구분한다.
+- Live2D 공식 [Cubism SDK for Web 다운로드](https://www.live2d.com/ko/sdk/download/web/) 페이지는 2026-04-02의 Cubism 5 SDK for Web R5를 안내한다. 다운로드 시 Proprietary/Open Software 계약 확인 및 직접 동의가 필요하고, [Cubism Core](https://docs.live2d.com/en/cubism-sdk-manual/cubism-core/)는 공개 GitHub 소스에 없으며 SDK 패키지에 포함된다. 실제 모델 사용 허가도 별도로 확인해야 한다.
+- **MVP 미완료/실기기 미검증:** 공식 SDK/Core·사용권 확인 캐릭터·실제 `adapter.js`와 사용자 Windows PC의 Ollama/whisper.cpp/MeloTTS·마이크·스피커·30분 안정성 시험이 필요하다. 모의 SDK 예외 처리는 실제 GPU 리소스 복구나 캐릭터 렌더링 검증이 아니다.
