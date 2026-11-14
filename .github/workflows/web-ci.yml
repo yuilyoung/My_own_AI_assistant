@@ -39,6 +39,10 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
+      - name: Temporary formatting diff diagnostics
+        run: |
+          npx prettier --write src/avatar-motion.test.ts src/AvatarInspector.test.tsx
+          git diff -- src/avatar-motion.test.ts src/AvatarInspector.test.tsx
       - name: Formatter
         run: npm run format:check
       - name: Lint
