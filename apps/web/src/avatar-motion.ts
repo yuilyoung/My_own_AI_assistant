@@ -104,17 +104,39 @@ export class AvatarMotionBridge {
     }
   }
 
+  /**
+   * A user-installed SDK can fail after a GPU/context loss. Revoke the bridge
+   * before swallowing its cleanup error, so audio frames cannot call it again.
+   */
+  private discardFailedRenderer(): void {
+    try {
+      this.detach();
+    } catch {
+      // Foreign GPU cleanup can throw. The adapter is already disconnected.
+    }
+  }
+
   /** Player already provides a 0–1 level; do not amplify it twice. */
   onAudioLevel(level: number): void {
     if (!this.lipSyncEnabled) return;
-    this.attached?.adapter.setLipSync(normalizedLipSync(level, 1));
+    try {
+      this.attached?.adapter.setLipSync(normalizedLipSync(level, 1));
+    } catch {
+      // This callback runs in Player's animation frame: preserve audio output.
+      this.discardFailedRenderer();
+    }
   }
 
   setExpression(cue: ExpressionCue): boolean {
     const current = this.attached;
     const name = current?.bindings.expressions?.[cue];
     if (!current?.ready || !name) return false;
-    current.adapter.setExpression(name);
+    try {
+      current.adapter.setExpression(name);
+    } catch (error) {
+      this.discardFailedRenderer();
+      throw error;
+    }
     return true;
   }
 
@@ -122,12 +144,22 @@ export class AvatarMotionBridge {
     const current = this.attached;
     const name = current?.bindings.motions?.[cue];
     if (!current?.ready || !name) return false;
-    current.adapter.setMotion(name);
+    try {
+      current.adapter.setMotion(name);
+    } catch (error) {
+      this.discardFailedRenderer();
+      throw error;
+    }
     return true;
   }
 
   reset(): void {
-    if (this.lipSyncEnabled) this.attached?.adapter.setLipSync(0);
+    if (!this.lipSyncEnabled) return;
+    try {
+      this.attached?.adapter.setLipSync(0);
+    } catch {
+      this.discardFailedRenderer();
+    }
   }
 
   detach(): void {
