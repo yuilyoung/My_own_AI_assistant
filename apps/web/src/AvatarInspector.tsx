@@ -86,8 +86,11 @@ export function AvatarInspector({
       let cleanupFailed = false;
       try {
         bridge.detach();
+        // The bridge now contains foreign cleanup exceptions and records them
+        // instead of throwing during unmount or a mode switch.
+        cleanupFailed = !!bridge.lastFailure;
       } catch {
-        // A foreign SDK may throw while deleting already-lost GPU resources.
+        // Defense in depth if the boundary changes unexpectedly.
         cleanupFailed = true;
       }
       setBusy(false);
