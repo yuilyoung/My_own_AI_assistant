@@ -83,7 +83,7 @@ export function AvatarInspector({
       event.preventDefault(); // Permit the browser to restore the context.
       pending.current?.abort();
       pending.current = null;
-      let cleanupFailed = false;
+      let cleanupFailed: boolean;
       try {
         bridge.detach();
         // The bridge now contains foreign cleanup exceptions and records them
