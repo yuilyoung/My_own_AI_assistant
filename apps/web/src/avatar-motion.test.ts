@@ -201,4 +201,56 @@ describe("licensed SDK boundary and audio-to-avatar bridge", () => {
     expect(bridge.ready).toBe(false);
     expect(adapter.dispose).toHaveBeenCalledOnce();
   });
+
+  it("releases the SDK once even when both reset and dispose throw", async () => {
+    const adapter = fakeAdapter();
+    const bridge = new AvatarMotionBridge();
+    await bridge.attach(adapter, MODEL_URL, manifest(), {});
+    vi.mocked(adapter.setLipSync).mockImplementation(() => {
+      throw new Error("lip-sync reset failed");
+    });
+    vi.mocked(adapter.dispose).mockImplementation(() => {
+      throw new Error("GPU cleanup failed");
+    });
+
+    expect(() => bridge.detach()).not.toThrow();
+    expect(bridge.ready).toBe(false);
+    expect(adapter.dispose).toHaveBeenCalledOnce();
+    expect(bridge.lastFailure).toContain("lip-sync reset failed");
+    expect(() => bridge.detach()).not.toThrow();
+    expect(adapter.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("retains the original SDK load error when teardown also fails", async () => {
+    const adapter = fakeAdapter(async () => {
+      throw new Error("Core initialization failed");
+    });
+    vi.mocked(adapter.dispose).mockImplementation(() => {
+      throw new Error("GPU cleanup failed");
+    });
+    const bridge = new AvatarMotionBridge();
+
+    await expect(
+      bridge.attach(adapter, MODEL_URL, manifest(), {}),
+    ).rejects.toThrow("Core initialization failed");
+    expect(bridge.ready).toBe(false);
+    expect(adapter.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("retains invalid model bindings error when cleanup also fails", async () => {
+    const adapter = fakeAdapter();
+    vi.mocked(adapter.dispose).mockImplementation(() => {
+      throw new Error("GPU cleanup failed");
+    });
+    const bridge = new AvatarMotionBridge();
+
+    await expect(
+      bridge.attach(adapter, MODEL_URL, manifest(), {
+        expressions: { happy: "not-present" },
+      }),
+    ).rejects.toThrow(/표정 매핑/);
+    expect(adapter.load).not.toHaveBeenCalled();
+    expect(adapter.dispose).toHaveBeenCalledOnce();
+  });
+
 });
