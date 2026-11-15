@@ -76,8 +76,13 @@ export class AvatarMotionBridge {
     try {
       validateAvatarBindings(manifest, bindings);
     } catch (error) {
-      // The bridge owns a supplied adapter even if its manifest is invalid.
-      adapter.dispose();
+      // Keep the binding error even if a partially created GPU runtime cannot
+      // release its resources. The incoming adapter belongs to this bridge.
+      try {
+        adapter.dispose();
+      } catch {
+        // Best effort for foreign SDK code; preserve the validation failure.
+      }
       throw error;
     }
     this.detach();
@@ -173,14 +178,32 @@ export class AvatarMotionBridge {
     const current = this.attached;
     this.attached = null;
     if (!current) return;
-    // Ask the runtime to stop loading before destroying WebGL resources.
+    // Revoke callbacks before calling foreign SDK code. A failed lip-sync
+    // reset must not prevent disposal, and a failed disposal must not break
+    // mode switching, panel unmount or the original SDK load rejection.
     current.controller.abort();
+    let cleanupFailed = false;
+    let cleanupError: unknown;
     try {
       if (current.ready && current.manifest.lipSyncIds.length) {
         current.adapter.setLipSync(0);
       }
-    } finally {
+    } catch (error) {
+      cleanupFailed = true;
+      cleanupError = error;
+    }
+    try {
       current.adapter.dispose();
+    } catch (error) {
+      if (!cleanupFailed) cleanupError = error;
+      cleanupFailed = true;
+    }
+    if (cleanupFailed && !this.lastFailure) {
+      try {
+        this.lastFailure = String(cleanupError);
+      } catch {
+        this.lastFailure = "로컬 SDK 리소스 정리에 실패했습니다.";
+      }
     }
   }
 }

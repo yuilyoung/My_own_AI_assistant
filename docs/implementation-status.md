@@ -214,3 +214,11 @@
 - 병합 SHA `e9e5dd3` 기준 [main Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43536678756) 및 [main Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43536678737) **모두 성공**. main artifact: `web-dist` **84,181 bytes** (ID `14090830082`), `gateway-wheel` **18,194 bytes** (ID `14090690223`). 이후 문서만 갱신한 커밋과는 검증 SHA를 구분한다.
 - Live2D 공식 [Cubism SDK for Web 다운로드](https://www.live2d.com/ko/sdk/download/web/) 페이지는 2026-04-02의 Cubism 5 SDK for Web R5를 안내한다. 다운로드 시 Proprietary/Open Software 계약 확인 및 직접 동의가 필요하고, [Cubism Core](https://docs.live2d.com/en/cubism-sdk-manual/cubism-core/)는 공개 GitHub 소스에 없으며 SDK 패키지에 포함된다. 실제 모델 사용 허가도 별도로 확인해야 한다.
 - **MVP 미완료/실기기 미검증:** 공식 SDK/Core·사용권 확인 캐릭터·실제 `adapter.js`와 사용자 Windows PC의 Ollama/whisper.cpp/MeloTTS·마이크·스피커·30분 안정성 시험이 필요하다. 모의 SDK 예외 처리는 실제 GPU 리소스 복구나 캐릭터 렌더링 검증이 아니다.
+
+## 2026-11-15 비공개 SDK 종료 예외 격리 (자동 검증 진행 중)
+
+- `apps/web/src/avatar-motion.ts`: 로컬 SDK의 `setLipSync(0)` 또는 `dispose()`가 예외를 던져도 **브리지를 먼저 비활성화**하고 `dispose()`를 한 번 시도하며, 정리 예외는 밖으로 전파하지 않고 `lastFailure`에 남긴다. 기존 SDK 콜백 오류가 있으면 원본 원인을 보존한다.
+- 모델의 표정·모션 매핑이 유효하지 않을 때 부분 생성 어댑터의 `dispose()`가 실패하더라도 **원래 매핑 오류**를 반환한다. SDK `load()` 실패를 정리 오류로 덮어쓰지 않는다.
+- `apps/web/src/avatar-motion.test.ts`에 리소스 정리 양쪽 예외, 로딩 실패+정리 예외, 잘못된 매핑+정리 예외를 재현하는 모의 SDK 회귀 테스트 3개를 추가했다.
+- **검증 상태:** 이 문서는 코드·테스트 변경 설명이다. PR CI 성공/병합 여부와 artifact 링크는 별도로 확인하기 전에는 성공으로 표기하지 않는다.
+- **여전히 미완료:** 공식 Cubism SDK/Core 및 사용권 확인 모델 export, 실제 `adapter.js`와 캐릭터 WebGL 출력·립싱크, 사용자 Windows PC의 Ollama·whisper.cpp·MeloTTS·마이크/스피커 및 30분 통합 검증. 모의 GPU 정리 오류는 실제 GPU 드라이버 오류 재현이 아니다.
