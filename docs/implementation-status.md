@@ -7,7 +7,9 @@
 - Gateway의 `Reply.segments[].emotion`(`neutral/happy/concerned/surprised`)과 `gesture`(`idle/nod/greeting`)는 원래 생성되어 있었으나 React는 텍스트·오디오 ID만 처리했고, 아바타는 사용자가 누르는 수동 시험 버튼으로만 표정/모션을 호출했다.
 - 이제 React `Conversation`이 현재 턴의 각 세그먼트를 출력할 때 **음성 재생 전에** 메타데이터를 아바타 브리지에 전달한다. 서버에서 온 미지의 문자열은 거부하며, 사용자 모델의 실제 이름에 명시적으로 매핑된 의미값만 사용한다. 모델/어댑터가 없으면 아무 애니메이션도 실행하지 않는다.
 - SDK 예외는 텍스트 및 음성 재생으로 전파하지 않고 기존 브리지에 의해 어댑터를 해제한다. 이전 모드의 취소된 턴은 메타데이터를 전달하지 않도록 세대 검사 경계를 유지한다.
-- 모의 어댑터 및 가짜 Gateway 응답으로 호출 순서·매핑·오류 격리·오래된 턴 차단을 테스트한다. **공식 Cubism Core, 캐릭터 WebGL 시각 출력, 자동 립싱크의 실제 동작, Windows 실기기는 검증하지 않았다.** CI 실행·병합 및 산출물 증거는 실제 완료 후 별도 기록한다.
+- 모의 어댑터 및 가짜 Gateway 응답으로 호출 순서·매핑·오류 격리·오래된 턴 차단을 테스트한다. **공식 Cubism Core, 캐릭터 WebGL 시각 출력, 자동 립싱크의 실제 동작, Windows 실기기는 검증하지 않았다.**
+- [PR #20](https://github.com/yuilyoung/My_own_AI_assistant/pull/20) 코드 병합 SHA [10d8c1d](https://github.com/yuilyoung/My_own_AI_assistant/commit/10d8c1d63827ddb2e65c0153366d0be99c00427b). **병합한 코드 SHA에서의 main 검증**: [Web frontend CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43779508962) 성공 — Prettier/ESLint/TypeScript, Vite 빌드, Vitest **69 passed (12 files)**, Chromium 합성 STT/TTS 브라우저 검사 및 GitHub Windows 운영 Gateway smoke. `web-dist` artifact ID **14187334312**, **84,371 bytes** 생성 확인. [Local engine tests](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43779509093) 성공 — Ruff, Python Windows/Linux × 3.11·3.13, Linux 3.11 기준 **64 passed, upstream 경고 1건**, Node 음성·진단 **31 passed**. `gateway-wheel` artifact ID **14187483649**, **18,194 bytes** 생성 확인.
+- CI의 WebGL·장치 검증 범위는 확대되지 않았다. GitHub Windows runner는 사용자 Windows PC 실기기가 아니며, SDK/Core·모델 설치와 실제 LLM/STT/TTS·마이크·스피커·30분 안정성은 계속 미완료다.
 
 ## 현재 구현
 
