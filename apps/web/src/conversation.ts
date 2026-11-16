@@ -1,4 +1,4 @@
-import { GatewayClient, type Mode, type Session, type Status } from "./gateway";
+import { GatewayClient, type Mode, type Segment, type Session, type Status } from "./gateway";
 import {
   VoiceInput,
   type VoiceKind,
@@ -49,6 +49,7 @@ export class Conversation {
     private player: AudioPlayer,
     recorder: Recorder,
     private interval = 250,
+    private onSegment?: (segment: Segment) => void,
   ) {
     this.voice = new VoiceInput({
       recorder,
@@ -176,6 +177,11 @@ export class Conversation {
               { role: "assistant", text: segment.text },
             ],
           });
+          try {
+            this.onSegment?.(segment);
+          } catch {
+            // A user-installed renderer must not interrupt chat or voice output.
+          }
           if (segment.audio_id) {
             try {
               const bytes = await this.client.audio(
