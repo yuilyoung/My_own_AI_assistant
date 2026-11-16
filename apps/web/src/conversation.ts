@@ -1,4 +1,10 @@
-import { GatewayClient, type Mode, type Segment, type Session, type Status } from "./gateway";
+import {
+  GatewayClient,
+  type Mode,
+  type Segment,
+  type Session,
+  type Status,
+} from "./gateway";
 import {
   VoiceInput,
   type VoiceKind,
