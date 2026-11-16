@@ -4,6 +4,8 @@ import { dispatchAvatarCues } from "./avatar-cues";
 import type { AvatarAdapter } from "./avatar";
 import type { CubismModel3 } from "./model3";
 
+const modelUrl = "/avatar-local/Haru/Haru.model3.json";
+
 const manifest: CubismModel3 = {
   moc: "Haru.moc3",
   textures: ["texture.png"],
@@ -24,10 +26,10 @@ function createAdapter(): AvatarAdapter {
 }
 
 describe("server reply cues to a licensed avatar", () => {
-  it("applies the model's explicit expression and motion mappings", async () => {
+  it("applies mapped expression and motion cues", async () => {
     const bridge = new AvatarMotionBridge();
     const adapter = createAdapter();
-    await bridge.attach(adapter, "/avatar-local/Haru/Haru.model3.json", manifest, {
+    await bridge.attach(adapter, modelUrl, manifest, {
       expressions: { happy: "Smile" },
       motions: { greeting: "Greeting" },
     });
@@ -43,10 +45,10 @@ describe("server reply cues to a licensed avatar", () => {
     bridge.detach();
   });
 
-  it("ignores unrecognized or unmapped cues without inventing avatar actions", async () => {
+  it("ignores unknown and unmapped cues", async () => {
     const bridge = new AvatarMotionBridge();
     const adapter = createAdapter();
-    await bridge.attach(adapter, "/avatar-local/Haru/Haru.model3.json", manifest, {
+    await bridge.attach(adapter, modelUrl, manifest, {
       expressions: { happy: "Smile" },
     });
 
@@ -66,12 +68,12 @@ describe("server reply cues to a licensed avatar", () => {
     bridge.detach();
   });
 
-  it("does not send cues to a missing renderer or propagate private SDK errors", async () => {
+  it("contains SDK errors and skips missing renderers", async () => {
     const bridge = new AvatarMotionBridge();
     const adapter = createAdapter();
     const cue = { text: "답변", emotion: "happy", gesture: "greeting" };
     dispatchAvatarCues(bridge, cue);
-    await bridge.attach(adapter, "/avatar-local/Haru/Haru.model3.json", manifest, {
+    await bridge.attach(adapter, modelUrl, manifest, {
       expressions: { happy: "Smile" },
       motions: { greeting: "Greeting" },
     });
