@@ -1,4 +1,8 @@
-import type { AvatarMotionBridge, ExpressionCue, MotionCue } from "./avatar-motion";
+import type {
+  AvatarMotionBridge,
+  ExpressionCue,
+  MotionCue,
+} from "./avatar-motion";
 import type { Segment } from "./gateway";
 
 function isExpressionCue(value: unknown): value is ExpressionCue {
