@@ -9,6 +9,7 @@ import json
 import math
 import os
 import secrets
+import socket
 import struct
 import subprocess
 import sys
@@ -65,7 +66,11 @@ def main():
     if not (ROOT / "apps/web/dist/index.html").is_file():
         raise RuntimeError("Build apps/web first")
     token = secrets.token_urlsafe(32)
-    base = "http://127.0.0.1:18765"
+    # Use a disposable loopback port to avoid conflicting with an active Gateway.
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    base = f"http://127.0.0.1:{port}"
     with tempfile.TemporaryDirectory() as data:
         microphone = Path(data) / "microphone.wav"
         microphone.write_bytes(tone_wav())
@@ -74,7 +79,7 @@ def main():
             PYTHONPATH=str(ROOT / "services"),
             ASSISTANT_DATA_DIR=data,
             ASSISTANT_TOKEN=token,
-            ASSISTANT_PORT="18765",
+            ASSISTANT_PORT=str(port),
             LLM_PROVIDER="demo",
             TTS_PROVIDER="none",
             STT_PROVIDER="none",
@@ -197,25 +202,30 @@ def main():
                     ).to_be_visible()
                     assert not errors, errors
                     browser.close()
-                    print(
-                        json.dumps(
-                            {
-                                "react_browser": "passed",
-                                "synthetic_stt_tts": True,
-                                "real_model_inference": False,
-                                "checks": [
-                                    "pairing",
-                                    "memory_scope",
-                                    "notes",
-                                    "worklet_capture",
-                                    "transcript_review",
-                                    "wav_playback_rms",
-                                    "mode_cancel",
-                                ],
-                            },
-                            ensure_ascii=False,
+                    report = {
+                        "react_browser": "passed",
+                        "synthetic_stt_tts": True,
+                        "real_model_inference": False,
+                        "windows_microphone_hardware": False,
+                        "live2d_rendering": False,
+                        "checks": [
+                            "pairing",
+                            "memory_scope",
+                            "notes",
+                            "worklet_capture",
+                            "transcript_review",
+                            "wav_playback_rms",
+                            "mode_cancel",
+                        ],
+                    }
+                    if report_path := os.getenv("SMOKE_REPORT_PATH"):
+                        output = Path(report_path)
+                        output.parent.mkdir(parents=True, exist_ok=True)
+                        output.write_text(
+                            json.dumps(report, ensure_ascii=False, indent=2),
+                            encoding="utf-8",
                         )
-                    )
+                    print(json.dumps(report, ensure_ascii=False))
             finally:
                 process.terminate()
                 try:
