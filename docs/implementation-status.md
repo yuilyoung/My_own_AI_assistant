@@ -1,6 +1,12 @@
 # 구현·검증 상태 — React 음성·기억 통합
 
-최종 작업 확인일: 2026-11-16 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+최종 작업 확인일: 2026-11-17 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+
+## 2026-11-17 Windows Chromium 합성 음성 검증 확장 (검증 진행 중)
+
+- Windows GitHub Actions에서 기존 Gateway demo/API/MIME smoke에 더해 프로덕션 React UI를 Chromium으로 실행하고, **가짜 마이크 WAV → AudioWorklet PCM → WAV 전사 요청 → 전사 결과 직접 전송 → 합성 TTS 재생·RMS → 모드 격리 및 녹음 취소**를 검증하도록 CI를 확장했다. `scripts/react_smoke.py`는 충돌 가능성을 줄이는 임시 loopback 포트를 사용하며 성공 시 `SMOKE_REPORT_PATH`에 JSON 증거를 남긴다.
+- Windows 브라우저 테스트가 실패하면 관련 CI가 실패한다. 성공 결과와 artifact 링크는 **실제 해당 커밋의 워크플로 결과를 확인한 후에만** 기록한다.
+- 이 시험은 GitHub 호스팅 Windows 환경의 **합성 오디오 장치 테스트**다. 실제 사용자 Windows PC의 마이크/스피커, Ollama·whisper.cpp·MeloTTS 품질, 공식 Cubism 모델 WebGL 렌더링·실제 립싱크 및 30분 안정성은 여전히 미검증이다. SDK/Core 및 모델 라이선스가 확인되기 전에는 실제 렌더링을 완료한 것으로 표시하지 않는다.
 
 ## 2026-11-16 응답 감정·동작 → Live2D 브리지 (실제 SDK 미검증)
 
