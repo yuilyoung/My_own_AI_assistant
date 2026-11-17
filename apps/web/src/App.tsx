@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { FormEvent } from "react";
-import { GatewayClient } from "./gateway";
-import { AvatarInspector } from "./AvatarInspector";
+import { GatewayClient, type ServiceId } from "./gateway";
+import { AvatarPanel } from "./AvatarPanel";
 import { AvatarMotionBridge } from "./avatar-motion";
 import { dispatchAvatarCues } from "./avatar-cues";
 import { Conversation } from "./conversation";
@@ -37,6 +37,16 @@ function Workspace({
       else setNote("");
     }
   };
+  const selectedService = state.status?.services?.find(
+    (item) => item.id === state.service,
+  );
+  const serviceLabel =
+    state.service === "cloud"
+      ? "CLOUD"
+      : state.service === "local"
+        ? "LOCAL"
+        : "DEMO";
+  const model = selectedService?.model ?? state.status?.model;
   const mode = state.mode === "assistant" ? "개인 비서" : "가상 소개팅";
   const voiceLabel = {
     idle: "마이크로 입력",
@@ -46,6 +56,62 @@ function Workspace({
   }[state.voice];
   return (
     <>
+      <section className="service-settings" aria-label="서비스 연결 설정">
+        <label htmlFor="llm-service">LLM 서비스</label>
+        <select
+          id="llm-service"
+          value={state.service ?? "demo"}
+          disabled={!state.status}
+          onChange={(event) => {
+            setMemory("");
+            setNote("");
+            void app.changeService(event.target.value as ServiceId);
+          }}
+        >
+          {(
+            state.status?.services ?? [
+              {
+                id: state.service ?? "demo",
+                label: serviceLabel,
+                available: true,
+                model,
+              },
+            ]
+          ).map((option) => (
+            <option
+              key={option.id}
+              value={option.id}
+              disabled={!option.available}
+            >
+              {option.label}
+              {option.available ? "" : " · 설정 필요"}
+            </option>
+          ))}
+        </select>
+        <p className="hint">
+          서비스를 바꾸면 진행 중인 응답을 중지하고 새 대화를 시작합니다. 기억과
+          메모는 서비스별로 분리됩니다.
+        </p>
+        {state.service === "cloud" && (
+          <p className="notice">
+            이 서비스의 메시지와 저장한 기억은 설정한 클라우드 제공자에게
+            전송됩니다.
+          </p>
+        )}
+        {state.service === "local" && (
+          <p className="hint">
+            로컬 모델은 이 웹사이트를 실행하는 서버의 Ollama를 사용합니다. 다른
+            PC의 Ollama에는 자동 연결되지 않습니다.
+          </p>
+        )}
+        {state.status?.services
+          ?.filter((item) => !item.available)
+          .map((item) => (
+            <p className="hint" key={item.id}>
+              {item.label}: {item.reason || "서버 연결 설정이 필요합니다."}
+            </p>
+          ))}
+      </section>
       <nav aria-label="대화 모드">
         {(["assistant", "companion"] as const).map((value) => (
           <button
@@ -62,23 +128,14 @@ function Workspace({
         ))}
       </nav>
       <div className="workspace">
-        <aside className="avatar-panel">
-          <div className="avatar-placeholder" aria-hidden="true">
-            ◇
-          </div>
-          <h2>Live2D 로컬 렌더러</h2>
-          <p>
-            공식 Cubism SDK와 사용권이 확인된 캐릭터 모델을 설치해야 합니다.
-          </p>
-          <p>
-            어댑터 미설치 시 캐릭터는 렌더링되지 않습니다. 로컬 자산과 SDK를
-            준비한 뒤 명시적으로 연결해야 합니다.
-          </p>
-          {/* A mode switch must also unload private SDK/character state. */}
-          <AvatarInspector key={state.mode} bridge={bridge} />
-          <label>
-            음성 레벨 <meter min="0" max="1" value={level} />
-          </label>
+        <aside className="avatar-container">
+          <AvatarPanel
+            key={`${state.mode}:${state.service}`}
+            bridge={bridge}
+            level={level}
+            cue={state.latestCue ?? undefined}
+            busy={state.busy}
+          />
         </aside>
         <section className="chat-panel">
           <div className="chat-heading">
@@ -95,9 +152,9 @@ function Workspace({
           </div>
           {state.status && (
             <p className="notice">
-              {state.status.llm === "demo"
+              {state.service === "demo"
                 ? "DEMO · 고정 응답입니다. 실제 AI 생성 답변이 아닙니다."
-                : "LOCAL · " + state.status.model}{" "}
+                : serviceLabel + " · " + model}{" "}
               / TTS: {state.status.tts} / STT:{" "}
               {state.status.stt_enabled ? "연결됨" : "미연결"}
             </p>
@@ -279,7 +336,7 @@ export function App() {
   return (
     <main>
       <header>
-        <p className="eyebrow">LOCAL COMPANION</p>
+        <p className="eyebrow">MY COMPANION</p>
         <h1>My own AI assistant</h1>
         <p>나를 돕는 비서, 이야기를 나누는 친구</p>
       </header>
@@ -298,8 +355,11 @@ export function App() {
         </>
       ) : (
         <form className="pairing" onSubmit={connect}>
-          <h2>로컬 Gateway 연결</h2>
-          <p>실행 콘솔에 표시된 연결 토큰을 입력하세요.</p>
+          <h2>비서 서버 연결</h2>
+          <p>
+            이 서버에 설정한 연결 토큰을 입력하세요. 로컬 실행은 실행 콘솔,
+            클라우드는 서버 환경 설정에서 확인할 수 있습니다.
+          </p>
           <label htmlFor="token">연결 토큰</label>
           <input
             id="token"
@@ -313,7 +373,8 @@ export function App() {
         </form>
       )}
       <footer>
-        대화는 로컬 PC에 저장됩니다. 소개팅 모드에는 비서 도구가 제공되지
+        대화는 연결한 서버에 저장됩니다. 로컬 실행은 해당 PC, 클라우드 실행은
+        배포 서버의 저장소를 사용합니다. 소개팅 모드에는 비서 도구가 제공되지
         않습니다.
       </footer>
     </main>

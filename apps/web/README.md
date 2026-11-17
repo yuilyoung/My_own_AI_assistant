@@ -37,3 +37,9 @@ HEAD를 지원하지 않는 서버는 접근 실패로 표시될 수 있습니�
 모델 JSON·참조 파일 HEAD 검사 이후 모든 참조가 접근 가능하면 **로컬 Cubism 어댑터 연결** 버튼으로 비공개 모듈을 직접 적재할 수 있습니다. `public/avatar-local/runtime/adapter.js`는 `export async function createAvatarAdapter(canvas) { ... }`를 제공해야 합니다. 반환 객체에는 `load(modelUrl)`, `setLipSync(level)`, `setExpression(name)`, `setMotion(group)`, `dispose()`가 필요합니다. 지정된 모듈 경로 외부의 코드를 가져오지 않으며 버튼 클릭 전에는 모듈이 실행되지 않습니다.
 
 SDK/Core와 캐릭터는 공식 배포본을 사용권에 맞게 **사용자가 로컬에서 설치**해야 합니다. 저장소에는 실제 Core/WebGL 구현이나 모델을 포함하지 않습니다. 테스트는 모의 어댑터의 부착·정리·실패 흐름만 검증하므로 실제 화면 표시를 입증하지 않습니다. 임의로 다운로드한 JavaScript는 PC에서 실행하지 마세요.
+
+## 로컬·클라우드 서비스와 아바타 선택
+
+연결 후 **LLM 서비스**에서 데모·로컬 Ollama·클라우드 API를 선택합니다. 미설정 옵션은 비활성화됩니다. 서비스 전환 시 새 대화를 시작하며 이전 서비스의 기록·기억을 자동으로 전송하지 않습니다. API 키는 서버 환경 변수로만 설정합니다.
+
+**아바타 종류**는 기본 SVG와 Live2D를 제공합니다. 기본 SVG는 배포에 포함되며, Live2D는 별도 SDK·모델·실제 어댑터와 서버 자산 경로 설정이 필요합니다. 로컬 PC와 Render 모두 동일한 화면을 사용합니다. [설정 안내](../../docs/local-cloud-services.md)를 참고하세요.

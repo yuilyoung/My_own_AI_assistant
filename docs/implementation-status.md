@@ -238,3 +238,10 @@
 - `apps/web/src/avatar-motion.test.ts`에 리소스 정리 양쪽 예외, 로딩 실패+정리 예외, 잘못된 매핑+정리 예외를 재현하는 모의 SDK 회귀 테스트 3개를 추가했다.
 - **검증 증거:** [PR #19](https://github.com/yuilyoung/My_own_AI_assistant/pull/19)는 최종 코드 head `06f8b13eb0c063828b90a2a9e164e00f4f8b72f9`의 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43659816826) 및 [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43659816799)가 모두 성공한 뒤 [97338d3](https://github.com/yuilyoung/My_own_AI_assistant/commit/97338d3b2524d701b13e654a4e3920198ddd9f87)으로 squash 병합했다. 초기 PR 실행은 기존 WebGL cleanup 경고 테스트와 새 `detach()` 동작 간 불일치로 실패하여 UI가 `lastFailure`를 사용하도록 수정했고, 후속 lint 실패도 수정한 뒤 재검증했다. 최종 PR Web CI에서는 Prettier·ESLint·TypeScript/Vite, React/Vitest **64 passed**, Chromium 합성 음성 E2E와 GitHub Windows Gateway demo smoke가 성공했다. Local engine CI는 Ruff, Python **64 passed/1 warning**, Node 진단 **31 passed**, Windows/Linux × Python 3.11·3.13 전체 매트릭스 통과. 병합 SHA 기준 [main Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43659943300), [main Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43659943355)도 **둘 다 성공**했고 `web-dist` **84,243 bytes** (artifact ID `14140215032`)와 `gateway-wheel` **18,195 bytes** (ID `14139945665`) 생성을 확인했다. 이 증거는 병합된 기능 코드 SHA 기준이며 뒤이은 문서 전용 커밋의 CI 증거와 구분한다.
 - **여전히 미완료:** 공식 Cubism SDK/Core 및 사용권 확인 모델 export, 실제 `adapter.js`와 캐릭터 WebGL 출력·립싱크, 사용자 Windows PC의 Ollama·whisper.cpp·MeloTTS·마이크/스피커 및 30분 통합 검증. 모의 GPU 정리 오류는 실제 GPU 드라이버 오류 재현이 아니다.
+
+
+## 2026-11-17 로컬·클라우드 전환 구현 검증
+
+로컬 Ollama와 클라우드 Chat Completions를 명시적으로 선택하고 서비스별로 세션·기억·메모를 분리하는 구현을 추가했습니다. API 키는 서버에만 보관하며, 미설정/실패 시 데모나 다른 제공자로 자동 대체하지 않습니다. 기본 SVG 아바타와 기존 라이선스 Live2D 연결 화면을 선택할 수 있으며, Live2D 파일은 `ASSISTANT_AVATAR_DIR`로 동일 출처 제공이 가능합니다.
+
+작업 환경에서 서버 테스트 140개와 프론트엔드 테스트 98개, 포맷·정적 검사·운영 웹 빌드가 통과했습니다. Chromium의 모의 제공자를 사용해 로컬→클라우드→로컬 전환, 서비스별 기억 분리, 녹음/전사 검토/재생을 확인했습니다. Docker 빌드와 컨테이너 API 인증/미설정 제공자 거부를 확인했습니다. 이는 실제 유료 LLM이나 실제 Windows 장치, 공식 SDK·캐릭터의 Live2D 표시를 검증한 결과가 아닙니다. Render의 실제 배포 완료 여부와 사용자 키·모델 호출은 별도로 확인해야 합니다.

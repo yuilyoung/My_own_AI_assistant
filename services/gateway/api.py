@@ -10,11 +10,8 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import Settings
 from .contracts import MemoryInput, SessionCreate, TurnInput
-from .engine import Engine
-from .providers import DemoLLM, MeloTTS, OllamaLLM, SilentTTS
-from .speech import MAX_WAV_BYTES, WhisperCpp
-from .store import Store
-from .transcription import Transcriptions
+from .services import Services
+from .speech import MAX_WAV_BYTES
 
 
 class LocalGuard:
@@ -100,38 +97,20 @@ class LocalGuard:
 def create_app(settings: Settings) -> FastAPI:
     if not settings.token:
         raise ValueError("An access token is required; use python -m gateway.cli")
-    # Separate demonstration data from genuine local conversations.
-    partition = "demo" if settings.llm == "demo" else "local_private"
-    store = Store(settings.data_dir / partition / "state.sqlite3")
-    engine = Engine(
-        store,
-        DemoLLM() if settings.llm == "demo" else OllamaLLM(settings),
-        SilentTTS() if settings.tts == "none" else MeloTTS(settings),
-        settings.timeout,
-    )
-
-    recognizer = (
-        WhisperCpp(
-            settings.whisper_cli,
-            settings.whisper_model,
-            settings.data_dir / partition / "stt-tmp",
-            settings.timeout,
-        )
-        if settings.stt == "whisper_cpp"
-        else None
-    )
-    transcriptions = Transcriptions(store, recognizer)
+    services = Services(settings)
+    default = services.default
 
     @asynccontextmanager
     async def lifespan(app):
-        yield
-        await transcriptions.close()
-        await engine.close()
-        store.close()
+        try:
+            yield
+        finally:
+            await services.close()
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
-    app.state.engine = engine
-    app.state.transcriptions = transcriptions
+    app.state.services = services
+    app.state.engine = default.engine
+    app.state.transcriptions = default.transcriptions
     app.add_middleware(LocalGuard, settings=settings)
 
     @app.exception_handler(KeyError)
@@ -149,43 +128,57 @@ def create_app(settings: Settings) -> FastAPI:
     @app.get("/api/status")
     async def status():
         return {
-            "profile": partition,
+            "profile": default.partition,
             "llm": settings.llm,
             "tts": settings.tts,
-            "model": settings.model if settings.llm == "ollama" else None,
-            "cloud_enabled": False,
+            "model": default.model,
+            "cloud_enabled": services.runtimes["cloud"].available,
+            "default_service": services.default_service,
+            "deployment": "cloud" if settings.public_origin else "local",
+            "services": [runtime.view() for runtime in services.runtimes.values()],
+            "avatar_local_enabled": settings.avatar_dir is not None,
             "stt": settings.stt,
-            "stt_enabled": transcriptions.provider is not None,
+            "stt_enabled": default.transcriptions.provider is not None,
             "version": "0.2.0",
         }
 
     @app.post("/api/sessions", status_code=201)
     async def session(body: SessionCreate):
-        return store.create_session(body)
+        runtime = services.runtimes[body.service or services.default_service]
+        if not runtime.available:
+            raise HTTPException(503, runtime.reason)
+        return {**runtime.store.create_session(body), "service": runtime.id}
 
     @app.get("/api/sessions/{sid}/history")
     async def history(sid: str):
-        return store.history(sid)
+        return services.for_session(sid).store.history(sid)
 
     @app.post("/api/sessions/{sid}/turns", status_code=202)
     async def turn(sid: str, body: TurnInput):
-        transcriptions.cancel_session(sid)
-        return engine.start(sid, body.text)
+        runtime = services.for_session(sid)
+        if not runtime.available:
+            raise HTTPException(503, runtime.reason)
+        runtime.transcriptions.cancel_session(sid)
+        return runtime.engine.start(sid, body.text)
 
     @app.get("/api/sessions/{sid}/turns/{tid}")
     async def turn_status(sid: str, tid: str):
-        return engine.snapshot(sid, tid)
+        return services.for_session(sid).engine.snapshot(sid, tid)
 
     @app.delete("/api/sessions/{sid}/turns/{tid}", status_code=204)
     async def cancel(sid: str, tid: str):
-        engine.cancel(sid, tid)
+        services.for_session(sid).engine.cancel(sid, tid)
 
     @app.get("/api/sessions/{sid}/audio/{aid}")
     async def audio(sid: str, aid: str):
-        return Response(engine.get_audio(sid, aid), media_type="audio/wav")
+        return Response(
+            services.for_session(sid).engine.get_audio(sid, aid), media_type="audio/wav"
+        )
 
     @app.post("/api/sessions/{sid}/transcriptions", status_code=202)
     async def transcribe(sid: str, request: Request):
+        runtime = services.for_session(sid)
+        transcriptions, engine = runtime.transcriptions, runtime.engine
         if transcriptions.provider is None:
             raise HTTPException(503, "STT disabled; configure local whisper.cpp")
         if request.headers.get("content-type", "").split(";")[0].strip().lower() != "audio/wav":
@@ -197,35 +190,37 @@ def create_app(settings: Settings) -> FastAPI:
 
     @app.get("/api/sessions/{sid}/transcriptions/{tid}")
     async def transcription_status(sid: str, tid: str):
-        return transcriptions.snapshot(sid, tid)
+        return services.for_session(sid).transcriptions.snapshot(sid, tid)
 
     @app.delete("/api/sessions/{sid}/transcriptions/{tid}", status_code=204)
     async def cancel_transcription(sid: str, tid: str):
-        transcriptions.cancel(sid, tid)
+        services.for_session(sid).transcriptions.cancel(sid, tid)
 
     @app.get("/api/sessions/{sid}/memories")
     async def memories(sid: str):
-        return store.memories(sid)
+        return services.for_session(sid).store.memories(sid)
 
     @app.post("/api/sessions/{sid}/memories", status_code=201)
     async def remember(sid: str, body: MemoryInput):
-        return store.add_memory(sid, body.text)
+        return services.for_session(sid).store.add_memory(sid, body.text)
 
     @app.delete("/api/sessions/{sid}/memories/{mid}", status_code=204)
     async def forget(sid: str, mid: str):
-        if not store.delete_memory(sid, mid):
+        if not services.for_session(sid).store.delete_memory(sid, mid):
             raise KeyError(mid)
 
     @app.get("/api/sessions/{sid}/notes")
     async def notes(sid: str):
-        return store.notes(sid)
+        return services.for_session(sid).store.notes(sid)
 
     @app.post("/api/sessions/{sid}/notes", status_code=201)
     async def note(sid: str, body: MemoryInput):
-        return store.add_note(sid, body.text)
+        return services.for_session(sid).store.add_note(sid, body.text)
 
     # Windows registry MIME mappings may classify .mjs as text/plain.
     mimetypes.add_type("text/javascript", ".mjs")
+    if settings.avatar_dir is not None:
+        app.mount("/avatar-local", StaticFiles(directory=settings.avatar_dir), name="avatar-local")
     if settings.web_dir.is_dir():
         app.mount("/", StaticFiles(directory=settings.web_dir, html=True), name="web")
     else:

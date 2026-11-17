@@ -8,6 +8,9 @@ on:
       - 'scripts/react_smoke.py'
       - 'scripts/windows_smoke.py'
       - 'requirements*.txt'
+      - 'pyproject.toml'
+      - 'Dockerfile'
+      - '.dockerignore'
       - '.github/workflows/web-ci.yml'
   pull_request:
     paths:
@@ -17,6 +20,9 @@ on:
       - 'scripts/react_smoke.py'
       - 'scripts/windows_smoke.py'
       - 'requirements*.txt'
+      - 'pyproject.toml'
+      - 'Dockerfile'
+      - '.dockerignore'
       - '.github/workflows/web-ci.yml'
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
@@ -58,6 +64,9 @@ jobs:
       - name: Production browser smoke with synthetic voice providers
         working-directory: .
         run: python scripts/react_smoke.py
+      - name: Build deployable Docker image including shared voice modules
+        working-directory: .
+        run: docker build --tag assistant-ci .
       - name: Upload static build artifact
         uses: actions/upload-artifact@v4
         with:

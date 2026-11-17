@@ -39,9 +39,12 @@ def tone_wav():
 
 
 def serve():
+    from dataclasses import replace
+
     import uvicorn
     from gateway.api import create_app
     from gateway.config import Settings
+    from gateway.contracts import Reply
     from gateway.speech import validate_input_wav
 
     class FixtureSTT:
@@ -53,10 +56,37 @@ def serve():
         async def synthesize(self, text):
             return tone_wav()
 
-    settings = Settings.from_env()
+    class FixtureLLM:
+        def __init__(self, service):
+            self.service = service
+
+        async def reply(self, messages):
+            if self.service == "cloud":
+                assert "로컬 전용 기억" not in json.dumps(messages, ensure_ascii=False)
+            return Reply.model_validate(
+                {
+                    "segments": [
+                        {
+                            "text": self.service + " 모의 응답입니다.",
+                            "emotion": "happy",
+                            "gesture": "greeting",
+                        }
+                    ]
+                }
+            )
+
+    settings = replace(
+        Settings.from_env(),
+        local_llm_enabled=True,
+        cloud_api_key="synthetic-key-never-sent",
+        cloud_model="synthetic-cloud-model",
+    )
     app = create_app(settings)
-    app.state.transcriptions.provider = FixtureSTT()
-    app.state.engine.tts = FixtureTTS()
+    for service, runtime in app.state.services.runtimes.items():
+        runtime.transcriptions.provider = FixtureSTT()
+        runtime.engine.tts = FixtureTTS()
+        if service != "demo":
+            runtime.engine.llm = FixtureLLM(service)
     uvicorn.run(app, host="127.0.0.1", port=settings.port, access_log=False)
 
 
@@ -102,12 +132,13 @@ def main():
                     raise RuntimeError("Fixture server startup timeout")
                 with sync_playwright() as playwright:
                     browser = playwright.chromium.launch(
+                        executable_path=os.getenv("SMOKE_BROWSER_EXECUTABLE"),
                         args=[
                             "--use-fake-ui-for-media-stream",
                             "--use-fake-device-for-media-stream",
                             "--use-file-for-fake-audio-capture=" + str(microphone),
                             "--autoplay-policy=no-user-gesture-required",
-                        ]
+                        ],
                     )
                     context = browser.new_context(permissions=["microphone"])
                     page = context.new_page()
@@ -149,7 +180,7 @@ def main():
                     page.get_by_role("button", name="연결", exact=True).click()
                     expect(page.get_by_text("대화 준비됨")).to_be_visible()
                     assert token not in page.url
-                    expect(page.get_by_text("Live2D 로컬 렌더러")).to_be_visible()
+                    expect(page.get_by_role("img", name="기본 아바타", exact=False)).to_be_visible()
                     expect(page.get_by_text("DEMO · 고정 응답", exact=False)).to_be_visible()
                     page.get_by_label("기억할 내용").fill("비서 전용 기억")
                     page.get_by_role("button", name="기억 저장").click()
@@ -200,12 +231,54 @@ def main():
                     expect(
                         page.get_by_role("listitem").filter(has_text="비서 전용 기억")
                     ).to_be_visible()
+                    # Select real service routes with synthetic inference only.
+                    selector = page.get_by_label("LLM 서비스", exact=True)
+                    selector.select_option("local")
+                    expect(page.get_by_text("대화 준비됨")).to_be_visible()
+                    expect(
+                        page.get_by_role("listitem").filter(has_text="비서 전용 기억")
+                    ).to_have_count(0)
+                    page.get_by_label("기억할 내용", exact=True).fill("로컬 전용 기억")
+                    page.get_by_role("button", name="기억 저장", exact=True).click()
+                    expect(
+                        page.get_by_role("listitem").filter(has_text="로컬 전용 기억")
+                    ).to_be_visible()
+                    page.get_by_label("메시지", exact=True).fill("로컬 질문")
+                    page.get_by_role("button", name="전송", exact=True).click()
+                    expect(page.get_by_text("local 모의 응답입니다.", exact=True)).to_be_visible()
+                    expect(page.get_by_text("대화 준비됨")).to_be_visible()
+                    selector.select_option("cloud")
+                    expect(page.get_by_text("대화 준비됨")).to_be_visible()
+                    expect(
+                        page.get_by_role("listitem").filter(has_text="로컬 전용 기억")
+                    ).to_have_count(0)
+                    expect(page.get_by_text("local 모의 응답입니다.", exact=True)).to_have_count(0)
+                    page.get_by_label("메시지", exact=True).fill("클라우드 질문")
+                    page.get_by_role("button", name="전송", exact=True).click()
+                    expect(page.get_by_text("cloud 모의 응답입니다.", exact=True)).to_be_visible()
+                    expect(page.get_by_text("대화 준비됨")).to_be_visible()
+                    expect(
+                        page.get_by_text("클라우드 제공자에게 전송", exact=False)
+                    ).to_be_visible()
+                    selector.select_option("local")
+                    expect(page.get_by_text("대화 준비됨")).to_be_visible()
+                    expect(
+                        page.get_by_role("listitem").filter(has_text="로컬 전용 기억")
+                    ).to_be_visible()
+                    # Leave the screenshot in cloud mode to show both choices.
+                    selector.select_option("cloud")
+                    expect(page.get_by_text("대화 준비됨")).to_be_visible()
                     assert not errors, errors
+                    if screenshot_path := os.getenv("SMOKE_SCREENSHOT_PATH"):
+                        screenshot = Path(screenshot_path)
+                        screenshot.parent.mkdir(parents=True, exist_ok=True)
+                        page.screenshot(path=str(screenshot), full_page=True)
                     browser.close()
                     report = {
                         "react_browser": "passed",
                         "synthetic_stt_tts": True,
                         "real_model_inference": False,
+                        "synthetic_local_cloud_switching": True,
                         "windows_microphone_hardware": False,
                         "live2d_rendering": False,
                         "checks": [
@@ -216,6 +289,7 @@ def main():
                             "transcript_review",
                             "wav_playback_rms",
                             "mode_cancel",
+                            "service_switch_cancel_and_isolation",
                         ],
                     }
                     if report_path := os.getenv("SMOKE_REPORT_PATH"):

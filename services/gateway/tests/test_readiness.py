@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import httpx
@@ -93,3 +94,46 @@ def test_remote_model_metadata_is_rejected(tmp_path: Path):
     with httpx.Client(transport=httpx.MockTransport(handler)) as client:
         checks = inspect_local_readiness(settings, client, tmp_path)
     assert status_map(checks)["Ollama"] == "FAIL"
+
+
+def test_cloud_default_does_not_probe_ollama_or_make_paid_requests(tmp_path):
+    settings = Settings(llm="cloud", cloud_api_key="secret", cloud_model="chosen-model")
+
+    def no_requests(request):
+        raise AssertionError("Readiness must not contact disabled local or cloud providers")
+
+    with httpx.Client(transport=httpx.MockTransport(no_requests)) as client:
+        checks = inspect_local_readiness(settings, client, tmp_path)
+    assert status_map(checks)["Ollama"] == "SKIP"
+    assert "secret" not in repr(checks)
+
+
+def test_readiness_provider_override_preserves_local_start_command(tmp_path, monkeypatch, capsys):
+    from gateway import readiness_cli
+
+    index = tmp_path / "apps/web/dist/index.html"
+    index.parent.mkdir(parents=True)
+    index.touch()
+    monkeypatch.setattr(
+        readiness_cli, "__file__", str(tmp_path / "services/gateway/readiness_cli.py")
+    )
+    monkeypatch.setenv("LLM_PROVIDER", "demo")
+    monkeypatch.delenv("LOCAL_LLM_ENABLED", raising=False)
+    real_client = httpx.Client
+    paths = []
+
+    def handler(request):
+        paths.append(request.url.path)
+        if request.url.path == "/api/tags":
+            return httpx.Response(200, json={"models": [{"name": "qwen3:4b"}]})
+        return httpx.Response(200, json={})
+
+    monkeypatch.setattr(
+        readiness_cli.httpx,
+        "Client",
+        lambda **kwargs: real_client(**kwargs, transport=httpx.MockTransport(handler)),
+    )
+    assert readiness_cli.main(["--provider", "ollama", "--json"]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert next(c for c in report if c["component"] == "Ollama")["status"] == "PASS"
+    assert paths == ["/api/tags", "/api/show"]

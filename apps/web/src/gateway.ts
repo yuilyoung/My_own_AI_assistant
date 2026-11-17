@@ -1,11 +1,22 @@
+export type ServiceId = "demo" | "local" | "cloud";
+export type ServiceOption = {
+  id: ServiceId;
+  label: string;
+  available: boolean;
+  model: string | null;
+  reason?: string;
+};
 export type Status = {
   llm: string;
   tts: string;
   model: string | null;
   stt_enabled: boolean;
+  default_service?: ServiceId;
+  deployment?: "local" | "cloud";
+  services?: ServiceOption[];
 };
 export type Mode = "assistant" | "companion";
-export type Session = { id: string };
+export type Session = { id: string; service?: ServiceId };
 /** Server-side Reply segments include emotion/gesture; validate at the UI boundary. */
 export type Segment = {
   text: string;
@@ -50,10 +61,10 @@ export class GatewayClient {
   status() {
     return this.request<Status>("/status");
   }
-  createSession(mode: Mode) {
+  createSession(mode: Mode, service?: ServiceId) {
     return this.request<Session>("/sessions", {
       method: "POST",
-      body: JSON.stringify({ mode }),
+      body: JSON.stringify({ mode, ...(service ? { service } : {}) }),
     });
   }
   createTurn(sessionId: string, text: string, signal?: AbortSignal) {
