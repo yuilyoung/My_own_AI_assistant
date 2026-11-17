@@ -1,6 +1,6 @@
 import { expect, it, vi } from "vitest";
 import { Conversation } from "./conversation";
-import { GatewayClient } from "./gateway";
+import { GatewayClient, type Segment } from "./gateway";
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((r) => {
@@ -8,7 +8,7 @@ const deferred = <T>() => {
   });
   return { promise, resolve };
 };
-function setup() {
+function setup(onSegment?: (segment: Segment) => void) {
   const client = new GatewayClient("test");
   vi.spyOn(client, "status").mockResolvedValue({
     llm: "demo",
@@ -29,10 +29,12 @@ function setup() {
   };
   const recorder = {
     cancel: vi.fn(),
-    start: vi.fn(async () => {}),
+    start: vi.fn(
+      async (_onLimit?: () => void, _onFailure?: (error: Error) => void) => {},
+    ),
     finish: vi.fn(async () => new ArrayBuffer(44)),
   };
-  const app = new Conversation(client, player, recorder, 0);
+  const app = new Conversation(client, player, recorder, 0, onSegment);
   return { app, client, player, recorder };
 }
 it("discards and cancels a turn created after switching modes", async () => {
@@ -99,6 +101,25 @@ it("puts a transcript in the composer without creating a chat turn", async () =>
   expect(create).not.toHaveBeenCalled();
   expect(app.state.voice).toBe("idle");
 });
+it("resets React voice state and reports a device disconnect without sending a turn", async () => {
+  const { app, client, recorder } = setup();
+  await app.connect();
+  app.state.status!.stt_enabled = true;
+  let onFailure: ((error: Error) => void) | undefined;
+  recorder.start.mockImplementation(async (_onLimit, failure) => {
+    onFailure = failure;
+  });
+  const createTurn = vi.spyOn(client, "createTurn");
+  await app.toggleMicrophone();
+  expect(app.state.voice).toBe("recording");
+  expect(onFailure).toBeDefined();
+  onFailure?.(new Error("마이크 분리"));
+  expect(app.state.voice).toBe("idle");
+  expect(app.state.error).toContain("마이크 분리");
+  expect(recorder.cancel).toHaveBeenCalled();
+  expect(createTurn).not.toHaveBeenCalled();
+});
+
 it("ignores stale memory lists when the mode changes", async () => {
   const { app, client } = setup();
   const old = deferred<unknown>();
@@ -132,4 +153,80 @@ it("cancels server inference when polling fails instead of losing its turn ID", 
   expect(client.cancelTurn).toHaveBeenCalledWith("assistant", "pending");
   expect(app.state.busy).toBe(false);
   expect(app.state.error).toContain("network disconnected");
+});
+
+it("delivers validated reply metadata to the avatar before playback while keeping voice independent", async () => {
+  const order: string[] = [];
+  const onSegment = vi.fn(() => {
+    order.push("avatar");
+    throw new Error("private SDK failed");
+  });
+  const { app, client, player } = setup(onSegment);
+  await app.connect();
+  vi.spyOn(client, "createTurn").mockResolvedValue({
+    id: "t",
+    status: "queued",
+    segments: [],
+  });
+  vi.spyOn(client, "pollTurn").mockResolvedValue({
+    id: "t",
+    status: "completed",
+    segments: [
+      {
+        text: "반가워요",
+        emotion: "happy",
+        gesture: "greeting",
+        audio_id: "wav-1",
+      },
+    ],
+  });
+  vi.spyOn(client, "audio").mockResolvedValue(new ArrayBuffer(44));
+  player.play.mockImplementation(async () => {
+    order.push("audio");
+  });
+
+  app.setInput("안녕");
+  await app.send();
+  expect(onSegment).toHaveBeenCalledWith({
+    text: "반가워요",
+    emotion: "happy",
+    gesture: "greeting",
+    audio_id: "wav-1",
+  });
+  expect(order).toEqual(["avatar", "audio"]);
+  expect(app.state.messages.map((message) => message.text)).toEqual([
+    "안녕",
+    "반가워요",
+  ]);
+  expect(app.state.error).toBe("");
+});
+
+it("never dispatches obsolete reply cues after changing conversation modes", async () => {
+  const onSegment = vi.fn();
+  const { app, client } = setup(onSegment);
+  await app.connect();
+  vi.spyOn(client, "createTurn").mockResolvedValue({
+    id: "t",
+    status: "queued",
+    segments: [],
+  });
+  const pending = deferred<{
+    id: string;
+    status: string;
+    segments: Segment[];
+  }>();
+  vi.spyOn(client, "pollTurn").mockReturnValue(pending.promise);
+
+  app.setInput("이전 질문");
+  const sending = app.send();
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  await app.changeMode("companion");
+  pending.resolve({
+    id: "t",
+    status: "completed",
+    segments: [{ text: "오래된 답변", emotion: "happy", gesture: "nod" }],
+  });
+  await sending;
+  expect(onSegment).not.toHaveBeenCalled();
+  expect(app.state.mode).toBe("companion");
 });

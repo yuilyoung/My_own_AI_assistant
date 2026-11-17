@@ -1,6 +1,22 @@
 # 구현·검증 상태 — React 음성·기억 통합
 
-최종 작업 확인일: 2026-11-06 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+최종 작업 확인일: 2026-11-17 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+
+## 2026-11-17 Windows Chromium 합성 음성 검증 확장 (main CI 성공)
+
+- Windows GitHub Actions에서 기존 Gateway demo/API/MIME smoke에 더해 프로덕션 React UI를 Chromium으로 실행하고, **가짜 마이크 WAV → AudioWorklet PCM → WAV 전사 요청 → 전사 결과 직접 전송 → 합성 TTS 재생·RMS → 모드 격리 및 녹음 취소**를 검증하도록 CI를 확장했다. `scripts/react_smoke.py`는 충돌 가능성을 줄이는 임시 loopback 포트를 사용하며 성공 시 `SMOKE_REPORT_PATH`에 JSON 증거를 남긴다.
+- [PR #21](https://github.com/yuilyoung/My_own_AI_assistant/pull/21) 병합 SHA [0145932](https://github.com/yuilyoung/My_own_AI_assistant/commit/01459324588f7a791047ffa620ba9793a787c317)에서 **main의 [Web frontend CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43989023995) 성공**: Prettier/ESLint/TypeScript/Vite, React/Vitest **69 passed (12 files)**, Linux Chromium 합성 음성 및 Windows Gateway와 Chromium 합성 마이크→WAV→전사 검토→TTS/RMS 재생 통합 검사 통과. Windows 로그에서 비무음 WAV **16,000 Hz / 7,848 frames** 업로드, `react_browser=passed`와 `synthetic_stt_tts=true` 출력 확인. Artifacts: `web-dist` ID **14286109045**, 84,371 bytes, `windows-synthetic-voice-report` ID **14285404634**, 355 bytes 생성 확인.
+- 같은 병합 SHA에서 **main의 [Local engine tests](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43989024020) 성공**: Ruff formatter/lint, Python Windows/Linux × 3.11/3.13, Python 3.11 Linux **64 passed, 경고 1건**, Node 진단/음성 **31 passed**. `gateway-wheel` artifact ID **14286637226**, 18,194 bytes 확인.
+- 이 시험은 GitHub 호스팅 Windows 환경의 **합성 오디오 장치 테스트**다. 실제 사용자 Windows PC의 마이크/스피커, Ollama·whisper.cpp·MeloTTS 품질, 공식 Cubism 모델 WebGL 렌더링·실제 립싱크 및 30분 안정성은 여전히 미검증이다. SDK/Core 및 모델 라이선스가 확인되기 전에는 실제 렌더링을 완료한 것으로 표시하지 않는다.
+
+## 2026-11-16 응답 감정·동작 → Live2D 브리지 (실제 SDK 미검증)
+
+- Gateway의 `Reply.segments[].emotion`(`neutral/happy/concerned/surprised`)과 `gesture`(`idle/nod/greeting`)는 원래 생성되어 있었으나 React는 텍스트·오디오 ID만 처리했고, 아바타는 사용자가 누르는 수동 시험 버튼으로만 표정/모션을 호출했다.
+- 이제 React `Conversation`이 현재 턴의 각 세그먼트를 출력할 때 **음성 재생 전에** 메타데이터를 아바타 브리지에 전달한다. 서버에서 온 미지의 문자열은 거부하며, 사용자 모델의 실제 이름에 명시적으로 매핑된 의미값만 사용한다. 모델/어댑터가 없으면 아무 애니메이션도 실행하지 않는다.
+- SDK 예외는 텍스트 및 음성 재생으로 전파하지 않고 기존 브리지에 의해 어댑터를 해제한다. 이전 모드의 취소된 턴은 메타데이터를 전달하지 않도록 세대 검사 경계를 유지한다.
+- 모의 어댑터 및 가짜 Gateway 응답으로 호출 순서·매핑·오류 격리·오래된 턴 차단을 테스트한다. **공식 Cubism Core, 캐릭터 WebGL 시각 출력, 자동 립싱크의 실제 동작, Windows 실기기는 검증하지 않았다.**
+- [PR #20](https://github.com/yuilyoung/My_own_AI_assistant/pull/20) 코드 병합 SHA [10d8c1d](https://github.com/yuilyoung/My_own_AI_assistant/commit/10d8c1d63827ddb2e65c0153366d0be99c00427b). **병합한 코드 SHA에서의 main 검증**: [Web frontend CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43779508962) 성공 — Prettier/ESLint/TypeScript, Vite 빌드, Vitest **69 passed (12 files)**, Chromium 합성 STT/TTS 브라우저 검사 및 GitHub Windows 운영 Gateway smoke. `web-dist` artifact ID **14187334312**, **84,371 bytes** 생성 확인. [Local engine tests](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43779509093) 성공 — Ruff, Python Windows/Linux × 3.11·3.13, Linux 3.11 기준 **64 passed, upstream 경고 1건**, Node 음성·진단 **31 passed**. `gateway-wheel` artifact ID **14187483649**, **18,194 bytes** 생성 확인.
+- CI의 WebGL·장치 검증 범위는 확대되지 않았다. GitHub Windows runner는 사용자 Windows PC 실기기가 아니며, SDK/Core·모델 설치와 실제 LLM/STT/TTS·마이크·스피커·30분 안정성은 계속 미완료다.
 
 ## 현재 구현
 
@@ -139,3 +155,86 @@
 - Node 회귀 테스트에 *resume 도중 중지*, *재생 종료의 노드 정리 및 입모양 0 복원* 두 시나리오를 추가했다. GitHub Actions의 `Local engine tests` 워크플로에서 Windows/Linux × Python 3.11/3.13 전체 및 Node 테스트가 성공했다.
 - [PR #10](https://github.com/yuilyoung/My_own_AI_assistant/pull/10)을 [6162f93](https://github.com/yuilyoung/My_own_AI_assistant/commit/6162f9368eb0518ec23328534ec0296ddababeef)으로 squash 병합했다. PR head `d79d7affdec00b2a2a095b23efee5f85e2fc7652`의 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42316742803) 성공: frontend(build/formatter/lint/React/Chromium) 및 Windows demo Gateway smoke; `web-dist` 산출물 83,403 bytes (ID `13551700321`). [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42316742786) 성공: Python matrix, Ruff, Node diagnostics 테스트; `gateway-wheel` 산출물 18,201 bytes (ID `13551405808`). **이 결과는 PR head 기준이며 병합 후 main의 별도 검증과 구별한다.**
 - 이번 변경은 음성 재생 lifecycle에 한정되며 공식 Cubism Core/캐릭터/로컬 `adapter.js`와 실제 WebGL 렌더링을 구현하지 않는다. 사용자 Windows PC의 마이크·스피커와 Ollama·whisper.cpp·MeloTTS 실측도 미완료다.
+
+## 2026-11-08 WebGL 컨텍스트 손실 복구 경계 보강 (PR #11 병합·CI 통과)
+
+- React `AvatarInspector`가 `webglcontextlost` 이벤트에 반응하도록 수정했다. 외부 SDK 어댑터를 해제하고 음성 립싱크 전달을 정지하며, 진행 중인 로컬 런타임 팩토리 작업을 취소한다. 손실 상태에서는 재연결 버튼을 비활성화하고 `webglcontextrestored` 이후 사용자 재연결을 요구한다.
+- 모의 SDK 및 브라우저 이벤트 기반 회귀 테스트 **3개**를 추가했다: 연결된 어댑터 정리·입모양 0 복귀·재연결 게이트, 비동기 팩토리의 지연 응답 폐기, GPU 손실로 외부 `dispose()`가 예외를 던져도 복구 UI 유지. 이는 SDK 실제 WebGL 출력 테스트가 아니다.
+- [PR #11](https://github.com/yuilyoung/My_own_AI_assistant/pull/11)을 **[8ef35aa](https://github.com/yuilyoung/My_own_AI_assistant/commit/8ef35aafa43564da5689c2ff084b0aa4ae1d222f)**로 squash 병합했다. PR head `a52091ee820dd2cb235189871198196b8b4eed4b` 기준 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42430834716) 성공: Prettier, ESLint, TypeScript/Vite 빌드, Vitest **56 passed (11 files)**, Chromium 합성 STT/TTS 브라우저 E2E 및 GitHub 호스팅 Windows Gateway demo smoke. `web-dist` 산출물 **83,648 bytes** (artifact ID `13596943110`)를 생성했다.
+- 같은 PR head 기준 [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42430834784) 성공: Ruff, wheel 및 Windows/Linux × Python 3.11·3.13 매트릭스, Python **64 passed (upstream 경고 1건)**, Node 진단 **23 passed**. `gateway-wheel` 산출물 **18,194 bytes** (artifact ID `13596599153`)를 생성했다. 위 검증 결과는 PR head의 자동 테스트이며 사용자 실기기 검증이나 실제 GPU 강제 손실 검증이 아니다.
+- **남은 차단 요인:** 공식 Cubism SDK/Core·사용권 확인된 캐릭터 모델·실제 `adapter.js`는 여전히 미포함. 실제 WebGL 복원·모델 렌더링·GPU 자원 반환, 사용자 Windows PC의 Ollama/whisper.cpp/MeloTTS·마이크·스피커·30분 안정성은 확인하지 않았다.
+
+## 2026-11-09 음성 재생 시작 실패 복구 (PR #12 병합·PR CI 통과)
+
+- `apps/diagnostics/player.mjs`: `AudioBufferSourceNode.start()` 또는 초기 분석 콜백 예외 시 오디오 소스/분석기 연결과 활성 프레임을 정리하고 입모양 레벨을 0으로 반환한다. 실패는 `play()`의 rejection으로 전파되어 React의 기존 텍스트 유지·오류 표시 경로가 작동하도록 한다.
+- `apps/diagnostics/tests/player.test.mjs`: 첫 시작 실패 뒤 소스가 정리되고 다음 음성 재생이 가능한지 모의 AudioContext로 검증하는 회귀 테스트를 추가했다.
+- [PR #12](https://github.com/yuilyoung/My_own_AI_assistant/pull/12)를 [4aa0a8d](https://github.com/yuilyoung/My_own_AI_assistant/commit/4aa0a8dbb32654f59e23936194952d3b7a769aee)로 squash 병합했다. PR head SHA `2b58c933bcd8dd8068bad78b986de0edcc812dbf` 기준 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42541109712) **성공**: Prettier, ESLint, TypeScript/Vite 빌드, React/Vitest **56 passed (11 files)**, Chromium 합성 음성 E2E 및 GitHub 호스팅 Windows Gateway demo smoke. `web-dist` artifact **83,704 bytes** (ID `13641472263`) 생성 확인.
+- 같은 PR head 기준 [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42541109741) **성공**: Ruff formatter/lint, Gateway wheel, Windows/Linux × Python 3.11·3.13 전체 매트릭스 통과. Linux 3.11에서 Python **64 passed, upstream 경고 1건**, Node 진단 **24 passed**. `gateway-wheel` artifact **18,194 bytes** (ID `13641770866`) 생성 확인.
+- 이 결과는 CI의 모의 오디오 및 GitHub Windows runner 기준이다. 실제 Windows PC의 AudioContext 시작 실패 재현, Ollama·whisper.cpp·MeloTTS, 실제 마이크·스피커, 30분 안정성과 공식 Cubism WebGL 캐릭터 출력·립싱크는 **아직 미검증**이다.
+
+## 2026-11-10 예기치 않은 마이크 장치 종료 복구 (PR #13 병합·main CI 통과)
+
+- `apps/diagnostics/recorder.mjs`: 녹음 중 오디오 트랙의 `ended` 이벤트를 구독해 USB 장치 분리·입력 중단·권한 철회 등의 경우 녹음과 오디오 리소스를 해제한다. 정상 중지 시에는 이벤트 핸들러도 제거하며, 취소 후 지연된 `AudioContext.resume()`가 끝나도 AudioWorklet을 다시 시작하지 않도록 검사한다.
+- `apps/diagnostics/voice-input.mjs`: 예기치 않은 마이크 종료를 세션 단위 취소·오류 표시로 연결하며, 이전 세션에 속한 지연 이벤트가 새 녹음을 중단시키지 않도록 generation으로 보호한다.
+- `apps/diagnostics/tests/voice.test.mjs`: 모의 마이크 트랙 종료 후 리소스 반환, UI 상태 복구, 이전 녹음의 뒤늦은 종료 알림 무시, AudioContext 재개 대기 중 취소를 검증하는 Node 회귀 테스트를 추가했다.
+- [PR #13](https://github.com/yuilyoung/My_own_AI_assistant/pull/13)을 검증 대상 head `42f274cefdbf0023e8bd412f3ea20e5661c09118`에서 자동 테스트 통과 후 [7a5c601](https://github.com/yuilyoung/My_own_AI_assistant/commit/7a5c601281a3c2947947646a7918656bb067d5e5)으로 squash 병합했다. 초기 Node 테스트에서 중복 `track.stop()` 호출을 발견하고 release를 멱등적으로 수정했으며 React Prettier 오류도 정리했다.
+- 병합된 코드 SHA `7a5c601281a3c2947947646a7918656bb067d5e5` 기준 [main Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42731083237) **성공**: Prettier·ESLint·TypeScript/Vite 빌드, Vitest **57 passed (11 files)**, Chromium 합성 음성 E2E, GitHub Windows Gateway demo smoke. `web-dist` artifact **83,926 bytes** (ID `13723973885`) 생성 확인.
+- 같은 병합 SHA 기준 [main Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42731083528) **성공**: Ruff formatter/lint, Gateway wheel, Windows/Linux × Python 3.11·3.13 매트릭스 전부 통과. Linux 3.11에서 Python **64 passed**(upstream 경고 1건) 및 Node 진단 **27 passed**. `gateway-wheel` artifact **18,194 bytes** (ID `13725415591`) 생성 확인.
+- **검증 경계:** 자동화는 모의 `MediaStreamTrack.ended`와 합성 음성·GitHub 호스팅 Windows runner 기준이다. 실제 Windows USB 마이크 분리·OS 권한 변경·한국어 STT/TTS 품질·30분 사용은 미검증이다. 공식 Cubism SDK/Core·사용권 모델·WebGL 출력·립싱크도 여전히 미완료다. 이 문서 전용 후속 커밋은 위 병합 SHA 이후이므로 CI 증거 범위를 구분해야 한다.
+
+
+## 2026-11-11 AudioWorklet 비정상 종료·PCM 오류 복구 (PR #14 병합·main CI 통과)
+
+- `apps/diagnostics/recorder.mjs`: 마이크 녹음 중 `AudioWorkletNode.processorerror`를 감지해 활성 녹음을 취소하고 스트림/오디오 컨텍스트를 정리하며 사용자 오류 알림으로 전달한다. 워크릿에서 Float32 PCM 외 데이터를 전달하거나 30초 분량을 초과하면 기존의 조용한 취소 대신 오류를 알리고 음성 입력 UI가 대기로 돌아오도록 한다. 해제 시 프로세서 오류 리스너를 제거하며, 이전 세션에서 늦게 전달된 이벤트는 generation 검사로 무시한다.
+- `apps/diagnostics/tests/voice.test.mjs`: 모의 AudioWorklet 처리기 실패의 단일 오류·리소스 정리, 잘못된 PCM 자료형 및 30초 초과 샘플에 대한 복구 테스트 2개 추가. **실제 브라우저 AudioWorklet 크래시나 사용자 PC 마이크를 재현한 테스트는 아니다.**
+- [PR #14](https://github.com/yuilyoung/My_own_AI_assistant/pull/14)를 head `65469b0bbb40552ee1a58c1aeeabccf06ec1e000`의 자동 검사 통과 후 [7493d2f](https://github.com/yuilyoung/My_own_AI_assistant/commit/7493d2fb0681a5f32711714d5c582f16163bbd0d)로 squash 병합했다. 병합 코드 SHA 기준 [main Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42931948151) **성공**: Prettier, ESLint, TypeScript/Vite, Vitest **57 passed (11 files)**, Chromium 합성 STT/TTS E2E, GitHub 호스팅 Windows Gateway demo smoke. `web-dist` **84,022 bytes** (artifact ID `13816463128`) 생성 확인.
+- 병합 코드 SHA 기준 [main Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/42931948143) **성공**: Ruff 검사/포맷, wheel, Windows/Linux × Python 3.11·3.13 매트릭스. PR 검증 로그의 Ubuntu Python 3.11 실행 기준 Python **64 passed** 및 Node **29 passed**를 확인했다. `gateway-wheel` **18,194 bytes** (artifact ID `13816860853`) 생성 확인. **위 검사 수치는 PR head의 로그에 기반하며 main 실행의 개별 테스트 수를 재인용한 값은 아니다.**
+- 실제 SDK/Core·사용권이 확인된 캐릭터 모델 및 `adapter.js` 기반 WebGL 렌더러는 여전히 미구현이며 가짜 렌더러를 제공하지 않는다. 사용자 Windows PC에서 실제 Ollama, whisper.cpp, MeloTTS, 마이크·스피커, 음성 지연·한국어 품질, 30분 안정성, SDK 모델 동작도 미검증이다.
+- **다음 작업:** 공식 Cubism 5 SDK for Web의 버전 및 모델 사용 조건을 확인하고 로컬에 원본 SDK/Core와 실행용 모델 export를 설치한 다음, 신뢰할 수 있는 비공개 `adapter.js` 구현과 실제 캐릭터/입모양/모션 시각 시험을 수행한다. 사용자 PC 접근이 가능해지면 Windows 마이크/스피커 및 로컬 STT/TTS/LLM 연동 검증을 실시한다.
+
+
+## 2026-11-12 예약된 오디오 animation frame 세대 격리
+
+- 이전 음성 재생의 RAF 콜백이 이미 브라우저 실행 큐에 들어간 상태에서는 `cancelAnimationFrame` 이후에도 늦게 호출될 수 있다. 과거 콜백이 `Player.stop()`을 호출하면 뒤이어 시작한 새 음성까지 중단될 가능성이 있어, **재생 generation 불일치 시 현재 플레이어를 건드리지 않고 반환**하도록 수정했다. 현재 재생의 `isCurrent()`가 false라면 기존처럼 재생을 중단한다.
+- `apps/diagnostics/tests/player.test.mjs`에 이미 예약된 구 세대 RAF를 새 재생 시작 후 강제로 호출하는 회귀 테스트를 추가했다. 모의 AudioContext 및 수동 실행 콜백을 사용한다.
+- GitHub Actions Node/React/Python 및 운영 빌드 결과와 병합 SHA는 별도 검증 후 기록한다. 실제 Windows 스피커, 구독 모델, 공식 Cubism 렌더링/립싱크, 사용자 PC 30분 장시간 실행은 이 변경으로 확인되지 않는다.
+
+
+### PR #16 병합 및 CI 증거 (2026-11-12, 검증 후 기록)
+
+- PR [#16](https://github.com/yuilyoung/My_own_AI_assistant/pull/16)은 리뷰 대상 최종 코드 SHA `841e6316e41e3b3a377dac4a22b8cb077ff8669b`의 CI 전체 성공 이후 squash 병합했다. 병합 SHA: [ea7a2be](https://github.com/yuilyoung/My_own_AI_assistant/commit/ea7a2be0d6e2eb47e4530f590a3aba4965609b95). 앞선 PR #15는 동일 작업의 구버전으로 닫았고 병합하지 않았다.
+- [PR Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43131598614) **성공**: Prettier, ESLint, TypeScript, Vite 운영 빌드, Vitest/React **57 passed**, 합성 음성 Chromium E2E, GitHub Windows Gateway demo smoke. `web-dist` 산출물 **84,023 bytes**.
+- [PR Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43131598677) **성공**: Python Ruff 형식·lint, Windows/Linux × Python 3.11/3.13 전체 매트릭스, Python **64 passed (upstream 경고 1건)**, Node **31 passed**, `gateway-wheel` 생성.
+- [병합 후 main Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43131783559) **성공**, `web-dist` **84,023 bytes**. [병합 후 main Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43131783617) **성공**, `gateway-wheel` **18,194 bytes**. 이 실행들은 병합 커밋 `ea7a2be` 기준이며 본 증거 문서 커밋의 검증을 대신하지 않는다.
+- **실제 동작 경계:** 구 세대 RAF와 현재 턴의 무효화에 관한 테스트는 모의 브라우저 오디오 장치 기반이다. 공식 Cubism Core/SDK/캐릭터 자산, 실제 Live2D WebGL 렌더링과 립싱크, 사용자 Windows PC의 Ollama·whisper.cpp·MeloTTS·마이크·스피커/30분 안정성 검증은 여전히 미완료다.
+
+
+## 2026-11-13 오디오 워크릿 비유한·빈 PCM 조기 차단
+
+- `apps/diagnostics/recorder.mjs`: AudioWorklet에서 Float32Array의 빈 샘플이나 NaN·Infinity를 포함한 PCM 조각을 전달하면 **WAV 인코딩을 기다리지 않고** 즉시 녹음을 취소한다. 기존의 잘못된 자료형·30초 초과 데이터 차단과 같은 오류/UI 복구 경로를 사용한다.
+- `apps/diagnostics/tests/voice.test.mjs`: 기존 자료형/길이 회귀 테스트를 빈 조각·NaN·Infinity 입력으로 확장하고 모의 스트림 해제 및 오류 전달을 검사한다. 실제 Windows 마이크 불량 재현이나 한국어 STT 품질을 검증한 것은 아니다.
+- [PR #17](https://github.com/yuilyoung/My_own_AI_assistant/pull/17): head `9af0e30c230e338a71099fc84574c4f361d3ba09`의 CI 성공 뒤 squash 병합. 기능 병합 SHA [75376a2](https://github.com/yuilyoung/My_own_AI_assistant/commit/75376a2e0ac3fb178d3f85a1b145a106ec55ae8b).
+- [PR Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43339255179) **성공** — Prettier, ESLint, TypeScript/Vite, Vitest **57 passed (11 files)**, 합성 STT/TTS 기반 Chromium E2E, GitHub Windows Gateway demo smoke; `web-dist` **84,043 bytes**.
+- [PR Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43339255325) **성공** — Ruff, Python **64 passed/1 warning**, Node 음성·진단 **31 passed**, Windows/Linux × Python 3.11/3.13, `gateway-wheel` **18,194 bytes**.
+- 병합 SHA 기준 [main Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43339491773) 및 [main Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43339491771) **모두 성공**. main의 `web-dist` **84,043 bytes**, `gateway-wheel` **18,194 bytes** 생성 확인. 아래 기록을 추가하는 문서 전용 커밋의 CI와 별도임.
+- **미완료:** 공식 Cubism SDK/Core 및 사용권 확인 모델, 실제 WebGL 캐릭터 렌더러와 립싱크, 사용자 Windows PC Ollama·whisper.cpp·MeloTTS·마이크·스피커 및 30분 안정성 시험. GitHub Windows runner의 합성 검사는 실기기를 대체하지 않는다.
+
+
+## 2026-11-14 비공개 Cubism 어댑터 콜백 오류 격리 (PR #18 병합·main CI 통과)
+
+- `apps/web/src/avatar-motion.ts`: 사용자 설치 `setLipSync`, `setExpression`, `setMotion`에서 예외가 발생하면 브리지 상태를 먼저 비활성화하고 `dispose`를 시도한다. 이때 GPU 정리 자체가 실패해도 오류를 처리하여 음성 애니메이션 콜백이 예외를 밖으로 전파하지 않도록 보강했다. 수동 표정/모션 명령은 원본 오류를 UI에 전달한다.
+- `apps/web/src/AvatarInspector.tsx`: 사용 중 SDK 콜백 실패로 연결이 끊어지면 이전의 '초기화 완료' 표시 대신 오류 원인과 재연결 안내를 표시한다.
+- 모의 SDK가 립싱크·수동 모션·입모양 초기화에 실패하거나 GPU 정리 시 예외를 던지는 회귀 테스트 및 React 연결 상태 표시 테스트를 추가했다. **공식 SDK, 실제 캐릭터 파일 또는 사용자 Windows 실기기가 없어 시각적 렌더링·GPU 손실 재현·실제 TTS/STT 장치 시험은 수행하지 않았다.**
+- [PR #18](https://github.com/yuilyoung/My_own_AI_assistant/pull/18)은 최종 head `5f01dd4605d35433e0e2a3a742e199874d2fd8ff`의 자동 테스트가 전체 통과한 뒤 squash 병합했다. 기능 병합 SHA: [e9e5dd3](https://github.com/yuilyoung/My_own_AI_assistant/commit/e9e5dd3b57f68259c139a2038ef5b79f18c66ff6). 초기 Prettier 형식 실패는 정확한 diff를 확인한 뒤 원본 테스트 파일에 적용하고 임시 진단 CI 단계를 제거했다.
+- 최종 PR head 기준 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43536452322) **성공** — Prettier·ESLint·TypeScript/Vite, React/Vitest **61 passed**, 합성 STT/TTS Chromium E2E 및 GitHub Windows Gateway demo smoke. `web-dist` **84,181 bytes**. [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43536452353) **성공** — Ruff, Windows/Linux × Python 3.11/3.13 전체 매트릭스, Python **64 passed/1 warning**, Node 진단 **31 passed**, `gateway-wheel` **18,194 bytes**.
+- 병합 SHA `e9e5dd3` 기준 [main Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43536678756) 및 [main Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43536678737) **모두 성공**. main artifact: `web-dist` **84,181 bytes** (ID `14090830082`), `gateway-wheel` **18,194 bytes** (ID `14090690223`). 이후 문서만 갱신한 커밋과는 검증 SHA를 구분한다.
+- Live2D 공식 [Cubism SDK for Web 다운로드](https://www.live2d.com/ko/sdk/download/web/) 페이지는 2026-04-02의 Cubism 5 SDK for Web R5를 안내한다. 다운로드 시 Proprietary/Open Software 계약 확인 및 직접 동의가 필요하고, [Cubism Core](https://docs.live2d.com/en/cubism-sdk-manual/cubism-core/)는 공개 GitHub 소스에 없으며 SDK 패키지에 포함된다. 실제 모델 사용 허가도 별도로 확인해야 한다.
+- **MVP 미완료/실기기 미검증:** 공식 SDK/Core·사용권 확인 캐릭터·실제 `adapter.js`와 사용자 Windows PC의 Ollama/whisper.cpp/MeloTTS·마이크·스피커·30분 안정성 시험이 필요하다. 모의 SDK 예외 처리는 실제 GPU 리소스 복구나 캐릭터 렌더링 검증이 아니다.
+
+## 2026-11-15 비공개 SDK 종료 예외 격리 (자동 검증 진행 중)
+
+- `apps/web/src/avatar-motion.ts`: 로컬 SDK의 `setLipSync(0)` 또는 `dispose()`가 예외를 던져도 **브리지를 먼저 비활성화**하고 `dispose()`를 한 번 시도하며, 정리 예외는 밖으로 전파하지 않고 `lastFailure`에 남긴다. 기존 SDK 콜백 오류가 있으면 원본 원인을 보존한다.
+- 모델의 표정·모션 매핑이 유효하지 않을 때 부분 생성 어댑터의 `dispose()`가 실패하더라도 **원래 매핑 오류**를 반환한다. SDK `load()` 실패를 정리 오류로 덮어쓰지 않는다.
+- `apps/web/src/avatar-motion.test.ts`에 리소스 정리 양쪽 예외, 로딩 실패+정리 예외, 잘못된 매핑+정리 예외를 재현하는 모의 SDK 회귀 테스트 3개를 추가했다.
+- **검증 증거:** [PR #19](https://github.com/yuilyoung/My_own_AI_assistant/pull/19)는 최종 코드 head `06f8b13eb0c063828b90a2a9e164e00f4f8b72f9`의 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43659816826) 및 [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43659816799)가 모두 성공한 뒤 [97338d3](https://github.com/yuilyoung/My_own_AI_assistant/commit/97338d3b2524d701b13e654a4e3920198ddd9f87)으로 squash 병합했다. 초기 PR 실행은 기존 WebGL cleanup 경고 테스트와 새 `detach()` 동작 간 불일치로 실패하여 UI가 `lastFailure`를 사용하도록 수정했고, 후속 lint 실패도 수정한 뒤 재검증했다. 최종 PR Web CI에서는 Prettier·ESLint·TypeScript/Vite, React/Vitest **64 passed**, Chromium 합성 음성 E2E와 GitHub Windows Gateway demo smoke가 성공했다. Local engine CI는 Ruff, Python **64 passed/1 warning**, Node 진단 **31 passed**, Windows/Linux × Python 3.11·3.13 전체 매트릭스 통과. 병합 SHA 기준 [main Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43659943300), [main Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/43659943355)도 **둘 다 성공**했고 `web-dist` **84,243 bytes** (artifact ID `14140215032`)와 `gateway-wheel` **18,195 bytes** (ID `14139945665`) 생성을 확인했다. 이 증거는 병합된 기능 코드 SHA 기준이며 뒤이은 문서 전용 커밋의 CI 증거와 구분한다.
+- **여전히 미완료:** 공식 Cubism SDK/Core 및 사용권 확인 모델 export, 실제 `adapter.js`와 캐릭터 WebGL 출력·립싱크, 사용자 Windows PC의 Ollama·whisper.cpp·MeloTTS·마이크/스피커 및 30분 통합 검증. 모의 GPU 정리 오류는 실제 GPU 드라이버 오류 재현이 아니다.

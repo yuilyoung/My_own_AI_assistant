@@ -6,7 +6,13 @@ export type Status = {
 };
 export type Mode = "assistant" | "companion";
 export type Session = { id: string };
-export type Segment = { text: string; audio_id?: string | null };
+/** Server-side Reply segments include emotion/gesture; validate at the UI boundary. */
+export type Segment = {
+  text: string;
+  audio_id?: string | null;
+  emotion?: string;
+  gesture?: string;
+};
 export type Turn = {
   id: string;
   segments: Segment[];

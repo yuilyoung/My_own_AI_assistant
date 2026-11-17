@@ -1,5 +1,5 @@
 export interface Recorder {
- start(onLimit:()=>void): Promise<void>;
+ start(onLimit:()=>void,onFailure?:(error:Error)=>void): Promise<void>;
  finish(): Promise<ArrayBuffer>;
  cancel(): void;
 }

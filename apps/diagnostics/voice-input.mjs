@@ -23,6 +23,10 @@ export class VoiceInput {
         if (this.epoch === epoch && this.kind === 'recording') {
           this.finish().catch(error => { if (this.epoch === epoch) this.onError(error); });
         }
+      }, error => {
+        if (this.epoch !== epoch) return;
+        this.cancel();
+        this.onError(error);
       });
       if (this.epoch === epoch) this.state('recording');
     } catch (error) {

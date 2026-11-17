@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { GatewayClient } from "./gateway";
 import { AvatarInspector } from "./AvatarInspector";
 import { AvatarMotionBridge } from "./avatar-motion";
+import { dispatchAvatarCues } from "./avatar-cues";
 import { Conversation } from "./conversation";
 import { Player } from "../../diagnostics/player.mjs";
 import { MicrophoneRecorder } from "../../diagnostics/recorder.mjs";
@@ -268,6 +269,8 @@ export function App() {
         bridge.onAudioLevel(value);
       }),
       new MicrophoneRecorder(),
+      250,
+      (segment) => dispatchAvatarCues(bridge, segment),
     );
     setApp(next);
     setToken("");
