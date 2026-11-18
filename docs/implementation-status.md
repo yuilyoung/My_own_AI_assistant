@@ -1,6 +1,15 @@
 # 구현·검증 상태 — React 음성·기억 통합
 
-최종 작업 확인일: 2026-11-17 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+최종 작업 확인일: 2026-11-18 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+
+## 2026-11-18 공개 바인딩 보안·서비스 오류 안내 및 Docker 런타임 CI (PR #22 초안, main 미병합)
+
+- 기존 [PR #22](https://github.com/yuilyoung/My_own_AI_assistant/pull/22) 로컬·클라우드 기능 브랜치에서 **공개 포트에 전달되는 위조된 `Host: localhost`/`127.0.0.1` 헤더**를 로컬 TCP 접속으로 오인하지 않도록 수정했다. `ASSISTANT_PUBLIC_ORIGIN` 설정 시 실제 ASGI peer 주소가 loopback일 때만 해당 Host를 허용한다. 원격/로컬 접속을 나눈 회귀 테스트를 추가하고 테스트 클라이언트가 실제 loopback peer를 모사하도록 기존 fixture를 수정했다. **이 검사는 HTTPS를 강제하지 않는다.** 외부 공개 포트 차단 및 TLS 종료 프록시가 별도로 필요하다.
+- 구조화 응답이 `error` 상태로 끝난 경우 React가 모든 공급자에 'Ollama 설정'만 안내하던 오류를 수정했다. 클라우드 오류는 API 키·모델·응답 형식, 로컬 오류는 Ollama 실행·모델을 구분하여 안내한다. 클라우드 오류 회귀 테스트를 추가했다.
+- CI의 Docker 빌드 성공만으로 실제 컨테이너 동작을 판단하지 않도록, **빌드된 Docker 이미지 안의 실제 설치된 의존성으로 FastAPI 앱·정적 UI 제공·인증·상태 API·원격 localhost Host 차단**을 실행하는 스모크 테스트를 추가했다. 이것은 CI 컨테이너의 자체 검증이며 실제 Render 배포·Windows 개인 PC 검증은 아니다.
+- 코드 기준 커밋 [58a594a](https://github.com/yuilyoung/My_own_AI_assistant/commit/58a594aaf471cdcdd8211c8829bbc3b9ddc4f0c1) / **PR 브랜치 [Web frontend CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44212555759) 성공**: Prettier, ESLint, TypeScript, Vite 빌드, React/Vitest **99 passed (13 files)**, Linux Chromium 합성 음성·서비스 전환, Docker 빌드 및 컨테이너 API 스모크, Windows Gateway와 합성 Chromium STT/TTS 통합 시험 통과. Artifacts: `web-dist` ID **14385844993** (87,860 bytes), `windows-synthetic-voice-report` ID **14386672125** (387 bytes).
+- 같은 코드의 **PR 브랜치 [Local engine tests](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44212555795) 성공**: Ruff formatter/lint, Python Windows/Linux × 3.11/3.13, Ubuntu Python **141 passed, 경고 1건**, Node 진단/음성 테스트 및 Gateway wheel 빌드 통과. `gateway-wheel` artifact ID **14385654023** (21,671 bytes).
+- 이전 main HEAD는 `2b2e234`이며, 이 변경은 **PR #22 초안 브랜치에서만 반영되어 main에는 아직 병합되지 않았다.** 클라우드 유료 API 호출, 실제 공식 Live2D WebGL 모델 출력·립싱크, 사용자 Windows PC 음성 장치 및 30분 안정성은 수행하지 않았다. Live2D Core·모델 파일 사용권 및 다운로드 동의도 이 코드 작업으로 대신할 수 없다.
 
 ## 2026-11-17 Windows Chromium 합성 음성 검증 확장 (main CI 성공)
 
