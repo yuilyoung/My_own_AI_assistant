@@ -314,35 +314,39 @@ it("cancels pending inference and ignores its answer when switching services", a
   expect(app.state.latestCue).toBeNull();
 });
 
-
 it.each([
   ["local", "Ollama"],
   ["cloud", "클라우드"],
-] as const)("reports %s provider errors without recommending the wrong service", async (service, providerLabel) => {
-  const { app, client } = setup();
-  vi.mocked(client.status).mockResolvedValue({
-    llm: service === "local" ? "ollama" : "cloud",
-    tts: "none",
-    stt_enabled: false,
-    model: "model-id",
-    default_service: service,
-    services: [{ id: service, label: providerLabel, available: true, model: "model-id" }],
-  });
-  await app.connect();
-  vi.spyOn(client, "createTurn").mockResolvedValue({
-    id: "failed-turn",
-    status: "thinking",
-    segments: [],
-  });
-  vi.spyOn(client, "pollTurn").mockResolvedValue({
-    id: "failed-turn",
-    status: "error",
-    segments: [],
-  });
-  app.setInput("질문");
-  await app.send();
-  expect(app.state.error).toContain(providerLabel);
-  if (service === "cloud") expect(app.state.error).not.toContain("Ollama");
-  expect(client.cancelTurn).toHaveBeenCalledWith("assistant", "failed-turn");
-  expect(app.state.busy).toBe(false);
-});
+] as const)(
+  "reports %s provider errors without recommending the wrong service",
+  async (service, providerLabel) => {
+    const { app, client } = setup();
+    vi.mocked(client.status).mockResolvedValue({
+      llm: service === "local" ? "ollama" : "cloud",
+      tts: "none",
+      stt_enabled: false,
+      model: "model-id",
+      default_service: service,
+      services: [
+        { id: service, label: providerLabel, available: true, model: "model-id" },
+      ],
+    });
+    await app.connect();
+    vi.spyOn(client, "createTurn").mockResolvedValue({
+      id: "failed-turn",
+      status: "thinking",
+      segments: [],
+    });
+    vi.spyOn(client, "pollTurn").mockResolvedValue({
+      id: "failed-turn",
+      status: "error",
+      segments: [],
+    });
+    app.setInput("질문");
+    await app.send();
+    expect(app.state.error).toContain(providerLabel);
+    if (service === "cloud") expect(app.state.error).not.toContain("Ollama");
+    expect(client.cancelTurn).toHaveBeenCalledWith("assistant", "failed-turn");
+    expect(app.state.busy).toBe(false);
+  },
+);
