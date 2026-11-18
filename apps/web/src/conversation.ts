@@ -243,7 +243,11 @@ export class Conversation {
           });
         if (result.status === "error")
           throw new Error(
-            "선택한 AI 서비스 연결 또는 응답 형식 오류입니다. Ollama 설정을 확인하세요.",
+            this.state.service === "cloud"
+              ? "클라우드 AI 서비스 오류입니다. API 키, 모델 및 응답 형식을 확인하세요."
+              : this.state.service === "local"
+                ? "로컬 AI 서비스 오류입니다. Ollama 실행과 모델 설정을 확인하세요."
+                : "데모 응답 처리 오류입니다.",
           );
         if (["completed", "cancelled"].includes(result.status)) break;
         await new Promise((resolve) => setTimeout(resolve, this.interval));
