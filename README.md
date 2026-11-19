@@ -165,6 +165,7 @@ node --test apps/diagnostics/tests/*.test.mjs
 - Web: `npm ci`, Prettier, ESLint, TypeScript, Vitest/React 통합 테스트, Vite 운영 빌드.
 - 운영 브라우저: Chromium의 합성 마이크 → AudioWorklet → WAV 업로드 → 합성 STT → 사용자 검토·전송 → 합성 TTS/RMS 재생, 모드 전환과 기억 격리.
 - Windows 운영 smoke: GitHub Actions의 Windows 실행기에서 Gateway를 별도 프로세스로 시작해 빌드된 React·AudioWorklet MIME·로컬 API 인증·demo 응답·모드별 기억 격리를 검사합니다. **사용자 PC에서 실제 모델을 검증한 것은 아닙니다.**
+- 내장 SVG 아바타 브라우저 E2E (2026-11-19, [PR #23](https://github.com/yuilyoung/My_own_AI_assistant/pull/23)): Linux/Windows Chromium의 합성 음성 재생 중 실제 React SVG의 기쁨·인사 신호와 입모양 크기 변화, 재생 종료 후 입 닫힘을 DOM에서 검사합니다. 이는 내장 SVG 출력 검증이며 **공식 Live2D Cubism Core·모델 WebGL 렌더링, 실제 음성 장치 또는 Windows 사용자 PC 동작 검증은 아닙니다.**
 - Windows Chromium 합성 음성 E2E: Windows GitHub Actions 실행기에서도 `scripts/react_smoke.py`로 React의 합성 마이크 입력 → AudioWorklet → WAV 전사 → 사용자 검토·전송 → 합성 TTS/RMS 재생을 시험합니다. 충돌을 줄이기 위해 일회성 loopback 포트를 사용하며, 검증에 성공하면 `windows-synthetic-voice-report` JSON 산출물을 게시합니다. **실제 마이크·스피커나 Ollama/whisper.cpp/MeloTTS의 성능 검증이 아니며, Windows 실기기 검증도 아닙니다.**
 - Actions 산출물: `web-dist`, `gateway-wheel`. 캐릭터·모델 가중치·로컬 데이터는 포함하지 않습니다. wheel에는 UI와 외부 모델이 포함되지 않으므로 소스 실행 안내를 함께 사용하세요.
 
