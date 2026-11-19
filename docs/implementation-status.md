@@ -1,15 +1,23 @@
 # 구현·검증 상태 — React 음성·기억 통합
 
-최종 작업 확인일: 2026-11-18 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+최종 작업 확인일: 2026-11-19 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
 
-## 2026-11-18 공개 바인딩 보안·서비스 오류 안내 및 Docker 런타임 CI (PR #22 초안, main 미병합)
+## 2026-11-19 PR #22/#23 main 병합과 내장 SVG 아바타 브라우저 검증
+
+- [PR #22](https://github.com/yuilyoung/My_own_AI_assistant/pull/22)를 [main 병합 SHA d739a2b](https://github.com/yuilyoung/My_own_AI_assistant/commit/d739a2bd718245d741c06d0a453552a76a10a9c0)로 병합했다. 로컬 Ollama·클라우드 Chat Completions·데모 선택, 서비스별 기억/메모 분리, 자체 제작 기본 SVG 아바타, 비공개 자산 서버 마운트, Docker 런타임·Host 위조 방어가 포함된다. `CLOUD_API_KEY`·`CLOUD_MODEL`이 없는 초기 실행은 기존과 같이 demo이다. **외부 유료 API의 실제 사용 성공 및 Live2D 렌더링을 증명하지 않는다.**
+- PR #22 병합 코드 SHA 기준 **[main Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44426956655) 성공**(React/Vitest, formatter/lint/타입 검사/빌드, Linux·Windows 합성 음성 Chromium, Docker 빌드 및 컨테이너 인증·Host 스모크). **[main Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44426956767) 성공**(Ruff, Python/Node, Windows/Linux × Python 3.11·3.13, wheel). Artifacts: `web-dist` 87,860 bytes, `windows-synthetic-voice-report` 387 bytes, `gateway-wheel` 21,660 bytes.
+- [PR #23](https://github.com/yuilyoung/My_own_AI_assistant/pull/23)을 [main 병합 SHA f8955c1](https://github.com/yuilyoung/My_own_AI_assistant/commit/f8955c1102ca13026e4d38fa58ff2640fdf99dad)로 병합했다. `scripts/react_smoke.py`에서 합성 TTS 재생 동안 실제 React **내장 SVG**의 `emotion=happy`·`gesture=greeting` 적용, 입모양 반경 변화 및 재생 종료 뒤 닫힘을 DOM으로 검사하고 JSON 보고서의 검사 항목을 확대했다. 초기 Ruff formatter 실패를 별도 수정 커밋으로 고친 후 CI를 재검증했다.
+- PR #23 병합 코드 SHA에서 **[main Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44428144768) 성공**: Prettier/ESLint/TypeScript/Vite, React/Vitest **99 passed (13 files)**, Linux/Windows Chromium 합성 음성·SVG 통합, Docker 이미지/컨테이너 스모크. Artifacts: `web-dist` **87,860 bytes**, `windows-synthetic-voice-report` **417 bytes**. **[main Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44428145019) 성공**: Ruff formatter/lint, Windows/Linux × Python 3.11/3.13, Python **141 passed, 경고 1건**, Node **31 passed**; `gateway-wheel` **21,669 bytes** 생성 확인.
+- 여기서 **실제 브라우저의 내장 SVG 동작**과 **합성 오디오 경로**를 검증했을 뿐이다. 공식 Live2D Cubism Core/SDK·사용권 확인 모델의 WebGL 렌더링과 RMS 립싱크, 실제 클라우드 유료 API 호출, 사용자 Windows PC의 물리 마이크·스피커/Ollama·whisper.cpp·MeloTTS 및 30분 안정성 시험은 **미검증**이다. 필요한 SDK/Core·모델은 공식 사용 계약과 자산별 조건 확인 후 사용자 전용 로컬 경로에 설치해야 한다. 문서 전용 후속 커밋은 위 코드 SHA의 CI와 별도로 구분한다.
+
+## 2026-11-18 공개 바인딩 보안·서비스 오류 안내 및 Docker 런타임 CI (당시 PR #22 브랜치 검증 기록)
 
 - 기존 [PR #22](https://github.com/yuilyoung/My_own_AI_assistant/pull/22) 로컬·클라우드 기능 브랜치에서 **공개 포트에 전달되는 위조된 `Host: localhost`/`127.0.0.1` 헤더**를 로컬 TCP 접속으로 오인하지 않도록 수정했다. `ASSISTANT_PUBLIC_ORIGIN` 설정 시 실제 ASGI peer 주소가 loopback일 때만 해당 Host를 허용한다. 원격/로컬 접속을 나눈 회귀 테스트를 추가하고 테스트 클라이언트가 실제 loopback peer를 모사하도록 기존 fixture를 수정했다. **이 검사는 HTTPS를 강제하지 않는다.** 외부 공개 포트 차단 및 TLS 종료 프록시가 별도로 필요하다.
 - 구조화 응답이 `error` 상태로 끝난 경우 React가 모든 공급자에 'Ollama 설정'만 안내하던 오류를 수정했다. 클라우드 오류는 API 키·모델·응답 형식, 로컬 오류는 Ollama 실행·모델을 구분하여 안내한다. 클라우드 오류 회귀 테스트를 추가했다.
 - CI의 Docker 빌드 성공만으로 실제 컨테이너 동작을 판단하지 않도록, **빌드된 Docker 이미지 안의 실제 설치된 의존성으로 FastAPI 앱·정적 UI 제공·인증·상태 API·원격 localhost Host 차단**을 실행하는 스모크 테스트를 추가했다. 이것은 CI 컨테이너의 자체 검증이며 실제 Render 배포·Windows 개인 PC 검증은 아니다.
 - 코드 기준 커밋 [58a594a](https://github.com/yuilyoung/My_own_AI_assistant/commit/58a594aaf471cdcdd8211c8829bbc3b9ddc4f0c1) / **PR 브랜치 [Web frontend CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44212555759) 성공**: Prettier, ESLint, TypeScript, Vite 빌드, React/Vitest **99 passed (13 files)**, Linux Chromium 합성 음성·서비스 전환, Docker 빌드 및 컨테이너 API 스모크, Windows Gateway와 합성 Chromium STT/TTS 통합 시험 통과. Artifacts: `web-dist` ID **14385844993** (87,860 bytes), `windows-synthetic-voice-report` ID **14386672125** (387 bytes).
 - 같은 코드의 **PR 브랜치 [Local engine tests](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44212555795) 성공**: Ruff formatter/lint, Python Windows/Linux × 3.11/3.13, Ubuntu Python **141 passed, 경고 1건**, Node 진단/음성 테스트 및 Gateway wheel 빌드 통과. `gateway-wheel` artifact ID **14385654023** (21,671 bytes).
-- 이전 main HEAD는 `2b2e234`이며, 이 변경은 **PR #22 초안 브랜치에서만 반영되어 main에는 아직 병합되지 않았다.** 클라우드 유료 API 호출, 실제 공식 Live2D WebGL 모델 출력·립싱크, 사용자 Windows PC 음성 장치 및 30분 안정성은 수행하지 않았다. Live2D Core·모델 파일 사용권 및 다운로드 동의도 이 코드 작업으로 대신할 수 없다.
+- **이 단락은 2026-11-18 당시의 브랜치 상태 기록이다.** 당시 main HEAD는 `2b2e234`였으나 PR #22는 2026-11-19에 병합됐다(위 최신 항목 참조). 클라우드 유료 API 호출, 실제 공식 Live2D WebGL 모델 출력·립싱크, 사용자 Windows PC 음성 장치 및 30분 안정성은 수행하지 않았다. Live2D Core·모델 파일 사용권 및 다운로드 동의도 이 코드 작업으로 대신할 수 없다.
 
 ## 2026-11-17 Windows Chromium 합성 음성 검증 확장 (main CI 성공)
 
@@ -31,7 +39,7 @@
 
 - FastAPI Gateway: loopback 바인딩, 토큰, Host/Origin, 입력 크기와 세션별 리소스 소유권 검사.
 - SQLite: 대화·기억·비서 메모. 비서/소개팅 scope를 서버에서 결정하고 소개팅의 비서 도구 접근을 차단한다.
-- React/TypeScript: 공급자 상태와 demo 고지, 모드 선택·채팅·중지, 승인한 기억 저장·삭제, 비서 메모.
+- React/TypeScript: demo/로컬 Ollama/클라우드 API 선택과 분리된 기억, 모드 선택·채팅·중지·비서 메모, 기본 SVG 캐릭터의 음성 RMS 입모양·표정·동작. 사용자 설치 Live2D 어댑터는 별도이며 실제 SDK 렌더링 미검증.
 - 기존 음성 모듈을 React에서도 공유한다. 명시적 PTT, AudioWorklet PCM 수집, 16kHz 모노 PCM16 WAV, 최대 30초, 전사 검토 후 직접 전송.
 - 인증 WAV 재생, RMS 레벨 표시, 재생 중지, 모드 전환·페이지 이탈·연결 해제 시 녹음·전사·응답·오디오 취소.
 - 지연된 턴 생성 ID를 받아 서버에 취소 요청하며, 폴링 오류에서도 실행 중인 추론을 취소한다. 오래된 응답·기억 목록은 새 모드에 반영하지 않는다.
