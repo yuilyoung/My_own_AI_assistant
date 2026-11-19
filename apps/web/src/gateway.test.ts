@@ -56,3 +56,16 @@ it("fetches WAV bytes with bearer authentication and cancellation", async () => 
     }),
   );
 });
+
+it("pins the chosen service to session creation without sending provider keys", async () => {
+  const mock = vi.fn().mockResolvedValue({
+    ok: true,
+    status: 201,
+    json: async () => ({ id: "cloud-session", service: "cloud" }),
+  });
+  vi.stubGlobal("fetch", mock);
+  await new GatewayClient("pairing-token").createSession("assistant", "cloud");
+  expect(mock.mock.calls[0][1].body).toBe(
+    JSON.stringify({ mode: "assistant", service: "cloud" }),
+  );
+});

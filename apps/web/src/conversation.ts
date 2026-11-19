@@ -1,6 +1,7 @@
 import {
   GatewayClient,
   type Mode,
+  type ServiceId,
   type Segment,
   type Session,
   type Status,
@@ -19,6 +20,8 @@ export type AudioPlayer = {
 type Item = { id: string; text: string };
 export type View = {
   mode: Mode;
+  service: ServiceId | null;
+  latestCue: Segment | null;
   session: Session | null;
   status: Status | null;
   input: string;
@@ -34,6 +37,8 @@ export type View = {
 export class Conversation {
   state: View = {
     mode: "assistant",
+    service: null,
+    latestCue: null,
     session: null,
     status: null,
     input: "",
@@ -98,18 +103,40 @@ export class Conversation {
     try {
       const status = await this.client.status();
       if (epoch !== this.epoch) return;
-      this.patch({ status });
+      const service =
+        status.default_service ??
+        (status.llm === "cloud"
+          ? "cloud"
+          : status.llm === "ollama"
+            ? "local"
+            : "demo");
+      this.patch({ status, service });
       await this.changeMode(this.state.mode);
     } catch (error) {
       if (epoch === this.epoch)
         this.patch({ error: String(error), busy: false });
     }
   }
-  async changeMode(mode: Mode) {
+  async changeService(service: ServiceId) {
+    const option = this.state.status?.services?.find(
+      (item) => item.id === service,
+    );
+    if (!option?.available) {
+      this.patch({
+        error: option?.reason || "선택한 서비스가 서버에 설정되지 않았습니다.",
+      });
+      return;
+    }
+    if (service === this.state.service && this.state.session) return;
+    await this.changeMode(this.state.mode, service);
+  }
+  async changeMode(mode: Mode, service = this.state.service) {
     this.stop();
     const epoch = this.epoch;
     this.patch({
       mode,
+      service,
+      latestCue: null,
       session: null,
       input: "",
       messages: [],
@@ -120,7 +147,10 @@ export class Conversation {
       busy: true,
     });
     try {
-      const session = await this.client.createSession(mode);
+      const session = await this.client.createSession(
+        mode,
+        service ?? undefined,
+      );
       if (epoch !== this.epoch) return;
       this.patch({ session, busy: false });
       await this.refresh();
@@ -178,6 +208,7 @@ export class Conversation {
         for (const segment of result.segments.slice(seen)) {
           if (!current()) return;
           this.patch({
+            latestCue: segment,
             messages: [
               ...this.state.messages,
               { role: "assistant", text: segment.text },
@@ -212,7 +243,11 @@ export class Conversation {
           });
         if (result.status === "error")
           throw new Error(
-            "로컬 모델 연결 또는 응답 형식 오류입니다. Ollama 설정을 확인하세요.",
+            this.state.service === "cloud"
+              ? "클라우드 AI 서비스 오류입니다. API 키, 모델 및 응답 형식을 확인하세요."
+              : this.state.service === "local"
+                ? "로컬 AI 서비스 오류입니다. Ollama 실행과 모델 설정을 확인하세요."
+                : "데모 응답 처리 오류입니다.",
           );
         if (["completed", "cancelled"].includes(result.status)) break;
         await new Promise((resolve) => setTimeout(resolve, this.interval));

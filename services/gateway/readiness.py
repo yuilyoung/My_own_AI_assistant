@@ -36,8 +36,8 @@ def inspect_local_readiness(
         )
     )
 
-    if settings.llm == "demo":
-        checks.append(Check("Ollama", "SKIP", "demo 고정 응답; 실제 모델 추론 미사용"))
+    if not settings.local_llm_enabled:
+        checks.append(Check("Ollama", "SKIP", "로컬 LLM 비활성화; LOCAL_LLM_ENABLED로 설정"))
     else:
         try:
             tags = client.get(settings.ollama_url + "/api/tags")

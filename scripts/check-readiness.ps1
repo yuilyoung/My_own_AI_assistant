@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("demo", "ollama")][string]$Provider = "demo",
+    [ValidateSet("demo", "ollama", "cloud")][string]$Provider = "demo",
     [switch]$Voice,
     [switch]$Microphone,
     [switch]$Json

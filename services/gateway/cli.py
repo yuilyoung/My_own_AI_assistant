@@ -20,12 +20,16 @@ def main():
         except FileExistsError:
             pass
         settings = replace(settings, token=token_path.read_text(encoding="utf-8").strip())
-    print("Local only. Keep this pairing URL private:")
-    print(f"http://127.0.0.1:{settings.port}/#token={settings.token}")
+    if settings.public_origin:
+        print(f"Public URL: {settings.public_origin}")
+        print("Pair privately with /#token=<ASSISTANT_TOKEN>; token omitted from logs.")
+    else:
+        print("Local only. Keep this pairing URL private:")
+        print(f"http://127.0.0.1:{settings.port}/#token={settings.token}")
     print(
         f"LLM={settings.llm}; TTS={settings.tts}; STT={settings.stt} (opt-in; transcript review before sending)."
     )
-    uvicorn.run(create_app(settings), host="127.0.0.1", port=settings.port, access_log=False)
+    uvicorn.run(create_app(settings), host=settings.host, port=settings.port, access_log=False)
 
 
 if __name__ == "__main__":

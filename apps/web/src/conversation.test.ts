@@ -230,3 +230,114 @@ it("never dispatches obsolete reply cues after changing conversation modes", asy
   expect(onSegment).not.toHaveBeenCalled();
   expect(app.state.mode).toBe("companion");
 });
+
+it("selects the configured default and clears local data when switching to cloud", async () => {
+  const { app, client, player } = setup();
+  vi.mocked(client.status).mockResolvedValue({
+    llm: "ollama",
+    tts: "none",
+    stt_enabled: false,
+    model: "local-model",
+    default_service: "local",
+    services: [
+      { id: "demo", label: "데모", available: true, model: null },
+      { id: "local", label: "로컬", available: true, model: "local-model" },
+      { id: "cloud", label: "클라우드", available: true, model: "cloud-model" },
+    ],
+  });
+  await app.connect();
+  expect(client.createSession).toHaveBeenLastCalledWith("assistant", "local");
+  app.state.messages = [{ role: "user", text: "local private text" }];
+  app.state.memories = [{ id: "private", text: "local memory" }];
+  app.state.notes = [{ id: "note", text: "local note" }];
+  app.setInput("local draft");
+  await app.changeService("cloud");
+  expect(client.createSession).toHaveBeenLastCalledWith("assistant", "cloud");
+  expect(app.state.service).toBe("cloud");
+  expect(app.state.messages).toEqual([]);
+  expect(app.state.memories).toEqual([]);
+  expect(app.state.notes).toEqual([]);
+  expect(app.state.input).toBe("");
+  expect(player.stop).toHaveBeenCalled();
+});
+
+it("does not switch or silently fall back when a provider is unconfigured", async () => {
+  const { app, client } = setup();
+  await app.connect();
+  app.state.status!.services = [
+    { id: "demo", label: "데모", available: true, model: null },
+    {
+      id: "cloud",
+      label: "클라우드",
+      available: false,
+      model: null,
+      reason: "CLOUD_API_KEY와 CLOUD_MODEL을 설정하세요.",
+    },
+  ];
+  const before = vi.mocked(client.createSession).mock.calls.length;
+  await app.changeService("cloud");
+  expect(client.createSession).toHaveBeenCalledTimes(before);
+  expect(app.state.service).toBe("demo");
+  expect(app.state.error).toContain("CLOUD_API_KEY");
+});
+
+it("cancels pending inference and ignores its answer when switching services", async () => {
+  const { app, client } = setup();
+  await app.connect();
+  app.state.status!.services = [
+    { id: "demo", label: "데모", available: true, model: null },
+    { id: "cloud", label: "클라우드", available: true, model: "cloud-model" },
+  ];
+  vi.spyOn(client, "createTurn").mockResolvedValue({
+    id: "local-turn",
+    status: "thinking",
+    segments: [],
+  });
+  const pending = deferred<{
+    id: string;
+    status: string;
+    segments: Segment[];
+  }>();
+  vi.spyOn(client, "pollTurn").mockReturnValue(pending.promise);
+  app.setInput("private");
+  const sending = app.send();
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  await app.changeService("cloud");
+  pending.resolve({
+    id: "local-turn",
+    status: "completed",
+    segments: [{ text: "late answer", emotion: "happy" }],
+  });
+  await sending;
+  expect(client.cancelTurn).toHaveBeenCalledWith("assistant", "local-turn");
+  expect(app.state.messages).toEqual([]);
+  expect(app.state.latestCue).toBeNull();
+});
+
+it("reports a cloud provider error without recommending Ollama", async () => {
+  const { app, client } = setup();
+  vi.mocked(client.status).mockResolvedValue({
+    llm: "cloud",
+    tts: "none",
+    stt_enabled: false,
+    model: "cloud-model",
+    default_service: "cloud",
+  });
+  await app.connect();
+  vi.spyOn(client, "createTurn").mockResolvedValue({
+    id: "failed-turn",
+    status: "thinking",
+    segments: [],
+  });
+  vi.spyOn(client, "pollTurn").mockResolvedValue({
+    id: "failed-turn",
+    status: "error",
+    segments: [],
+  });
+  app.setInput("질문");
+  await app.send();
+  expect(app.state.error).toContain("클라우드");
+  expect(app.state.error).not.toContain("Ollama");
+  expect(client.cancelTurn).toHaveBeenCalledWith("assistant", "failed-turn");
+  expect(app.state.busy).toBe(false);
+});

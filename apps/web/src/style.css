@@ -281,3 +281,24 @@ footer {
     padding: 9px 12px;
   }
 }
+
+.service-settings {
+  padding: 16px;
+  margin-bottom: 20px;
+  border: 1px solid #33415c;
+  border-radius: 12px;
+  background: #101d31;
+}
+.service-settings select {
+  display: block;
+  width: 100%;
+  max-width: 380px;
+  padding: 10px;
+  border: 1px solid #49658e;
+  border-radius: 8px;
+  background: #1c2d47;
+  color: #eaf2ff;
+}
+.service-settings .hint {
+  margin: 8px 0;
+}

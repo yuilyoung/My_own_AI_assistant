@@ -8,7 +8,7 @@ from pathlib import Path
 
 import httpx
 
-from .config import Settings
+from .config import Settings, optional_env_bool
 from .readiness import inspect_local_readiness
 
 
@@ -17,7 +17,7 @@ def main(argv: list[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
     parser = argparse.ArgumentParser(description="Check local AI assistant MVP prerequisites")
-    parser.add_argument("--provider", choices=["demo", "ollama"])
+    parser.add_argument("--provider", choices=["demo", "ollama", "cloud"])
     parser.add_argument("--voice", action="store_true", help="Require MeloTTS worker")
     parser.add_argument("--microphone", action="store_true", help="Require whisper.cpp files")
     parser.add_argument("--json", action="store_true", help="Machine-readable, secret-free results")
@@ -27,6 +27,7 @@ def main(argv: list[str] | None = None) -> int:
         settings = replace(
             settings,
             llm=args.provider or settings.llm,
+            local_llm_enabled=optional_env_bool("LOCAL_LLM_ENABLED"),
             tts="melo" if args.voice else settings.tts,
             stt="whisper_cpp" if args.microphone else settings.stt,
         )

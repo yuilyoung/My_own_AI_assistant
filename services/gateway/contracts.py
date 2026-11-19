@@ -3,6 +3,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 Mode = Literal["assistant", "companion"]
+Service = Literal["demo", "local", "cloud"]
 Emotion = Literal["neutral", "happy", "concerned", "surprised"]
 Gesture = Literal["idle", "nod", "greeting"]
 
@@ -14,6 +15,7 @@ class StrictModel(BaseModel):
 class SessionCreate(StrictModel):
     mode: Mode
     character: Literal["default"] = "default"
+    service: Service | None = None
 
 
 class TurnInput(StrictModel):

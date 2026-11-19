@@ -4,6 +4,7 @@ import wave
 from typing import Protocol
 
 import httpx
+from pydantic import ValidationError
 
 from .config import Settings
 from .contracts import Reply
@@ -39,7 +40,7 @@ class DemoLLM:
             {
                 "segments": [
                     {
-                        "text": "연결 확인용 고정 응답입니다. 실제 AI 대화는 Ollama를 설정한 뒤 사용할 수 있어요.",
+                        "text": "연결 확인용 고정 응답입니다. 실제 AI 대화는 LLM 서비스에서 로컬 Ollama 또는 클라우드 API를 설정한 뒤 사용할 수 있어요.",
                         "emotion": "happy",
                         "gesture": "greeting",
                     }
@@ -92,6 +93,74 @@ class OllamaLLM:
             if payload["message"].get("tool_calls"):
                 raise ValueError("Tool calls are disabled")
             return Reply.model_validate_json(payload["message"]["content"])
+
+
+class CloudLLM:
+    """Explicit server-side OpenAI-compatible chat, with no retries or fallback."""
+
+    def __init__(self, settings: Settings, transport=None):
+        self.s = settings
+        self.transport = transport
+
+    async def reply(self, messages: list[dict]) -> Reply:
+        if not self.s.cloud_api_key or not self.s.cloud_model:
+            raise ValueError("Cloud requires CLOUD_API_KEY and CLOUD_MODEL")
+        schema = Reply.model_json_schema()
+        # Strict structured-output APIs require every property to be required,
+        # including the segment fields whose local validation supplies defaults.
+        for definition in [schema, *schema.get("$defs", {}).values()]:
+            if definition.get("type") == "object":
+                definition["required"] = list(definition["properties"])
+                for prop in definition["properties"].values():
+                    prop.pop("default", None)
+        try:
+            async with httpx.AsyncClient(
+                timeout=self.s.timeout,
+                trust_env=True,
+                follow_redirects=False,
+                transport=self.transport,
+            ) as client:
+                async with client.stream(
+                    "POST",
+                    self.s.cloud_base_url + "/chat/completions",
+                    headers={"Authorization": "Bearer " + self.s.cloud_api_key},
+                    json={
+                        "model": self.s.cloud_model,
+                        "messages": messages,
+                        "stream": False,
+                        "max_completion_tokens": 4096,
+                        "response_format": {
+                            "type": "json_schema",
+                            "json_schema": {"name": "reply", "strict": True, "schema": schema},
+                        },
+                    },
+                ) as response:
+                    response.raise_for_status()
+                    body = bytearray()
+                    async for chunk in response.aiter_bytes():
+                        body.extend(chunk)
+                        if len(body) > 128_000:
+                            raise ValueError("Cloud provider reply too large")
+            payload = json.loads(body)
+            choices = payload["choices"]
+            if not isinstance(choices, list) or len(choices) != 1:
+                raise ValueError("Cloud requires one completion")
+            choice = choices[0]
+            message = choice["message"]
+            if (
+                choice.get("finish_reason") != "stop"
+                or message.get("role") != "assistant"
+                or message.get("tool_calls")
+                or message.get("function_call")
+                or message.get("refusal")
+                or not isinstance(message.get("content"), str)
+            ):
+                raise ValueError("Cloud completion is incomplete or unsupported")
+            return Reply.model_validate_json(message["content"], strict=True)
+        except httpx.HTTPError:
+            raise ValueError("Cloud provider request failed") from None
+        except (KeyError, TypeError, AttributeError, json.JSONDecodeError, ValidationError):
+            raise ValueError("Cloud provider returned an invalid completion") from None
 
 
 class MeloTTS:
