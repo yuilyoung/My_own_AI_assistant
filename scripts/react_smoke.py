@@ -213,9 +213,26 @@ def main():
                     expect(
                         page.get_by_text("연결 확인용 고정 응답입니다.", exact=False)
                     ).to_be_visible()
+                    # Browser-rendered fallback avatar must consume the same
+                    # synthetic TTS RMS and reply cues as the conversation.
+                    # This does not verify any licensed Live2D SDK renderer.
+                    expect(
+                        page.get_by_role("img", name="기본 아바타 · 기쁨 · 인사")
+                    ).to_be_visible()
+                    expect(page.get_by_test_id("avatar-character")).to_have_attribute(
+                        "data-gesture", "greeting"
+                    )
                     expect(page.locator("meter")).not_to_have_attribute("value", "0")
+                    page.wait_for_function(
+                        """() => {
+                            const mouth = document.querySelector('[data-testid="avatar-mouth"]');
+                            return mouth && Number(mouth.getAttribute("ry")) > 2;
+                        }""",
+                        timeout=4000,
+                    )
                     expect(page.get_by_role("button", name="전송", exact=True)).to_be_disabled()
                     expect(page.locator("meter")).to_have_attribute("value", "0")
+                    expect(page.get_by_test_id("avatar-mouth")).to_have_attribute("ry", "2")
                     expect(page.get_by_text("대화 준비됨")).to_be_visible()
                     page.get_by_role("button", name="가상 소개팅", exact=True).click()
                     expect(page.get_by_text("대화 준비됨")).to_be_visible()
@@ -288,6 +305,8 @@ def main():
                             "worklet_capture",
                             "transcript_review",
                             "wav_playback_rms",
+                            "builtin_avatar_audio_rms_and_reset",
+                            "builtin_avatar_reply_cues",
                             "mode_cancel",
                             "service_switch_cancel_and_isolation",
                         ],
