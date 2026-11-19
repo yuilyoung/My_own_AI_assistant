@@ -223,12 +223,10 @@ def main():
                         "data-gesture", "greeting"
                     )
                     expect(page.locator("meter")).not_to_have_attribute("value", "0")
-                    page.wait_for_function(
-                        """() => {
-                            const mouth = document.querySelector('[data-testid="avatar-mouth"]');
-                            return mouth && Number(mouth.getAttribute("ry")) > 2;
-                        }""",
-                        timeout=4000,
+                    # Use DOM assertions rather than page.evaluate: the
+                    # production CSP intentionally disallows injected eval.
+                    expect(page.get_by_test_id("avatar-mouth")).not_to_have_attribute(
+                        "ry", "2"
                     )
                     expect(page.get_by_role("button", name="전송", exact=True)).to_be_disabled()
                     expect(page.locator("meter")).to_have_attribute("value", "0")
