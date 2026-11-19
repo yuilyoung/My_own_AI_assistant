@@ -67,6 +67,27 @@ jobs:
       - name: Build deployable Docker image including shared voice modules
         working-directory: .
         run: docker build --tag assistant-ci .
+      - name: Smoke test packaged Docker API and public Host guard
+        working-directory: .
+        run: |
+          docker run --rm --entrypoint python assistant-ci -c '
+          from fastapi.testclient import TestClient
+          from gateway.api import create_app
+          from gateway.config import Settings
+
+          settings = Settings(token="x" * 64, host="0.0.0.0", public_origin="https://assistant.example")
+          app = create_app(settings)
+          with TestClient(app, base_url=settings.public_origin) as client:
+              assert client.get("/").status_code == 200
+              assert client.get("/api/status").status_code == 401
+              client.headers["Authorization"] = "Bearer " + settings.token
+              assert client.get("/api/status").json()["deployment"] == "cloud"
+          with TestClient(
+              app, base_url="http://localhost:8765", client=("203.0.113.10", 50000)
+          ) as remote:
+              assert remote.get("/").status_code == 400
+          print("Packaged Docker API smoke passed")
+          '
       - name: Upload static build artifact
         uses: actions/upload-artifact@v4
         with:

@@ -1,4 +1,5 @@
 import hmac
+import ipaddress
 import mimetypes
 import re
 from contextlib import asynccontextmanager
@@ -14,6 +15,14 @@ from .services import Services
 from .speech import MAX_WAV_BYTES
 
 
+def _is_loopback_peer(scope) -> bool:
+    """A client-controlled Host header is not proof of a local TCP peer."""
+    try:
+        return ipaddress.ip_address(scope["client"][0]).is_loopback
+    except (KeyError, TypeError, IndexError, ValueError):
+        return False
+
+
 class LocalGuard:
     """Reject hostile Host/Origin, authenticate all API calls and bound request bodies."""
 
@@ -24,8 +33,9 @@ class LocalGuard:
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
         headers = dict(scope.get("headers", []))
-        allowed_hosts = {f"127.0.0.1:{self.s.port}", f"localhost:{self.s.port}"}
-        allowed_origins = {"http://" + h for h in allowed_hosts}
+        loopback_hosts = {f"127.0.0.1:{self.s.port}", f"localhost:{self.s.port}"}
+        allowed_hosts = set(loopback_hosts)
+        allowed_origins = {"http://" + h for h in loopback_hosts}
         if self.s.public_origin:
             allowed_hosts.add(urlsplit(self.s.public_origin).netloc)
             allowed_origins.add(self.s.public_origin)
@@ -33,6 +43,9 @@ class LocalGuard:
         origin = headers.get(b"origin", b"").decode("latin1")
         code = None
         if host not in allowed_hosts:
+            code = 400
+        elif self.s.public_origin and host in loopback_hosts and not _is_loopback_peer(scope):
+            # A public socket may receive arbitrary Host headers over plain HTTP.
             code = 400
         elif origin and origin not in allowed_origins:
             code = 403

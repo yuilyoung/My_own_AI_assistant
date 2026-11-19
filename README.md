@@ -165,6 +165,7 @@ node --test apps/diagnostics/tests/*.test.mjs
 - Web: `npm ci`, Prettier, ESLint, TypeScript, Vitest/React 통합 테스트, Vite 운영 빌드.
 - 운영 브라우저: Chromium의 합성 마이크 → AudioWorklet → WAV 업로드 → 합성 STT → 사용자 검토·전송 → 합성 TTS/RMS 재생, 모드 전환과 기억 격리.
 - Windows 운영 smoke: GitHub Actions의 Windows 실행기에서 Gateway를 별도 프로세스로 시작해 빌드된 React·AudioWorklet MIME·로컬 API 인증·demo 응답·모드별 기억 격리를 검사합니다. **사용자 PC에서 실제 모델을 검증한 것은 아닙니다.**
+- 내장 SVG 아바타 브라우저 E2E (2026-11-19, [PR #23](https://github.com/yuilyoung/My_own_AI_assistant/pull/23)): Linux/Windows Chromium의 합성 음성 재생 중 실제 React SVG의 기쁨·인사 신호와 입모양 크기 변화, 재생 종료 후 입 닫힘을 DOM에서 검사합니다. 이는 내장 SVG 출력 검증이며 **공식 Live2D Cubism Core·모델 WebGL 렌더링, 실제 음성 장치 또는 Windows 사용자 PC 동작 검증은 아닙니다.**
 - Windows Chromium 합성 음성 E2E: Windows GitHub Actions 실행기에서도 `scripts/react_smoke.py`로 React의 합성 마이크 입력 → AudioWorklet → WAV 전사 → 사용자 검토·전송 → 합성 TTS/RMS 재생을 시험합니다. 충돌을 줄이기 위해 일회성 loopback 포트를 사용하며, 검증에 성공하면 `windows-synthetic-voice-report` JSON 산출물을 게시합니다. **실제 마이크·스피커나 Ollama/whisper.cpp/MeloTTS의 성능 검증이 아니며, Windows 실기기 검증도 아닙니다.**
 - Actions 산출물: `web-dist`, `gateway-wheel`. 캐릭터·모델 가중치·로컬 데이터는 포함하지 않습니다. wheel에는 UI와 외부 모델이 포함되지 않으므로 소스 실행 안내를 함께 사용하세요.
 
@@ -172,6 +173,6 @@ node --test apps/diagnostics/tests/*.test.mjs
 
 ## 보안과 배포 범위
 
-Gateway는 기본적으로 `127.0.0.1`에 바인딩하며 인증과 Host/Origin 검사를 적용합니다. 클라우드 배포는 명시적 HTTPS 공개 주소와 인증 토큰을 설정해야 합니다. SQLite는 암호화 저장소가 아닙니다. 소개팅 모드에는 비서 도구를 제공하지 않습니다. 전사 임시 파일 삭제는 보안 삭제가 아니며 강제 종료 후 잔여 파일이 남을 수 있습니다. 외부 접속은 HTTPS 프록시와 공개 주소 설정을 사용하며, API 인증은 로컬·클라우드 모두 유지합니다.
+Gateway는 기본적으로 `127.0.0.1`에 바인딩하며 인증과 Host/Origin 검사를 적용합니다. 클라우드 배포는 명시적 HTTPS 공개 주소와 인증 토큰을 설정해야 합니다. 공개 바인딩 상태에서 `localhost` 또는 `127.0.0.1` Host 헤더는 실제 TCP 연결 상대도 loopback인 경우에만 허용합니다. 이는 위조된 Host를 통한 로컬 접근 오인을 방지하지만 HTTPS를 제공하지는 않습니다. 배포 시 TLS 프록시를 사용하고 애플리케이션 포트를 외부에 직접 개방하지 마세요. SQLite는 암호화 저장소가 아닙니다. 소개팅 모드에는 비서 도구를 제공하지 않습니다. 전사 임시 파일 삭제는 보안 삭제가 아니며 강제 종료 후 잔여 파일이 남을 수 있습니다. 외부 접속은 HTTPS 프록시와 공개 주소 설정을 사용하며, API 인증은 로컬·클라우드 모두 유지합니다.
 
 Live2D SDK, 캐릭터, 모델 가중치에는 각각의 사용·배포 조건이 있습니다. 코드 공개가 해당 자산의 재배포 허가를 의미하지 않습니다. 라이선스 문서에서 확정된 사실과 공개 배포 전 확인 사항을 구분합니다.

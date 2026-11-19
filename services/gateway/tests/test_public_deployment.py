@@ -53,3 +53,30 @@ def test_public_binding_requires_origin_and_token():
 def test_render_port_from_environment(monkeypatch):
     monkeypatch.setenv("PORT", "10000")
     assert Settings.from_env().port == 10000
+
+
+def test_public_binding_rejects_remote_clients_spoofing_localhost(tmp_path):
+    """A public listener must not treat a forged Host header as local access."""
+    settings = Settings(
+        data_dir=tmp_path,
+        token="a" * 64,
+        host="0.0.0.0",
+        public_origin="https://assistant.example",
+    )
+    app = create_app(settings)
+    for host in ("127.0.0.1", "localhost"):
+        with TestClient(
+            app,
+            base_url=f"http://{host}:{settings.port}",
+            client=("203.0.113.10", 50000),
+        ) as remote:
+            remote.headers["Authorization"] = "Bearer " + settings.token
+            assert remote.get("/api/status").status_code == 400
+            assert remote.get("/").status_code == 400
+        with TestClient(
+            app,
+            base_url=f"http://{host}:{settings.port}",
+            client=("127.0.0.1", 50000),
+        ) as local:
+            local.headers["Authorization"] = "Bearer " + settings.token
+            assert local.get("/api/status").status_code == 200

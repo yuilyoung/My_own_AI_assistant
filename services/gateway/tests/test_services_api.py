@@ -17,8 +17,12 @@ TOKEN = "service-test-token-at-least-thirty-two-characters"
 
 
 def client_for(app):
+    # TestClient's default peer is "testclient", unlike a real loopback request.
     return TestClient(
-        app, base_url="http://127.0.0.1:8765", headers={"Authorization": "Bearer " + TOKEN}
+        app,
+        base_url="http://127.0.0.1:8765",
+        headers={"Authorization": "Bearer " + TOKEN},
+        client=("127.0.0.1", 50000),
     )
 
 
