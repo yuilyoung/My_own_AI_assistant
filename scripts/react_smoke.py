@@ -225,9 +225,8 @@ def main():
                     expect(page.locator("meter")).not_to_have_attribute("value", "0")
                     # Use DOM assertions rather than page.evaluate: the
                     # production CSP intentionally disallows injected eval.
-                    expect(page.get_by_test_id("avatar-mouth")).not_to_have_attribute(
-                        "ry", "2"
-                    )
+                    mouth = page.get_by_test_id("avatar-mouth")
+                    expect(mouth).not_to_have_attribute("ry", "2")
                     expect(page.get_by_role("button", name="전송", exact=True)).to_be_disabled()
                     expect(page.locator("meter")).to_have_attribute("value", "0")
                     expect(page.get_by_test_id("avatar-mouth")).to_have_attribute("ry", "2")
