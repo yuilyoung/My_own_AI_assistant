@@ -185,6 +185,90 @@ it("connects an explicitly installed runtime only after local asset preflight", 
   expect(adapter.dispose).toHaveBeenCalledOnce();
 });
 
+it("disposes the active SDK before constructing a replacement on the same canvas", async () => {
+  vi.mocked(verifyLocalModelResources).mockResolvedValue(modelAudit(2));
+  const createAdapter = () => ({
+    load: vi.fn(async () => {}),
+    setExpression: vi.fn(),
+    setMotion: vi.fn(),
+    setLipSync: vi.fn(),
+    dispose: vi.fn(),
+  });
+  const first = createAdapter();
+  const replacement = createAdapter();
+  const bridge = new AvatarMotionBridge();
+  const loadAdapter = vi.fn(async () => {
+    if (loadAdapter.mock.calls.length === 1) return first;
+    expect(first.dispose).toHaveBeenCalledOnce();
+    expect(bridge.ready).toBe(false);
+    return replacement;
+  });
+  const user = userEvent.setup();
+  render(<AvatarInspector bridge={bridge} loadAdapter={loadAdapter} />);
+  await user.type(
+    screen.getByLabelText("로컬 모델 export 경로 점검"),
+    "/avatar-local/Haru/Haru.model3.json",
+  );
+  await user.click(screen.getByRole("button", { name: "참조 파일 접근 검사" }));
+  await screen.findByText(/참조 파일 HEAD 확인: 2\/2개/);
+
+  const connect = screen.getByRole("button", {
+    name: "로컬 Cubism 어댑터 연결",
+  });
+  await user.click(connect);
+  await screen.findByText(/로컬 어댑터 초기화 완료/);
+  expect(bridge.ready).toBe(true);
+
+  await user.click(connect);
+  await waitFor(() => expect(loadAdapter).toHaveBeenCalledTimes(2));
+  expect(first.dispose).toHaveBeenCalledOnce();
+  await waitFor(() => expect(replacement.load).toHaveBeenCalledOnce());
+  expect(bridge.ready).toBe(true);
+  cleanup();
+  expect(replacement.dispose).toHaveBeenCalledOnce();
+});
+
+it("does not keep the previous SDK connected when a replacement factory fails", async () => {
+  vi.mocked(verifyLocalModelResources).mockResolvedValue(modelAudit(2));
+  const adapter = {
+    load: vi.fn(async () => {}),
+    setExpression: vi.fn(),
+    setMotion: vi.fn(),
+    setLipSync: vi.fn(),
+    dispose: vi.fn(),
+  };
+  let attempts = 0;
+  const loadAdapter = vi.fn(async () => {
+    attempts++;
+    if (attempts === 1) return adapter;
+    throw new Error("replacement SDK failed");
+  });
+  const bridge = new AvatarMotionBridge();
+  const user = userEvent.setup();
+  render(<AvatarInspector bridge={bridge} loadAdapter={loadAdapter} />);
+  await user.type(
+    screen.getByLabelText("로컬 모델 export 경로 점검"),
+    "/avatar-local/Haru/Haru.model3.json",
+  );
+  await user.click(screen.getByRole("button", { name: "참조 파일 접근 검사" }));
+  await screen.findByText(/참조 파일 HEAD 확인: 2\/2개/);
+  const connect = screen.getByRole("button", {
+    name: "로컬 Cubism 어댑터 연결",
+  });
+  await user.click(connect);
+  await screen.findByText(/로컬 어댑터 초기화 완료/);
+  expect(bridge.ready).toBe(true);
+  await user.click(connect);
+  expect((await screen.findByRole("alert")).textContent).toContain(
+    "replacement SDK failed",
+  );
+  expect(bridge.ready).toBe(false);
+  expect(adapter.dispose).toHaveBeenCalledOnce();
+  const count = adapter.setLipSync.mock.calls.length;
+  bridge.onAudioLevel(0.7);
+  expect(adapter.setLipSync).toHaveBeenCalledTimes(count);
+});
+
 it("refuses SDK activation when even one referenced resource fails HEAD", async () => {
   vi.mocked(verifyLocalModelResources).mockResolvedValue(modelAudit(1));
   const loadAdapter = vi.fn();
