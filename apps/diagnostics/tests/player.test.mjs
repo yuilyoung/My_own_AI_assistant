@@ -30,6 +30,28 @@ test('obsolete application generation never starts audio',async()=>{
  const {player,sources}=environment();await player.play(new ArrayBuffer(4),()=>false);assert.equal(sources.length,0);await player.close();
 });
 
+test('repeated disconnects release the audio context once and allow reopening', async () => {
+ const {player} = environment();
+ let completeClose;
+ globalThis.AudioContext = class {
+  closed = false;
+  async resume() {
+   if (this.closed) throw new DOMException('closed', 'InvalidStateError');
+  }
+  close() {
+   if (this.closed) return Promise.reject(new DOMException('closed', 'InvalidStateError'));
+   this.closed = true;
+   return new Promise(resolve => { completeClose = resolve; });
+  }
+ };
+ await player.unlock();
+ const first = player.close();
+ const second = player.close();
+ completeClose();
+ await Promise.all([first, second]);
+ await player.unlock();
+});
+
 test('stop while AudioContext.resume is pending does not decode stale audio',async()=>{
  let resolveResume;let decodeCalls=0;
  const {player,sources,levels}=environment(()=>{decodeCalls++;return Promise.resolve({});},()=>new Promise(resolve=>{resolveResume=resolve;}));

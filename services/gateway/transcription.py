@@ -52,10 +52,14 @@ class Transcriptions:
         validate_input_wav(data)
         if self.provider is None:
             raise ValueError("STT disabled")
-        self._prune()
-        self.cancel_session(sid)
-        if sum(j.status in {"queued", "transcribing"} for j in self.jobs.values()) >= 4:
+        active_others = sum(
+            j.status in {"queued", "transcribing"}
+            for j in self.jobs.values()
+            if j.session_id != sid
+        )
+        if active_others >= 4:
             raise ValueError("Transcription queue full")
+        self.cancel_session(sid)
         job = Transcription(str(uuid4()), sid)
         self.jobs[job.id] = job
         self.current[sid] = job.id
@@ -99,19 +103,21 @@ class Transcriptions:
 
     def cancel(self, sid: str, tid: str):
         self.snapshot(sid, tid)
-        job = self.jobs[tid]
+        self._cancel(self.jobs[tid])
+
+    def _cancel(self, job: Transcription):
         already_cancelled = job.status == "cancelled"
         job.status, job.text, job.error = "cancelled", None, None
         if job.task and not job.task.done() and not already_cancelled:
             job.task.cancel()
-        if self.current.get(sid) == tid:
-            self.current.pop(sid, None)
+        if self.current.get(job.session_id) == job.id:
+            self.current.pop(job.session_id)
 
     def cancel_session(self, sid: str):
         self._prune()
         tid = self.current.get(sid)
         if tid is not None:
-            self.cancel(sid, tid)
+            self._cancel(self.jobs[tid])
 
     async def close(self):
         tasks = list(self.tasks)

@@ -18,6 +18,17 @@ export type AudioPlayer = {
   close(): Promise<void>;
 };
 type Item = { id: string; text: string };
+type StorageOperation = "list" | "memories" | "notes" | "forget";
+function defaultService(status: Status): ServiceId {
+  if (status.default_service) return status.default_service;
+  if (status.llm === "cloud") return "cloud";
+  return status.llm === "ollama" ? "local" : "demo";
+}
+function connectionError(error: unknown): string {
+  if (error instanceof TypeError)
+    return "서버에 연결할 수 없습니다. 네트워크와 서버 상태를 확인하세요.";
+  return error instanceof Error ? error.message : String(error);
+}
 export type View = {
   mode: Mode;
   service: ServiceId | null;
@@ -28,6 +39,7 @@ export type View = {
   messages: { role: "user" | "assistant"; text: string }[];
   memories: Item[];
   notes: Item[];
+  storageErrors: Partial<Record<StorageOperation, string>>;
   busy: boolean;
   voice: VoiceKind;
   error: string;
@@ -45,6 +57,7 @@ export class Conversation {
     messages: [],
     memories: [],
     notes: [],
+    storageErrors: {},
     busy: false,
     voice: "idle",
     error: "",
@@ -52,6 +65,9 @@ export class Conversation {
   };
   private listeners = new Set<() => void>();
   private epoch = 0;
+  private listRevision = 0;
+  private pendingRequestId?: string;
+  private availabilityCheck?: AbortController;
   private controller: AbortController | null = null;
   private active: { sid: string; tid: string } | null = null;
   private voice: VoiceInput;
@@ -96,25 +112,49 @@ export class Conversation {
     if (old) void this.client.cancelTurn(old.sid, old.tid).catch(() => {});
     this.patch({ busy: false });
   }
-  async connect() {
+  connect() {
+    return this.connectToService(null);
+  }
+  async retryConnection() {
+    if (!this.state.session)
+      return this.connectToService(this.state.service, this.pendingRequestId);
+
+    this.availabilityCheck?.abort();
+    const check = new AbortController();
+    this.availabilityCheck = check;
+    this.patch({ error: "" });
+    try {
+      const status = await this.client.status(check.signal);
+      if (!check.signal.aborted) this.patch({ status });
+    } catch (error) {
+      if (!check.signal.aborted) this.patch({ error: connectionError(error) });
+    } finally {
+      if (this.availabilityCheck === check) this.availabilityCheck = undefined;
+    }
+  }
+  private async connectToService(
+    selected: ServiceId | null,
+    requestId?: string,
+  ) {
+    this.availabilityCheck?.abort();
     this.stop();
     const epoch = this.epoch;
+    const controller = new AbortController();
+    this.controller = controller;
     this.patch({ busy: true, error: "" });
     try {
-      const status = await this.client.status();
+      const status = await this.client.status(controller.signal);
       if (epoch !== this.epoch) return;
-      const service =
-        status.default_service ??
-        (status.llm === "cloud"
-          ? "cloud"
-          : status.llm === "ollama"
-            ? "local"
-            : "demo");
+      this.controller = null;
+      const service = selected ?? defaultService(status);
       this.patch({ status, service });
-      await this.changeMode(this.state.mode);
-    } catch (error) {
       if (epoch === this.epoch)
-        this.patch({ error: String(error), busy: false });
+        await this.startSession(this.state.mode, service, requestId);
+    } catch (error) {
+      if (epoch === this.epoch) {
+        this.controller = null;
+        this.patch({ error: connectionError(error), busy: false });
+      }
     }
   }
   async changeService(service: ServiceId) {
@@ -130,9 +170,18 @@ export class Conversation {
     if (service === this.state.service && this.state.session) return;
     await this.changeMode(this.state.mode, service);
   }
-  async changeMode(mode: Mode, service = this.state.service) {
+  changeMode(mode: Mode, service = this.state.service) {
+    return this.startSession(mode, service);
+  }
+  private async startSession(
+    mode: Mode,
+    service: ServiceId | null,
+    requestId?: string,
+  ) {
+    this.availabilityCheck?.abort();
     this.stop();
     const epoch = this.epoch;
+    this.pendingRequestId = requestId;
     this.patch({
       mode,
       service,
@@ -142,16 +191,34 @@ export class Conversation {
       messages: [],
       memories: [],
       notes: [],
+      storageErrors: {},
       error: "",
       warning: "",
       busy: true,
     });
+    const status = this.state.status;
+    const option = status?.services?.find((item) => item.id === service);
+    if (
+      status &&
+      (status.services
+        ? !option?.available
+        : service !== defaultService(status))
+    ) {
+      this.patch({
+        error: option?.reason || "사용할 수 있는 LLM 서비스를 선택하세요.",
+        busy: false,
+      });
+      return;
+    }
     try {
+      this.pendingRequestId ??= crypto.randomUUID();
       const session = await this.client.createSession(
         mode,
         service ?? undefined,
+        this.pendingRequestId,
       );
       if (epoch !== this.epoch) return;
+      this.pendingRequestId = undefined;
       this.patch({ session, busy: false });
       await this.refresh();
     } catch (error) {
@@ -283,27 +350,42 @@ export class Conversation {
         this.patch({ error: String(error) });
     }
   }
+  private setStorageError(operation: StorageOperation, message?: string) {
+    if (this.state.storageErrors[operation] !== message)
+      this.patch({
+        storageErrors: { ...this.state.storageErrors, [operation]: message },
+      });
+  }
   async refresh() {
-    const session = this.state.session,
-      epoch = this.epoch,
-      mode = this.state.mode;
+    const { session, mode } = this.state;
     if (!session) return;
-    const memories = await this.client.request<Item[]>(
-      `/sessions/${session.id}/memories`,
-    );
-    if (epoch !== this.epoch || session.id !== this.state.session?.id) return;
-    this.patch({ memories });
-    if (mode === "assistant") {
-      const notes = await this.client.request<Item[]>(
-        `/sessions/${session.id}/notes`,
+    const revision = ++this.listRevision;
+    const current = () =>
+      this.state.session === session && this.listRevision === revision;
+    try {
+      const memories = await this.client.request<Item[]>(
+        `/sessions/${session.id}/memories`,
       );
-      if (epoch === this.epoch && session.id === this.state.session?.id)
+      if (!current()) return;
+      this.patch({ memories });
+      if (mode === "assistant") {
+        const notes = await this.client.request<Item[]>(
+          `/sessions/${session.id}/notes`,
+        );
+        if (!current()) return;
         this.patch({ notes });
+      }
+      if (current()) this.setStorageError("list");
+    } catch (error) {
+      if (current())
+        this.setStorageError(
+          "list",
+          "저장 목록을 불러오지 못했습니다. " + connectionError(error),
+        );
     }
   }
   async save(kind: "memories" | "notes", text: string) {
-    const session = this.state.session,
-      epoch = this.epoch;
+    const session = this.state.session;
     if (
       !session ||
       !text.trim() ||
@@ -315,31 +397,45 @@ export class Conversation {
         method: "POST",
         body: JSON.stringify({ text }),
       });
-      if (epoch !== this.epoch) return false;
+      if (this.state.session !== session) return false;
+      this.setStorageError(kind);
       await this.refresh();
-      return true;
+      return this.state.session === session;
     } catch (error) {
-      if (epoch === this.epoch) this.patch({ error: String(error) });
+      if (this.state.session === session) {
+        const label = kind === "memories" ? "기억" : "메모";
+        this.setStorageError(
+          kind,
+          label + " 저장에 실패했습니다. " + connectionError(error),
+        );
+      }
       return false;
     }
   }
   async forget(id: string) {
-    const session = this.state.session,
-      epoch = this.epoch;
+    const session = this.state.session;
     if (!session) return;
     try {
       await this.client.request(
         `/sessions/${session.id}/memories/${encodeURIComponent(id)}`,
         { method: "DELETE" },
       );
-      if (epoch === this.epoch) await this.refresh();
+      if (this.state.session !== session) return;
+      this.setStorageError("forget");
+      await this.refresh();
     } catch (error) {
-      if (epoch === this.epoch) this.patch({ error: String(error) });
+      if (this.state.session === session)
+        this.setStorageError(
+          "forget",
+          "기억 삭제에 실패했습니다. " + connectionError(error),
+        );
     }
   }
   dispose() {
-    this.stop();
+    this.availabilityCheck?.abort();
     this.listeners.clear();
+    this.patch({ session: null, storageErrors: {} });
+    this.stop();
     void this.player.close();
   }
 }

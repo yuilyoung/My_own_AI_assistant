@@ -1,4 +1,5 @@
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -16,6 +17,7 @@ class SessionCreate(StrictModel):
     mode: Mode
     character: Literal["default"] = "default"
     service: Service | None = None
+    request_id: UUID | None = None
 
 
 class TurnInput(StrictModel):

@@ -59,11 +59,16 @@ class Engine:
 
     def start(self, sid: str, text: str) -> dict:
         self.store.session(sid)
+        active_others = sum(
+            t.status in {"thinking", "synthesizing"}
+            for t in self.turns.values()
+            if t.session_id != sid
+        )
+        if active_others >= 4:
+            raise ValueError("Too many active turns")
         self._prune()
         if sid in self.current:
             self.cancel(sid, self.current[sid])
-        if sum(t.status in {"thinking", "synthesizing"} for t in self.turns.values()) >= 4:
-            raise ValueError("Too many active turns")
         gen = self.generations.get(sid, 0) + 1
         self.generations[sid] = gen
         t = Turn(str(uuid4()), sid, gen, text)

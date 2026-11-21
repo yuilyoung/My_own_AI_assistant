@@ -263,6 +263,34 @@ def test_busy_local_does_not_block_cloud_and_late_cancelled_reply_is_discarded(
         assert client.get(f"/api/sessions/{cloud}/history").json()[0]["content"] == "public"
 
 
+def test_rejected_turn_keeps_active_transcription(tmp_path, monkeypatch):
+    class Listening:
+        async def transcribe(self, data):
+            await asyncio.Event().wait()
+
+    async def busy_model(messages):
+        await asyncio.Event().wait()
+
+    app = create_app(Settings(data_dir=tmp_path, token=TOKEN))
+    app.state.transcriptions.provider = Listening()
+    monkeypatch.setattr(app.state.engine.llm, "reply", busy_model)
+    with client_for(app) as client:
+        sid = create_session(client)
+        recordings = f"/api/sessions/{sid}/transcriptions"
+        job = client.post(recordings, content=input_wav(), headers={"Content-Type": "audio/wav"})
+        assert job.status_code == 202
+        for _ in range(4):
+            other = create_session(client)
+            assert (
+                client.post(f"/api/sessions/{other}/turns", json={"text": "wait"}).status_code
+                == 202
+            )
+
+        assert client.post(f"/api/sessions/{sid}/turns", json={"text": "new"}).status_code == 422
+        status = client.get(f"{recordings}/{job.json()['id']}").json()["status"]
+        assert status in {"queued", "transcribing"}
+
+
 def test_transcription_audio_and_cancellation_route_to_the_session_service(
     tmp_path, monkeypatch, transport
 ):
