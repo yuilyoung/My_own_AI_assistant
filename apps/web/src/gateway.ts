@@ -41,6 +41,14 @@ export class GatewayClient {
         ...options.headers,
       },
     });
+    if (response.status === 401)
+      throw new Error(
+        "연결 토큰을 확인하고 다시 입력하세요. (Gateway HTTP 401)",
+      );
+    if (path === "/status" && [502, 503, 504].includes(response.status))
+      throw new Error(
+        `서버가 일시적으로 응답할 수 없습니다. 잠시 뒤 다시 연결하세요. (HTTP ${response.status})`,
+      );
     if (!response.ok) throw new Error("Gateway HTTP " + response.status);
     return response.status === 204
       ? (undefined as T)
@@ -58,8 +66,8 @@ export class GatewayClient {
     if (!response.ok) throw new Error("오디오 요청 실패: " + response.status);
     return response.arrayBuffer();
   }
-  status() {
-    return this.request<Status>("/status");
+  status(signal?: AbortSignal) {
+    return this.request<Status>("/status", { signal });
   }
   createSession(mode: Mode, service?: ServiceId) {
     return this.request<Session>("/sessions", {

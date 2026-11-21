@@ -281,6 +281,36 @@ it("does not switch or silently fall back when a provider is unconfigured", asyn
   expect(app.state.error).toContain("CLOUD_API_KEY");
 });
 
+it("waits for an explicit service choice when the configured default is unavailable", async () => {
+  const { app, client } = setup();
+  vi.mocked(client.status).mockResolvedValue({
+    llm: "cloud",
+    tts: "none",
+    model: null,
+    stt_enabled: false,
+    default_service: "cloud",
+    services: [
+      {
+        id: "cloud",
+        label: "클라우드",
+        available: false,
+        model: null,
+        reason: "CLOUD_MODEL을 설정하세요.",
+      },
+      { id: "demo", label: "데모", available: true, model: null },
+    ],
+  });
+  await app.connect();
+  expect(client.createSession).not.toHaveBeenCalled();
+  expect(app.state.session).toBeNull();
+  expect(app.state.error).toContain("CLOUD_MODEL");
+  expect(app.state.busy).toBe(false);
+  await app.changeService("demo");
+  expect(client.createSession).toHaveBeenCalledTimes(1);
+  expect(client.createSession).toHaveBeenCalledWith("assistant", "demo");
+  expect(app.state.error).toBe("");
+});
+
 it("cancels pending inference and ignores its answer when switching services", async () => {
   const { app, client } = setup();
   await app.connect();

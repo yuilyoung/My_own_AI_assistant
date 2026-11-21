@@ -99,10 +99,13 @@ export class Conversation {
   async connect() {
     this.stop();
     const epoch = this.epoch;
+    const controller = new AbortController();
+    this.controller = controller;
     this.patch({ busy: true, error: "" });
     try {
-      const status = await this.client.status();
+      const status = await this.client.status(controller.signal);
       if (epoch !== this.epoch) return;
+      this.controller = null;
       const service =
         status.default_service ??
         (status.llm === "cloud"
@@ -113,8 +116,18 @@ export class Conversation {
       this.patch({ status, service });
       await this.changeMode(this.state.mode);
     } catch (error) {
-      if (epoch === this.epoch)
-        this.patch({ error: String(error), busy: false });
+      if (epoch === this.epoch) {
+        this.controller = null;
+        this.patch({
+          error:
+            error instanceof TypeError
+              ? "서버에 연결할 수 없습니다. 네트워크와 서버 상태를 확인하세요."
+              : error instanceof Error
+                ? error.message
+                : String(error),
+          busy: false,
+        });
+      }
     }
   }
   async changeService(service: ServiceId) {
@@ -146,6 +159,16 @@ export class Conversation {
       warning: "",
       busy: true,
     });
+    const option = this.state.status?.services?.find(
+      (item) => item.id === service,
+    );
+    if (option && !option.available) {
+      this.patch({
+        error: option.reason || "사용할 수 있는 LLM 서비스를 선택하세요.",
+        busy: false,
+      });
+      return;
+    }
     try {
       const session = await this.client.createSession(
         mode,

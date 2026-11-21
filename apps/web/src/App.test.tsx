@@ -8,6 +8,106 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
+
+it("keeps mode changes out of a pending connection and cancels it on disconnect", async () => {
+  let resolveStatus!: (value: Response) => void;
+  const fetchStatus = vi.fn(
+    (_url: string, _options: RequestInit) =>
+      new Promise<Response>((resolve) => {
+        resolveStatus = resolve;
+      }),
+  );
+  vi.stubGlobal("fetch", fetchStatus);
+  const user = userEvent.setup();
+  render(<App />);
+  await user.type(screen.getByLabelText("연결 토큰"), "pending-token");
+  await user.click(screen.getByRole("button", { name: "연결" }));
+  expect(screen.queryByRole("button", { name: "가상 소개팅" })).toBeNull();
+  expect(screen.queryByLabelText("LLM 서비스")).toBeNull();
+  const signal = fetchStatus.mock.calls[0][1].signal;
+  await user.click(screen.getByRole("button", { name: /토큰 다시 입력/ }));
+  expect(signal?.aborted).toBe(true);
+  resolveStatus(
+    Response.json({
+      llm: "demo",
+      tts: "none",
+      stt_enabled: false,
+      model: null,
+    }),
+  );
+  await screen.findByLabelText("연결 토큰");
+  expect(fetchStatus).toHaveBeenCalledTimes(1);
+});
+
+it("recovers from a temporary status failure without retyping the token", async () => {
+  const fetchApi = vi
+    .fn(async (url: string) => {
+      if (url === "/api/status")
+        return Response.json({
+          llm: "demo",
+          tts: "none",
+          stt_enabled: false,
+          model: null,
+        });
+      return Response.json(url === "/api/sessions" ? { id: "retry" } : []);
+    })
+    .mockResolvedValueOnce(new Response(null, { status: 503 }));
+  vi.stubGlobal("fetch", fetchApi);
+  const user = userEvent.setup();
+  render(<App />);
+  await user.type(screen.getByLabelText("연결 토큰"), "retry-token");
+  await user.click(screen.getByRole("button", { name: "연결" }));
+  expect((await screen.findByRole("alert")).textContent).toContain("503");
+  expect(screen.queryByLabelText("메시지")).toBeNull();
+  expect(fetchApi).toHaveBeenCalledTimes(1);
+  await user.click(screen.getByRole("button", { name: "다시 연결" }));
+  await screen.findByText("대화 준비됨");
+  expect(
+    fetchApi.mock.calls
+      .map(([url]) => url)
+      .filter((url) => url === "/api/sessions"),
+  ).toHaveLength(1);
+});
+
+it("retries session creation only for the selected provider and mode", async () => {
+  const sessions: unknown[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, options: RequestInit) => {
+      if (url.endsWith("/status"))
+        return Response.json({
+          llm: "cloud",
+          tts: "none",
+          model: "example-model",
+          stt_enabled: false,
+          services: [
+            {
+              id: "cloud",
+              label: "클라우드 API",
+              available: true,
+              model: "example-model",
+            },
+          ],
+        });
+      if (url === "/api/sessions") {
+        sessions.push(JSON.parse(String(options.body)));
+        return sessions.length === 1
+          ? new Response(null, { status: 503 })
+          : Response.json({ id: "restored" });
+      }
+      return Response.json([]);
+    }),
+  );
+  const user = userEvent.setup();
+  render(<App />);
+  await user.type(screen.getByLabelText("연결 토큰"), "test-token");
+  await user.click(screen.getByRole("button", { name: "연결" }));
+  await screen.findByText("대화 연결 대기");
+  await user.click(screen.getByRole("button", { name: "대화 연결 다시 시도" }));
+  await screen.findByText("대화 준비됨");
+  const expected = { mode: "assistant", service: "cloud" };
+  expect(sessions).toEqual([expected, expected]);
+});
 it("connects, labels demo, sends reviewed text and clears it on mode change", async () => {
   const requests: string[] = [];
   vi.stubGlobal(
