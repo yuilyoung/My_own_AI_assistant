@@ -68,10 +68,11 @@ cd ../..
 
 ### Windows 로컬 준비 상태 점검 (비침습적 검사)
 
-Gateway를 시작하기 전 현재 PC의 준비 상태를 확인할 수 있습니다. 빌드 파일, Ollama 로컬 모델 등록 여부, whisper.cpp 실행 파일·다국어 모델 경로, MeloTTS 인증 라우트를 확인합니다. **모델 추론·합성·마이크 녹음·SDK 로딩을 실행하지 않으며 네트워크는 구성된 loopback 주소로만 연결합니다.**
+Gateway를 시작하기 전 현재 PC의 준비 상태를 확인할 수 있습니다. 빌드 파일, 클라우드 API 키와 모델 ID 설정 여부, Ollama 로컬 모델 등록 여부, whisper.cpp 실행 파일·다국어 모델 경로, MeloTTS 인증 라우트를 확인합니다. **모델 추론·합성·마이크 녹음·SDK 로딩을 실행하지 않으며 네트워크는 구성된 loopback 주소로만 연결합니다.**
 
 ```powershell
 .\scripts\check-readiness.ps1
+.\scripts\check-readiness.ps1 -Provider cloud
 .\scripts\check-readiness.ps1 -Provider ollama -Voice -Microphone
 .\scripts\check-readiness.ps1 -Provider ollama -Voice -Microphone -Json
 ```

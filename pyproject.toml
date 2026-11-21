@@ -25,7 +25,7 @@ exclude = ["*.tests*"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["services/gateway/tests"]
-pythonpath = ["services"]
+pythonpath = ["services", "."]
 
 [tool.ruff]
 line-length = 100

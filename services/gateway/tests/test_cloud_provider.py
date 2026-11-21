@@ -99,6 +99,20 @@ async def test_cloud_sends_authenticated_nonstreaming_strict_reply_schema():
         completion(function_call={"name": "shell", "arguments": "{}"}),
         completion(refusal="Refused"),
     ],
+    ids=[
+        "missing-choices",
+        "empty-choices",
+        "invalid-choices",
+        "null-choice",
+        "empty-segments",
+        "invalid-gesture",
+        "invalid-text",
+        "extra-field",
+        "code-fence",
+        "tool-calls",
+        "function-call",
+        "refusal",
+    ],
 )
 async def test_cloud_rejects_malformed_or_unsafe_reply(payload):
     with pytest.raises(ValueError):

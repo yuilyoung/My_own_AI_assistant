@@ -59,20 +59,11 @@ def inspect_local_readiness(
         )
     else:
         try:
-            tags = client.get(settings.ollama_url + "/api/tags")
-            tags.raise_for_status()
-            models = tags.json()["models"]
-            installed = {
-                model["name"]
-                for model in models
-                if isinstance(model, dict) and isinstance(model.get("name"), str)
-            }
-            if settings.model not in installed:
+            # Let Ollama resolve the configured name exactly as it does for a chat turn.
+            details = client.post(settings.ollama_url + "/api/show", json={"model": settings.model})
+            if details.status_code == 404:
                 checks.append(Check("Ollama", "FAIL", "설정된 로컬 모델 태그를 찾지 못했습니다"))
             else:
-                details = client.post(
-                    settings.ollama_url + "/api/show", json={"model": settings.model}
-                )
                 details.raise_for_status()
                 info = details.json()
                 if info.get("remote_host") or info.get("remote_model"):

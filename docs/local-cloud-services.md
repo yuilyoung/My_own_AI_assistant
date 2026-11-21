@@ -53,6 +53,8 @@ Ollama 모델은 먼저 `ollama pull qwen3:4b` 등으로 준비해야 합니다.
 
 Windows에서 `.\scripts\check-readiness.ps1 -Provider cloud`를 실행하면 같은 PowerShell 환경의 키와 모델 ID 설정을 검사합니다. 둘 중 하나라도 빠지면 `Cloud API` 항목에 `FAIL`을 표시하고 종료 코드 1을 반환합니다. `PASS`는 두 값이 설정되었다는 뜻입니다. 키의 권한과 실제 답변은 웹에서 대화를 보내 확인하세요.
 
+`-Provider cloud -LocalModel`로 서버를 시작할 예정이라면 점검 전에 `$env:LOCAL_LLM_ENABLED = "true"`를 설정하세요. 그러면 같은 명령으로 클라우드 설정과 Ollama 모델을 함께 점검합니다. `OLLAMA_MODEL`에 태그를 생략하면 Ollama의 기본 태그인 `latest`를 확인합니다.
+
 ## 아바타
 
 **기본 아바타**는 앱에 포함된 SVG 캐릭터입니다. 별도 모델 파일 없이 로컬·Render에서 보이며 답변의 표정·동작 신호와 재생되는 음성 레벨에 반응합니다. 이것은 Live2D 렌더러가 아닙니다. 음성이 비활성화된 경우 실제 음성에 맞춘 입모양 동기화는 발생하지 않습니다.
