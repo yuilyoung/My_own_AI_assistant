@@ -21,26 +21,9 @@
   box-sizing: border-box;
 }
 
-.avatar-panel .avatar-panel__heading {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
 .avatar-panel h2 {
   margin: 0;
   font-size: 18px;
-}
-
-.avatar-panel__badge {
-  padding: 3px 9px;
-  border: 1px solid #4a626d;
-  border-radius: 20px;
-  background: #203738;
-  color: #b8f8e5;
-  font-size: 11px;
 }
 
 .avatar-panel label {
@@ -94,34 +77,6 @@
   width: 100%;
   max-width: 360px;
   height: auto;
-}
-
-.avatar-panel__character {
-  animation: avatar-panel-float 4s ease-in-out infinite;
-}
-
-.avatar-panel__eyes {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: avatar-panel-blink 5.5s infinite;
-}
-
-.avatar-panel__mouth {
-  transition: ry 60ms linear;
-}
-
-.avatar-panel__character[data-gesture="nod"] .avatar-panel__head {
-  transform-origin: 160px 212px;
-  animation: avatar-panel-nod 0.8s ease-in-out 3;
-}
-
-.avatar-panel__character[data-gesture="greeting"] .avatar-panel__hand {
-  transform-origin: 196px 232px;
-  animation: avatar-panel-wave 0.6s ease-in-out 4;
-}
-
-.avatar-panel[data-busy="true"] .avatar-panel__antenna {
-  animation: avatar-panel-think 1.2s ease-in-out infinite;
 }
 
 .avatar-panel p.avatar-panel__status {
@@ -205,58 +160,6 @@
   border-radius: 8px;
   background: #42272f;
   color: #ffc2bf;
-}
-
-@keyframes avatar-panel-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-4px);
-  }
-}
-
-@keyframes avatar-panel-blink {
-  0%,
-  43%,
-  47%,
-  100% {
-    transform: scaleY(1);
-  }
-  45% {
-    transform: scaleY(0.08);
-  }
-}
-
-@keyframes avatar-panel-nod {
-  0%,
-  100% {
-    transform: rotate(0);
-  }
-  50% {
-    transform: translateY(7px) rotate(5deg);
-  }
-}
-
-@keyframes avatar-panel-wave {
-  0%,
-  100% {
-    transform: rotate(-12deg);
-  }
-  50% {
-    transform: rotate(-38deg);
-  }
-}
-
-@keyframes avatar-panel-think {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.35;
-  }
 }
 
 @media (max-width: 480px) {

@@ -41,7 +41,8 @@ it("shows an original SVG avatar by default without attaching a licensed runtime
     (screen.getByRole("combobox", { name: "아바타 종류" }) as HTMLSelectElement)
       .value,
   ).toBe("builtin");
-  const avatar = screen.getByRole("img", { name: /기본 아바타/ });
+  expect(screen.getByRole("option", { name: /서린/ })).toBeTruthy();
+  const avatar = screen.getByRole("img", { name: /서린/ });
   expect(avatar.tagName.toLowerCase()).toBe("svg");
   expect(avatar.getAttribute("viewBox")).toBeTruthy();
   expect(screen.queryByLabelText("로컬 모델 export 경로 점검")).toBeNull();

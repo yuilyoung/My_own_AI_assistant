@@ -8,6 +8,7 @@ import io
 import json
 import math
 import os
+import re
 import secrets
 import socket
 import struct
@@ -23,7 +24,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def tone_wav():
+def tone_wav(frequency=220):
     result = io.BytesIO()
     with wave.open(result, "wb") as audio:
         audio.setnchannels(1)
@@ -31,7 +32,7 @@ def tone_wav():
         audio.setframerate(16000)
         audio.writeframes(
             b"".join(
-                struct.pack("<h", int(9000 * math.sin(2 * math.pi * 220 * n / 16000)))
+                struct.pack("<h", int(9000 * math.sin(2 * math.pi * frequency * n / 16000)))
                 for n in range(24000)
             )
         )
@@ -53,8 +54,11 @@ def serve():
             return "검토할 음성 입력"
 
     class FixtureTTS:
+        def __init__(self, frequency):
+            self.frequency = frequency
+
         async def synthesize(self, text):
-            return tone_wav()
+            return tone_wav(self.frequency)
 
     class FixtureLLM:
         def __init__(self, service):
@@ -84,7 +88,8 @@ def serve():
     app = create_app(settings)
     for service, runtime in app.state.services.runtimes.items():
         runtime.transcriptions.provider = FixtureSTT()
-        runtime.engine.tts = FixtureTTS()
+        # Compare two timbres at the same amplitude in the browser.
+        runtime.engine.tts = FixtureTTS(2600 if service == "local" else 220)
         if service != "demo":
             runtime.engine.llm = FixtureLLM(service)
     uvicorn.run(app, host="127.0.0.1", port=settings.port, access_log=False)
@@ -215,7 +220,15 @@ def main():
                     page.goto(base + "/#token=unused-while-connected")
                     page.wait_for_function("!location.hash")
                     expect(page.get_by_text("대화 준비됨")).to_be_visible()
-                    expect(page.get_by_role("img", name="기본 아바타", exact=False)).to_be_visible()
+                    portrait = page.get_by_role("img", name=re.compile("서린"))
+                    expect(portrait).to_be_visible()
+                    expect(portrait).to_have_accessible_name(re.compile("기본 아바타"))
+                    eyes = portrait.locator(".seorin__eyes")
+                    expect(eyes).to_be_visible()
+                    neutral_eyes = eyes.inner_html()
+                    hand = portrait.locator(".avatar-panel__hand")
+                    mouth = portrait.get_by_test_id("avatar-mouth")
+                    expect(mouth).to_be_visible()
                     expect(page.get_by_text("DEMO · 고정 응답", exact=False)).to_be_visible()
                     page.get_by_label("기억할 내용").fill("비서 전용 기억")
                     page.get_by_role("button", name="기억 저장").click()
@@ -251,21 +264,26 @@ def main():
                     # Browser-rendered fallback avatar must consume the same
                     # synthetic TTS RMS and reply cues as the conversation.
                     # This does not verify any licensed Live2D SDK renderer.
-                    expect(
-                        page.get_by_role("img", name="기본 아바타 · 기쁨 · 인사")
-                    ).to_be_visible()
+                    expect(portrait).to_have_accessible_name(re.compile("기쁨.*인사"))
                     expect(page.get_by_test_id("avatar-character")).to_have_attribute(
                         "data-gesture", "greeting"
                     )
-                    expect(page.locator("meter")).not_to_have_attribute("value", "0")
-                    # Use DOM assertions rather than page.evaluate: the
-                    # production CSP intentionally disallows injected eval.
-                    mouth = page.get_by_test_id("avatar-mouth")
-                    expect(mouth).not_to_have_attribute("ry", "2")
+                    assert eyes.inner_html() != neutral_eyes, "Happy cue did not change the eyes"
+                    expect(hand).not_to_have_css("animation-name", "none")
+                    meter = page.locator("meter")
+                    expect(meter).not_to_have_attribute("value", "0")
+                    low_width = float(mouth.get_attribute("rx"))
+                    low_height = float(mouth.get_attribute("ry"))
                     expect(page.get_by_role("button", name="전송", exact=True)).to_be_disabled()
-                    expect(page.locator("meter")).to_have_attribute("value", "0")
-                    expect(page.get_by_test_id("avatar-mouth")).to_have_attribute("ry", "2")
                     expect(page.get_by_text("대화 준비됨")).to_be_visible()
+                    expect(meter).to_have_attribute("value", "0")
+                    # Measure the same happy expression after the audio ends.
+                    closed_width = mouth.get_attribute("rx")
+                    closed_height = mouth.get_attribute("ry")
+                    assert low_height > float(closed_height), "Low tone did not open the mouth"
+                    # The wave and audio have independent durations. Wait for the
+                    # arm to relax here, before changing mode can remount the portrait.
+                    expect(portrait.locator(".seorin__resting-sleeve")).to_be_visible()
                     page.get_by_role("button", name="가상 소개팅", exact=True).click()
                     expect(page.get_by_text("대화 준비됨")).to_be_visible()
                     expect(
@@ -295,7 +313,16 @@ def main():
                     page.get_by_label("메시지", exact=True).fill("로컬 질문")
                     page.get_by_role("button", name="전송", exact=True).click()
                     expect(page.get_by_text("local 모의 응답입니다.", exact=True)).to_be_visible()
+                    expect(meter).not_to_have_attribute("value", "0")
+                    high_width = float(mouth.get_attribute("rx"))
+                    high_height = float(mouth.get_attribute("ry"))
+                    assert high_width > low_width, "Bright tone did not spread the mouth"
+                    assert high_height > float(closed_height), "Bright tone did not open the mouth"
+                    page.get_by_role("button", name="중지", exact=True).click()
                     expect(page.get_by_text("대화 준비됨")).to_be_visible()
+                    expect(meter).to_have_attribute("value", "0")
+                    expect(mouth).to_have_attribute("rx", closed_width)
+                    expect(mouth).to_have_attribute("ry", closed_height)
                     selector.select_option("cloud")
                     expect(page.get_by_text("대화 준비됨")).to_be_visible()
                     expect(
@@ -330,6 +357,11 @@ def main():
                         "synthetic_local_cloud_switching": True,
                         "windows_microphone_hardware": False,
                         "live2d_rendering": False,
+                        "avatar_mouth_radii": {
+                            "rest": {"rx": float(closed_width), "ry": float(closed_height)},
+                            "220_hz": {"rx": low_width, "ry": low_height},
+                            "2600_hz": {"rx": high_width, "ry": high_height},
+                        },
                         "checks": [
                             "pairing",
                             "invalid_token_reentry",
@@ -343,6 +375,8 @@ def main():
                             "wav_playback_rms",
                             "builtin_avatar_audio_rms_and_reset",
                             "builtin_avatar_reply_cues",
+                            "seorin_greeting_returns_to_rest",
+                            "seorin_spectral_mouth_width_and_stop_reset",
                             "mode_cancel",
                             "service_switch_cancel_and_isolation",
                         ],

@@ -11,10 +11,12 @@ import { MicrophoneRecorder } from "../../diagnostics/recorder.mjs";
 function Workspace({
   app,
   level,
+  brightness,
   bridge,
 }: {
   app: Conversation;
   level: number;
+  brightness: number;
   bridge: AvatarMotionBridge;
 }) {
   const state = useSyncExternalStore(app.subscribe, app.snapshot);
@@ -166,6 +168,7 @@ function Workspace({
             key={`${state.mode}:${state.service}`}
             bridge={bridge}
             level={level}
+            brightness={brightness}
             cue={state.latestCue ?? undefined}
             busy={state.busy}
           />
@@ -354,7 +357,8 @@ function Workspace({
 export function App() {
   const [token, setToken] = useState("");
   const [app, setApp] = useState<Conversation | null>(null),
-    [level, setLevel] = useState(0);
+    [level, setLevel] = useState(0),
+    [brightness, setBrightness] = useState(0.5);
   const avatarBridge = useRef<AvatarMotionBridge | null>(null);
   useEffect(() => {
     const readFragment = () => {
@@ -388,8 +392,9 @@ export function App() {
     const bridge = (avatarBridge.current ??= new AvatarMotionBridge());
     const next = new Conversation(
       new GatewayClient(token.trim()),
-      new Player((value: number) => {
+      new Player((value, voiceBrightness = 0.5) => {
         setLevel(value);
+        setBrightness(Math.round(voiceBrightness * 32) / 32);
         bridge.onAudioLevel(value);
       }),
       new MicrophoneRecorder(),
@@ -409,7 +414,12 @@ export function App() {
       </header>
       {app && avatarBridge.current ? (
         <>
-          <Workspace app={app} level={level} bridge={avatarBridge.current} />
+          <Workspace
+            app={app}
+            level={level}
+            brightness={brightness}
+            bridge={avatarBridge.current}
+          />
           <button
             className="disconnect"
             onClick={() => {
