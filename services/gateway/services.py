@@ -43,7 +43,7 @@ class Services:
         self.default_service: Service = {"demo": "demo", "ollama": "local", "cloud": "cloud"}[
             settings.llm
         ]
-        cloud_available = bool(settings.cloud_api_key and settings.cloud_model)
+        cloud_available = settings.cloud_configured
         definitions = [
             ("demo", "데모", "demo", True, None, None, DemoLLM()),
             (

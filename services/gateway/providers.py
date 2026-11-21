@@ -103,7 +103,7 @@ class CloudLLM:
         self.transport = transport
 
     async def reply(self, messages: list[dict]) -> Reply:
-        if not self.s.cloud_api_key or not self.s.cloud_model:
+        if not self.s.cloud_configured:
             raise ValueError("Cloud requires CLOUD_API_KEY and CLOUD_MODEL")
         schema = Reply.model_json_schema()
         # Strict structured-output APIs require every property to be required,

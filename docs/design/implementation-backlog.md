@@ -15,6 +15,10 @@
 | 실행 | 운영 React 빌드 우선 제공, 진단 화면 override, Windows worklet MIME 지정 |
 | CI | Python/Web formatter·lint, 타입 검사, 테스트, 빌드, 브라우저 통합, wheel/web 산출물 |
 
+## 자동 검증 점수
+
+[기술 설계서 11절](technical-design.md)의 필수 소프트웨어 시험 8개는 Python 개발 의존성과 Node.js를 설치한 환경에서 `python scripts/check_acceptance.py`로 다시 검사할 수 있다. 이번 70점 목표에는 항목당 12.5점을 적용한다. 해당 테스트가 누락되거나 건너뛰거나 실패하면 그 항목은 0점이다. 점수와 항목별 테스트 이름을 JSON으로 출력하며, 전체 Python·Node 테스트가 실패하거나 점수가 70점 미만이면 종료 코드 1을 반환한다. 아래 실기기 인수와 운영 배포는 별도 확인이 필요하다.
+
 ## 완성 전에 남은 필수 범위
 
 1. 공식 Cubism SDK/Core와 사용할 모델 export 및 사용 조건을 확보한다. 필요한 파일은 [자산 전달 안내](../live2d-asset-handoff.md)에 정리했다.

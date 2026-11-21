@@ -36,8 +36,27 @@ def inspect_local_readiness(
         )
     )
 
+    if settings.cloud_configured:
+        checks.append(
+            Check("Cloud API", "PASS", "서버에 API 키와 모델 ID가 설정됨 (실제 호출은 미검증)")
+        )
+    else:
+        checks.append(
+            Check(
+                "Cloud API",
+                "FAIL" if settings.llm == "cloud" else "SKIP",
+                "클라우드 API를 사용하려면 서버에 CLOUD_API_KEY와 CLOUD_MODEL을 설정하세요.",
+            )
+        )
+
     if not settings.local_llm_enabled:
-        checks.append(Check("Ollama", "SKIP", "로컬 LLM 비활성화; LOCAL_LLM_ENABLED로 설정"))
+        checks.append(
+            Check(
+                "Ollama",
+                "FAIL" if settings.llm == "ollama" else "SKIP",
+                "로컬 LLM 비활성화. 사용하려면 LOCAL_LLM_ENABLED=true를 설정하세요.",
+            )
+        )
     else:
         try:
             tags = client.get(settings.ollama_url + "/api/tags")

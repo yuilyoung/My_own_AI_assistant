@@ -67,6 +67,10 @@ class Settings:
     web_dir: Path = field(default_factory=default_web_dir)
     avatar_dir: Path | None = None
 
+    @property
+    def cloud_configured(self) -> bool:
+        return bool(self.cloud_api_key and self.cloud_model)
+
     def __post_init__(self):
         if self.host not in {"127.0.0.1", "0.0.0.0"}:
             raise ValueError("Unsupported bind address")
