@@ -1,5 +1,6 @@
 import asyncio
 from dataclasses import replace
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -102,6 +103,29 @@ async def test_failure_and_new_job_invalidate_old_result(tmp_path):
     store.close()
 
 
+async def test_full_transcription_queue_preserves_previous_result(tmp_path):
+    from gateway.transcription import Transcriptions
+
+    store = Store(tmp_path / "db.sqlite3")
+    manager = Transcriptions(store, ImmediateSTT())
+    sessions = [store.create_session(SessionCreate(mode="assistant"))["id"] for _ in range(5)]
+    sid, *others = sessions
+    data = wav_bytes()
+    try:
+        job = manager.start(sid, data)
+        result = await finish(manager, sid, job["id"])
+        queued = [manager.start(other, data) for other in others]
+        with pytest.raises(ValueError):
+            manager.start(sid, data)
+
+        assert manager.snapshot(sid, job["id"]) == result
+        manager.start(others[0], data)
+        assert manager.snapshot(others[0], queued[0]["id"])["status"] == "cancelled"
+    finally:
+        await manager.close()
+        store.close()
+
+
 def test_settings_require_explicit_local_dependencies(tmp_path, monkeypatch):
     exe = tmp_path / "whisper-cli"
     exe.touch()
@@ -183,7 +207,8 @@ def test_api_recognition_contract_and_same_session_only(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_expired_transcript_does_not_block_a_new_text_turn(tmp_path):
+@pytest.mark.parametrize("first_age", [299, 301])
+async def test_expired_transcript_does_not_block_a_new_text_turn(tmp_path, monkeypatch, first_age):
     from gateway.transcription import Transcriptions
 
     store = Store(tmp_path / "db.sqlite3")
@@ -191,7 +216,10 @@ async def test_expired_transcript_does_not_block_a_new_text_turn(tmp_path):
     manager = Transcriptions(store, ImmediateSTT())
     job = manager.start(sid, wav_bytes())
     await finish(manager, sid, job["id"])
-    manager.jobs[job["id"]].created -= 301
+    created = manager.jobs[job["id"]].created
+    ages = iter([first_age, 301])
+    clock = SimpleNamespace(monotonic=lambda: created + next(ages, 301))
+    monkeypatch.setattr("gateway.transcription.time", clock)
     manager.cancel_session(sid)
     assert sid not in manager.current
     await manager.close()

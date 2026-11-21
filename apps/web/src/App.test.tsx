@@ -209,6 +209,60 @@ it.each([
     expect(field.value).toBe("new draft");
   },
 );
+
+it("shows a saved memory and clears its draft when a turn starts during the save", async () => {
+  let finishSave!: () => void;
+  const pendingSave = new Promise<void>((resolve) => {
+    finishSave = resolve;
+  });
+  const memories: { id: string; text: string }[] = [];
+  vi.stubGlobal("fetch", async (url: string, options: RequestInit) => {
+    if (url === "/api/status")
+      return Response.json({
+        llm: "demo",
+        tts: "none",
+        model: null,
+        stt_enabled: false,
+      });
+    if (url === "/api/sessions") return Response.json({ id: "current" });
+    if (url.endsWith("/memories")) {
+      if (options.method === "POST") {
+        await pendingSave;
+        const item = {
+          id: "memory",
+          text: JSON.parse(String(options.body)).text,
+        };
+        memories.push(item);
+        return Response.json(item, { status: 201 });
+      }
+      return Response.json(memories);
+    }
+    if (url.endsWith("/turns"))
+      return Response.json({ id: "turn", status: "queued", segments: [] });
+    if (url.endsWith("/turns/turn"))
+      return Response.json({
+        id: "turn",
+        status: "completed",
+        segments: [{ text: "Reply" }],
+      });
+    return Response.json([]);
+  });
+  const user = userEvent.setup();
+  render(<App />);
+  await user.type(screen.getByLabelText("연결 토큰"), "test-token");
+  await user.click(screen.getByRole("button", { name: "연결" }));
+  await screen.findByText("대화 준비됨");
+  const draft = screen.getByLabelText("기억할 내용") as HTMLInputElement;
+  await user.type(draft, "A saved memory");
+  await user.click(screen.getByRole("button", { name: "기억 저장" }));
+  await user.type(screen.getByLabelText("메시지"), "Hello");
+  await user.click(screen.getByRole("button", { name: "전송" }));
+  await screen.findByText("Reply");
+  await act(async () => finishSave());
+  expect(draft.value).toBe("");
+  expect(screen.getByText("A saved memory")).toBeTruthy();
+});
+
 it("connects, labels demo, sends reviewed text and clears it on mode change", async () => {
   const requests: string[] = [];
   vi.stubGlobal(

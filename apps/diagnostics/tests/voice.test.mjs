@@ -49,6 +49,50 @@ test('cancel during job creation deletes late job and never displays its transcr
  assert.deepEqual(results,[]);assert(calls.some(([p,m])=>p==='/sessions/old-session/transcriptions/late-job'&&m==='DELETE'));
 });
 
+test('a finished transcript is ready to send while server cleanup is pending', async () => {
+ const {VoiceInput} = await loadVoice();
+ const cleanupStarted = deferred(), cleanup = deferred(), results = [];
+ const voice = new VoiceInput({recorder: fakeRecorder(), onResult: text => results.push(text),
+  request: async (_path, {method} = {}) => {
+   if (method === 'POST') return {id: 'first'};
+   if (method === 'DELETE') { cleanupStarted.resolve(); return cleanup.promise; }
+   return {status: 'completed', text: '검토할 문장'};
+  }});
+ await voice.start('assistant');
+ const finish = voice.finish();
+ await cleanupStarted.promise;
+ try {
+  assert.deepEqual(results, ['검토할 문장']);
+  assert.equal(voice.kind, 'idle');
+  await voice.start('assistant');
+  await finish;
+  assert.equal(voice.kind, 'recording');
+ } finally {
+  cleanup.resolve();
+  voice.cancel();
+ }
+});
+
+test('cancel while polling releases the transcription job exactly once', async () => {
+ const {VoiceInput} = await loadVoice();
+ const polling = deferred(), response = deferred(), deleted = [], results = [];
+ const voice = new VoiceInput({recorder: fakeRecorder(), onResult: text => results.push(text),
+  request: async (path, {method} = {}) => {
+   if (method === 'POST') return {id: 'old'};
+   if (method === 'DELETE') { deleted.push(path); return; }
+   polling.resolve();
+   return response.promise;
+  }});
+ await voice.start('assistant');
+ const finish = voice.finish();
+ await polling.promise;
+ voice.cancel();
+ response.resolve({status: 'completed', text: '취소됨'});
+ await finish;
+ assert.deepEqual(deleted, ['/sessions/assistant/transcriptions/old']);
+ assert.deepEqual(results, []);
+});
+
 test('cancel while microphone access is pending cannot re-enter recording',async()=>{
  const {VoiceInput}=await loadVoice();const pending=deferred();const recorder=fakeRecorder();recorder.start=()=>pending.promise;
  const voice=new VoiceInput({recorder,request:async()=>null});
