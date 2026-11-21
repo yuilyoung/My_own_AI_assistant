@@ -21,6 +21,7 @@
 
 기본 서린은 브라우저가 직접 그리는 오리지널 SVG다. 공식 샘플에서는 눈과 입을 독립적으로 움직이는 구조를 참고했으며, 샘플 그림·텍스처·모델 파일을 서린에 사용하지 않았다.
 
+- 인물 연출에서는 20대 캐릭터 두 명을 비교했다. 20세 가상 가수 메구리네 루카는 팬 프로필에서 차분한 보컬리스트로 소개된다. 애니메이션 《어그레시브 레츠코》의 레츠코는 25세 직장인으로, 일할 때 억누른 감정을 노래로 강하게 표현한다. 서린은 상대의 말을 들을 때 어깨와 손을 편하게 두고, 직접 대답할 때 눈썹과 입, 인사하는 손에 힘을 주도록 설계했다. [루카 팬 프로필](https://github.com/ronanpjr/web2-mikuPlayer/blob/e55b5200a881d9234f364b7a9450dfef48116d79/src/pages/VocaloidProfilePage.js#L35-L53) · [레츠코 작품 소개 · MyAnimeList 인용](https://github.com/htron-dev/baka-db/blob/cb6e907a5c53113275da271631698cd3b35c9589/catalog/aggressive-retsuko/en-US_aggressive-retsuko.md#sinopse)
 - 히요리(Hiyori)는 눈 깜박임에 `ParamEyeLOpen`과 `ParamEyeROpen`, 립싱크에 `ParamMouthOpenY`를 지정한다. 표정 데이터에는 입술 모양용 `ParamMouthForm`도 있어 입의 형태와 벌어짐을 따로 설계할 때 참고할 수 있다. [모델 설정](https://github.com/Live2D/CubismWebSamples/blob/b1de66b0b1f1cb881d95fb6158622aeb6a2827bd/Samples/Resources/Hiyori/Hiyori.model3.json) · [파라미터 목록](https://github.com/Live2D/CubismWebSamples/blob/b1de66b0b1f1cb881d95fb6158622aeb6a2827bd/Samples/Resources/Hiyori/Hiyori.cdi3.json)
 - 마오(Mao)는 같은 눈 파라미터를 쓰지만 립싱크에는 `ParamA`를 지정한다. Cubism 모델을 연결할 때는 해당 모델의 `.model3.json`에 선언된 `LipSync` 그룹을 읽어야 한다. [모델 설정](https://github.com/Live2D/CubismWebSamples/blob/b1de66b0b1f1cb881d95fb6158622aeb6a2827bd/Samples/Resources/Mao/Mao.model3.json) · [공식 샘플의 립싱크 연결 코드](https://github.com/Live2D/CubismWebSamples/blob/b1de66b0b1f1cb881d95fb6158622aeb6a2827bd/Samples/TypeScript/Demo/src/lappmodel.ts#L399-L415)
 
