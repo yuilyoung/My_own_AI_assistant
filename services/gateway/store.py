@@ -8,6 +8,10 @@ from .contracts import SessionCreate
 from .policy import require_assistant, scope_for
 
 
+class SessionRequestConflict(Exception):
+    """A request ID in this store is already bound to other session parameters."""
+
+
 class Store:
     """Single-user SQLite repository. Scopes are derived from stored sessions, not request text."""
 
@@ -22,6 +26,9 @@ class Store:
             CREATE TABLE IF NOT EXISTS sessions (
                 id TEXT PRIMARY KEY, mode TEXT NOT NULL, character TEXT NOT NULL,
                 scope TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS session_requests (
+                request_id TEXT PRIMARY KEY NOT NULL, session_id TEXT NOT NULL REFERENCES sessions(id)
             );
             CREATE TABLE IF NOT EXISTS exchanges (
                 id INTEGER PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id),
@@ -40,12 +47,30 @@ class Store:
         self.db.close()
 
     def create_session(self, value: SessionCreate) -> dict:
-        sid = str(uuid4())
         with self.lock, self.db:
+            if value.request_id is not None:
+                # Acquire the SQLite writer lock before checking a key shared by other connections.
+                self.db.execute("BEGIN IMMEDIATE")
+                existing = self.db.execute(
+                    """SELECT s.* FROM session_requests r JOIN sessions s ON s.id = r.session_id
+                       WHERE r.request_id = ?""",
+                    (str(value.request_id),),
+                ).fetchone()
+                if existing is not None:
+                    if (existing["mode"], existing["character"]) != (value.mode, value.character):
+                        raise SessionRequestConflict
+                    return dict(existing)
+
+            sid = str(uuid4())
             self.db.execute(
                 "INSERT INTO sessions(id,mode,character,scope) VALUES(?,?,?,?)",
                 (sid, value.mode, value.character, scope_for(value)),
             )
+            if value.request_id is not None:
+                self.db.execute(
+                    "INSERT INTO session_requests(request_id,session_id) VALUES(?,?)",
+                    (str(value.request_id), sid),
+                )
         return self.session(sid)
 
     def session(self, sid: str) -> dict:

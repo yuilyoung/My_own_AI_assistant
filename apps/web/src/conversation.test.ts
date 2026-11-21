@@ -1,6 +1,6 @@
 import { expect, it, vi } from "vitest";
 import { Conversation } from "./conversation";
-import { GatewayClient, type Segment } from "./gateway";
+import { GatewayClient, type Segment, type Status } from "./gateway";
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((r) => {
@@ -37,6 +37,28 @@ function setup(onSegment?: (segment: Segment) => void) {
   const app = new Conversation(client, player, recorder, 0, onSegment);
   return { app, client, player, recorder };
 }
+function serviceStatus(cloudAvailable: boolean): Status {
+  return {
+    llm: "demo",
+    tts: "none",
+    model: null,
+    stt_enabled: false,
+    default_service: "demo",
+    services: [
+      { id: "demo", label: "데모", available: true, model: null },
+      {
+        id: "cloud",
+        label: "클라우드",
+        available: cloudAvailable,
+        model: null,
+        reason: cloudAvailable ? undefined : "Cloud unavailable",
+      },
+    ],
+  };
+}
+const uuid = expect.stringMatching(
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+);
 it("discards and cancels a turn created after switching modes", async () => {
   const { app, client, player } = setup();
   await app.connect();
@@ -246,13 +268,21 @@ it("selects the configured default and clears local data when switching to cloud
     ],
   });
   await app.connect();
-  expect(client.createSession).toHaveBeenLastCalledWith("assistant", "local");
+  expect(client.createSession).toHaveBeenLastCalledWith(
+    "assistant",
+    "local",
+    uuid,
+  );
   app.state.messages = [{ role: "user", text: "local private text" }];
   app.state.memories = [{ id: "private", text: "local memory" }];
   app.state.notes = [{ id: "note", text: "local note" }];
   app.setInput("local draft");
   await app.changeService("cloud");
-  expect(client.createSession).toHaveBeenLastCalledWith("assistant", "cloud");
+  expect(client.createSession).toHaveBeenLastCalledWith(
+    "assistant",
+    "cloud",
+    uuid,
+  );
   expect(app.state.service).toBe("cloud");
   expect(app.state.messages).toEqual([]);
   expect(app.state.memories).toEqual([]);
@@ -279,6 +309,36 @@ it("does not switch or silently fall back when a provider is unconfigured", asyn
   expect(client.createSession).toHaveBeenCalledTimes(before);
   expect(app.state.service).toBe("demo");
   expect(app.state.error).toContain("CLOUD_API_KEY");
+});
+
+it("waits for an explicit service choice when the configured default is unavailable", async () => {
+  const { app, client } = setup();
+  vi.mocked(client.status).mockResolvedValue({
+    llm: "cloud",
+    tts: "none",
+    model: null,
+    stt_enabled: false,
+    default_service: "cloud",
+    services: [
+      {
+        id: "cloud",
+        label: "클라우드",
+        available: false,
+        model: null,
+        reason: "CLOUD_MODEL을 설정하세요.",
+      },
+      { id: "demo", label: "데모", available: true, model: null },
+    ],
+  });
+  await app.connect();
+  expect(client.createSession).not.toHaveBeenCalled();
+  expect(app.state.session).toBeNull();
+  expect(app.state.error).toContain("CLOUD_MODEL");
+  expect(app.state.busy).toBe(false);
+  await app.changeService("demo");
+  expect(client.createSession).toHaveBeenCalledTimes(1);
+  expect(client.createSession).toHaveBeenCalledWith("assistant", "demo", uuid);
+  expect(app.state.error).toBe("");
 });
 
 it("cancels pending inference and ignores its answer when switching services", async () => {
@@ -341,3 +401,215 @@ it("reports a cloud provider error without recommending Ollama", async () => {
   expect(client.cancelTurn).toHaveBeenCalledWith("assistant", "failed-turn");
   expect(app.state.busy).toBe(false);
 });
+
+it("reports an obsolete save when the session changes during its refresh", async () => {
+  const { app, client } = setup();
+  await app.connect();
+  const readingNotes = deferred<void>();
+  const oldNotes = deferred<unknown[]>();
+  vi.mocked(client.request).mockImplementation(async (path) => {
+    if (path === "/sessions/assistant/notes") {
+      readingNotes.resolve();
+      return oldNotes.promise;
+    }
+    return [];
+  });
+  const saving = app.save("memories", "old draft");
+  await readingNotes.promise;
+  await app.changeMode("companion");
+  oldNotes.resolve([{ id: "old", text: "private" }]);
+  expect(await saving).toBe(false);
+  expect(app.snapshot().notes).toEqual([]);
+  expect(await app.save("memories", "current draft")).toBe(true);
+});
+
+it("reuses the first create UUID after a lost response with legacy status", async () => {
+  const { app, client } = setup();
+  const create = vi.mocked(client.createSession);
+  create.mockRejectedValueOnce(new TypeError("response lost"));
+  await app.connect();
+  expect(create).toHaveBeenNthCalledWith(1, "assistant", "demo", uuid);
+  const requestId = create.mock.calls[0][2];
+  await app.retryConnection();
+  expect(client.status).toHaveBeenCalledTimes(2);
+  expect(create).toHaveBeenNthCalledWith(2, "assistant", "demo", requestId);
+  expect(app.snapshot().session?.id).toBe("assistant");
+
+  await app.changeMode("assistant");
+  expect(create).toHaveBeenNthCalledWith(3, "assistant", "demo", uuid);
+  expect(create.mock.calls[2][2]).not.toBe(requestId);
+});
+
+it("rechecks the selected service before replaying the original mode and UUID", async () => {
+  const { app, client } = setup();
+  const status = vi
+    .mocked(client.status)
+    .mockResolvedValue(serviceStatus(true));
+  const create = vi.mocked(client.createSession);
+  await app.connect();
+  await app.changeService("cloud");
+  create.mockRejectedValueOnce(new TypeError("response lost"));
+  await app.changeMode("companion");
+  const requestId = create.mock.calls[2][2];
+  expect(new Set(create.mock.calls.map((args) => args[2])).size).toBe(3);
+
+  status.mockRejectedValueOnce(new Error("HTTP 503"));
+  await app.retryConnection();
+  expect(app.snapshot().error).toContain("503");
+  status.mockResolvedValueOnce(serviceStatus(false));
+  await app.retryConnection();
+  expect(app.snapshot()).toMatchObject({
+    mode: "companion",
+    service: "cloud",
+    session: null,
+    busy: false,
+    error: "Cloud unavailable",
+  });
+  status.mockResolvedValueOnce({ ...serviceStatus(true), services: [] });
+  await app.retryConnection();
+  expect(create).toHaveBeenCalledTimes(3);
+
+  await app.retryConnection();
+  expect(create).toHaveBeenNthCalledWith(4, "companion", "cloud", requestId);
+  expect(app.snapshot().error).toBe("");
+  expect(app.snapshot().session?.id).toBe("companion");
+});
+
+it("recovers an unavailable default after it becomes available even if the default moved", async () => {
+  const { app, client } = setup();
+  vi.mocked(client.status)
+    .mockResolvedValueOnce({
+      ...serviceStatus(false),
+      default_service: "cloud",
+    })
+    .mockResolvedValueOnce(serviceStatus(true));
+  await app.connect();
+  expect(client.createSession).not.toHaveBeenCalled();
+  await app.retryConnection();
+  expect(client.createSession).toHaveBeenCalledExactlyOnceWith(
+    "assistant",
+    "cloud",
+    uuid,
+  );
+  expect(app.snapshot().service).toBe("cloud");
+});
+
+it("keeps the newer selection's retry UUID when an obsolete create succeeds", async () => {
+  const { app, client } = setup();
+  vi.mocked(client.status).mockResolvedValue(serviceStatus(true));
+  await app.connect();
+  const late = deferred<{ id: string }>();
+  const create = vi
+    .mocked(client.createSession)
+    .mockReturnValueOnce(late.promise)
+    .mockRejectedValueOnce(new TypeError("second response lost"));
+  const old = app.changeMode("companion");
+  await app.changeService("cloud");
+  const [, , requestId] = create.mock.calls[2];
+  expect(requestId).toEqual(uuid);
+  expect(requestId).not.toBe(create.mock.calls[1][2]);
+  late.resolve({ id: "obsolete" });
+  await old;
+  expect(app.snapshot().session).toBeNull();
+  await app.retryConnection();
+  expect(create).toHaveBeenNthCalledWith(4, "companion", "cloud", requestId);
+});
+
+it.each(["switch", "disconnect"] as const)(
+  "ignores a late startup status after %s",
+  async (action) => {
+    const { app, client } = setup();
+    vi.mocked(client.status).mockResolvedValue(serviceStatus(true));
+    vi.mocked(client.createSession).mockRejectedValueOnce(
+      new TypeError("lost"),
+    );
+    await app.connect();
+    const late = deferred<Status>();
+    vi.mocked(client.status).mockReturnValueOnce(late.promise);
+    const retrying = app.retryConnection();
+    if (action === "switch") await app.changeService("cloud");
+    else app.dispose();
+    const snapshot = app.snapshot();
+    late.resolve(serviceStatus(false));
+    await retrying;
+    expect(app.snapshot()).toBe(snapshot);
+    expect(client.createSession).toHaveBeenCalledTimes(
+      action === "switch" ? 2 : 1,
+    );
+  },
+);
+
+it("refreshes availability in an active demo session while preserving the conversation", async () => {
+  const { app, client, player } = setup();
+  vi.mocked(client.status).mockResolvedValueOnce(serviceStatus(false));
+  await app.connect();
+  app.setInput("next draft");
+  app.state.messages = [{ role: "assistant", text: "existing answer" }];
+  const before = app.snapshot();
+  const fresh = { ...serviceStatus(true), default_service: "cloud" as const };
+  vi.mocked(client.status).mockResolvedValueOnce(fresh);
+  player.stop.mockClear();
+  await app.retryConnection();
+  expect(app.snapshot()).toEqual({ ...before, status: fresh });
+  expect(app.snapshot().session).toBe(before.session);
+  expect(client.createSession).toHaveBeenCalledTimes(1);
+  expect(player.stop).not.toHaveBeenCalled();
+});
+
+it("keeps a turn running while checking availability", async () => {
+  const { app, client } = setup();
+  await app.connect();
+  vi.spyOn(client, "createTurn").mockResolvedValue({
+    id: "t",
+    status: "queued",
+    segments: [],
+  });
+  const polling = deferred<void>();
+  const answer = deferred<{
+    id: string;
+    status: string;
+    segments: Segment[];
+  }>();
+  vi.spyOn(client, "pollTurn").mockImplementation(() => {
+    polling.resolve();
+    return answer.promise;
+  });
+  app.setInput("question");
+  const sending = app.send();
+  await polling.promise;
+  const fresh = serviceStatus(true);
+  vi.mocked(client.status).mockResolvedValueOnce(fresh);
+  await app.retryConnection();
+  expect(client.cancelTurn).not.toHaveBeenCalled();
+  expect(app.snapshot().busy).toBe(true);
+  expect(app.snapshot().status).toEqual(fresh);
+  answer.resolve({
+    id: "t",
+    status: "completed",
+    segments: [{ text: "answer" }],
+  });
+  await sending;
+  expect(app.snapshot().messages.map((m) => m.text)).toEqual([
+    "question",
+    "answer",
+  ]);
+});
+
+it.each(["switch", "disconnect", "refresh again"] as const)(
+  "discards an obsolete active session's availability reply after %s",
+  async (action) => {
+    const { app, client } = setup();
+    vi.mocked(client.status).mockResolvedValue(serviceStatus(true));
+    await app.connect();
+    const late = deferred<Status>();
+    vi.mocked(client.status).mockReturnValueOnce(late.promise);
+    const refreshing = app.retryConnection();
+    if (action === "switch") await app.changeService("cloud");
+    if (action === "disconnect") app.dispose();
+    if (action === "refresh again") await app.retryConnection();
+    const current = app.snapshot();
+    late.resolve(serviceStatus(false));
+    await refreshing;
+    expect(app.snapshot()).toBe(current);
+  },
+);

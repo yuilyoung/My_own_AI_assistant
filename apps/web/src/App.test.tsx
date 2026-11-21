@@ -1,13 +1,214 @@
 // @vitest-environment jsdom
 import React from "react";
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "./App";
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
+
+it("keeps mode changes out of a pending connection and cancels it on disconnect", async () => {
+  let resolveStatus!: (value: Response) => void;
+  const fetchStatus = vi.fn(
+    (_url: string, _options: RequestInit) =>
+      new Promise<Response>((resolve) => {
+        resolveStatus = resolve;
+      }),
+  );
+  vi.stubGlobal("fetch", fetchStatus);
+  const user = userEvent.setup();
+  render(<App />);
+  await user.type(screen.getByLabelText("연결 토큰"), "pending-token");
+  await user.click(screen.getByRole("button", { name: "연결" }));
+  expect(screen.queryByRole("button", { name: "가상 소개팅" })).toBeNull();
+  expect(screen.queryByLabelText("LLM 서비스")).toBeNull();
+  const signal = fetchStatus.mock.calls[0][1].signal;
+  await user.click(screen.getByRole("button", { name: /토큰 다시 입력/ }));
+  expect(signal?.aborted).toBe(true);
+  resolveStatus(
+    Response.json({
+      llm: "demo",
+      tts: "none",
+      stt_enabled: false,
+      model: null,
+    }),
+  );
+  await screen.findByLabelText("연결 토큰");
+  expect(fetchStatus).toHaveBeenCalledTimes(1);
+});
+
+it("recovers from a temporary status failure without retyping the token", async () => {
+  const fetchApi = vi
+    .fn(async (url: string) => {
+      if (url === "/api/status")
+        return Response.json({
+          llm: "demo",
+          tts: "none",
+          stt_enabled: false,
+          model: null,
+        });
+      return Response.json(url === "/api/sessions" ? { id: "retry" } : []);
+    })
+    .mockResolvedValueOnce(new Response(null, { status: 503 }));
+  vi.stubGlobal("fetch", fetchApi);
+  const user = userEvent.setup();
+  render(<App />);
+  await user.type(screen.getByLabelText("연결 토큰"), "retry-token");
+  await user.click(screen.getByRole("button", { name: "연결" }));
+  expect((await screen.findByRole("alert")).textContent).toContain("503");
+  expect(screen.queryByLabelText("메시지")).toBeNull();
+  expect(fetchApi).toHaveBeenCalledTimes(1);
+  await user.click(screen.getByRole("button", { name: "다시 연결" }));
+  await screen.findByText("대화 준비됨");
+  expect(
+    fetchApi.mock.calls
+      .map(([url]) => url)
+      .filter((url) => url === "/api/sessions"),
+  ).toHaveLength(1);
+});
+
+it("retries session creation only for the selected provider and mode", async () => {
+  const sessions: unknown[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, options: RequestInit) => {
+      if (url.endsWith("/status"))
+        return Response.json({
+          llm: "cloud",
+          tts: "none",
+          model: "example-model",
+          stt_enabled: false,
+          services: [
+            {
+              id: "cloud",
+              label: "클라우드 API",
+              available: true,
+              model: "example-model",
+            },
+          ],
+        });
+      if (url === "/api/sessions") {
+        sessions.push(JSON.parse(String(options.body)));
+        return sessions.length === 1
+          ? new Response(null, { status: 503 })
+          : Response.json({ id: "restored" });
+      }
+      return Response.json([]);
+    }),
+  );
+  const user = userEvent.setup();
+  render(<App />);
+  await user.type(screen.getByLabelText("연결 토큰"), "test-token");
+  await user.click(screen.getByRole("button", { name: "연결" }));
+  await screen.findByText("대화 연결 대기");
+  await user.click(screen.getByRole("button", { name: "대화 연결 다시 시도" }));
+  await screen.findByText("대화 준비됨");
+  expect(sessions).toHaveLength(2);
+  expect(sessions[0]).toMatchObject({
+    mode: "assistant",
+    service: "cloud",
+    request_id: expect.any(String),
+  });
+  expect(sessions[1]).toEqual(sessions[0]);
+});
+
+it("rechecks an unavailable default from the open tab after configuration changes", async () => {
+  let configured = false;
+  const sessions: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, options: RequestInit) => {
+      if (url.endsWith("/status"))
+        return Response.json({
+          llm: "cloud",
+          tts: "none",
+          model: null,
+          stt_enabled: false,
+          services: [
+            {
+              id: "cloud",
+              label: "클라우드 API",
+              available: configured,
+              model: null,
+              reason: configured ? undefined : "CLOUD_MODEL 설정 필요",
+            },
+          ],
+        });
+      if (url === "/api/sessions") {
+        sessions.push(JSON.parse(String(options.body)).service);
+        return Response.json({ id: "configured" });
+      }
+      return Response.json([]);
+    }),
+  );
+  const user = userEvent.setup();
+  render(<App />);
+  await user.type(screen.getByLabelText("연결 토큰"), "test-token");
+  await user.click(screen.getByRole("button", { name: "연결" }));
+  await screen.findByText("CLOUD_MODEL 설정 필요");
+  expect(sessions).toEqual([]);
+  configured = true;
+  await user.click(
+    screen.getByRole("button", { name: "서비스 설정 다시 확인" }),
+  );
+  await screen.findByText("대화 준비됨");
+  expect(sessions).toEqual(["cloud"]);
+});
+
+it.each([
+  ["memories", "기억할 내용", "기억 저장"],
+  ["notes", "비서 메모", "메모 저장"],
+])(
+  "preserves an edited %s draft when the previous save completes",
+  async (kind, label, action) => {
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let written = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, options: RequestInit) => {
+        if (url.endsWith("/status"))
+          return Response.json({
+            llm: "demo",
+            tts: "none",
+            model: null,
+            stt_enabled: false,
+          });
+        if (url === "/api/sessions") return Response.json({ id: "current" });
+        if (url.endsWith("/" + kind)) {
+          if (options.method === "POST") {
+            await pending;
+            written = true;
+          }
+          if (written)
+            return Response.json([{ id: "saved", text: "saved draft" }]);
+        }
+        return Response.json([]);
+      }),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByLabelText("연결 토큰"), "test-token");
+    await user.click(screen.getByRole("button", { name: "연결" }));
+    await screen.findByText("대화 준비됨");
+    const field = screen.getByLabelText(label, {
+      exact: true,
+    }) as HTMLInputElement;
+    await user.type(field, "saved draft");
+    await user.click(screen.getByRole("button", { name: action }));
+    await user.clear(field);
+    await user.type(field, "new draft");
+    await act(async () => {
+      release();
+    });
+    await screen.findByText("saved draft");
+    expect(field.value).toBe("new draft");
+  },
+);
 it("connects, labels demo, sends reviewed text and clears it on mode change", async () => {
   const requests: string[] = [];
   vi.stubGlobal(
@@ -127,7 +328,9 @@ it("shows local and cloud choices, clears prior messages, and labels cloud trans
   await user.type(screen.getByLabelText("메시지"), "private draft");
   await user.selectOptions(screen.getByLabelText("LLM 서비스"), "cloud");
   await waitFor(() =>
-    expect(sessions).toContainEqual({ mode: "assistant", service: "cloud" }),
+    expect(sessions).toContainEqual(
+      expect.objectContaining({ mode: "assistant", service: "cloud" }),
+    ),
   );
   expect((screen.getByLabelText("메시지") as HTMLTextAreaElement).value).toBe(
     "",
