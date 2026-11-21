@@ -1,0 +1,108 @@
+.seorin.avatar-panel__svg {
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: auto;
+  background: #c3c9bd;
+}
+
+.seorin__character {
+  transform-origin: 165px 354px;
+  animation: seorin-breathe 5.2s ease-in-out infinite;
+}
+
+.seorin__eyes {
+  transform-origin: 164px 146px;
+  animation: seorin-blink 6.4s infinite;
+}
+
+.seorin__speech-head {
+  transform-origin: 162px 217px;
+  transition: transform 110ms ease-out;
+}
+
+.seorin__speech-brows {
+  transition: transform 95ms ease-out;
+}
+
+.seorin .avatar-panel__head {
+  transform-origin: 163px 215px;
+}
+
+.seorin .avatar-panel__hand {
+  transform-origin: 296px 233px;
+}
+
+.seorin [data-gesture="nod"] .avatar-panel__head {
+  animation: seorin-nod 760ms ease-in-out 2;
+}
+
+.seorin [data-gesture="greeting"] .avatar-panel__hand {
+  animation: seorin-wave 620ms ease-in-out 3;
+}
+
+@keyframes seorin-breathe {
+  0%,
+  100% {
+    transform: translateY(0) scaleY(1);
+  }
+  50% {
+    transform: translateY(-0.65px) scaleY(1.005);
+  }
+}
+
+@keyframes seorin-blink {
+  0%,
+  44%,
+  47%,
+  79%,
+  82%,
+  100% {
+    transform: scaleY(1);
+  }
+  45.3%,
+  80.3% {
+    transform: scaleY(0.055);
+  }
+}
+
+@keyframes seorin-nod {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0) scaleY(1);
+  }
+  47% {
+    transform: translateY(3px) rotate(2deg) scaleY(0.965);
+  }
+  78% {
+    transform: translateY(-0.8px) rotate(-0.5deg) scaleY(1);
+  }
+}
+
+@keyframes seorin-wave {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  27% {
+    transform: rotate(-11deg);
+  }
+  70% {
+    transform: rotate(12deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seorin .seorin__character,
+  .seorin .seorin__eyes,
+  .seorin [data-gesture] .avatar-panel__head,
+  .seorin [data-gesture] .avatar-panel__hand {
+    animation: none;
+  }
+
+  .seorin .seorin__speech-head,
+  .seorin .seorin__speech-brows {
+    transform: none !important;
+    transition: none;
+  }
+}

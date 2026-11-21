@@ -2,17 +2,17 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {Player} from '../player.mjs';
 
-function environment(decode=()=>Promise.resolve({}),resume=()=>Promise.resolve(),start=()=>{}){
- const sources=[]; const levels=[];
+function environment(decode=()=>Promise.resolve({}),resume=()=>Promise.resolve(),start=()=>{},readSamples=data=>data.fill(.1)){
+ const sources=[]; const levels=[]; const brightness=[];
  globalThis.requestAnimationFrame=()=>1;globalThis.cancelAnimationFrame=()=>{};
  globalThis.AudioContext=class {
-  destination={};
+  destination={}; sampleRate=48000;
   resume(){return resume();} close(){return Promise.resolve();}
   decodeAudioData(){return decode();}
   createBufferSource(){const source={connect(){},disconnect(){this.disconnections=(this.disconnections??0)+1;},start(){start();this.started=true;},stop(){this.onended?.();}};sources.push(source);return source;}
-  createAnalyser(){return {fftSize:512,connect(){},disconnect(){},getFloatTimeDomainData(data){data.fill(.1);}};}
+  createAnalyser(){return {fftSize:512,connect(){},disconnect(){},getFloatTimeDomainData:readSamples};}
  };
- return {sources,levels,player:new Player(level=>levels.push(level))};
+ return {sources,levels,brightness,player:new Player((level,color)=>{levels.push(level);brightness.push(color);})};
 }
 async function tick(){await new Promise(resolve=>setImmediate(resolve));}
 
@@ -61,11 +61,15 @@ test('stop while AudioContext.resume is pending does not decode stale audio',asy
  await player.close();
 });
 test('natural audio completion disconnects the audio node and closes the mouth',async()=>{
- const {player,sources,levels}=environment();
+ const {player,sources,levels,brightness}=environment();
+ let lastFrame;
+ globalThis.requestAnimationFrame=callback=>{lastFrame=callback;return 1;};
  const playback=player.play(new ArrayBuffer(4),()=>true);await tick();
  sources[0].onended();await playback;
+ lastFrame();
  assert.equal(sources[0].disconnections,1);
  assert.equal(levels.at(-1),0);
+ assert.equal(brightness.at(-1),0.5);
  assert.equal(player.source,null);
  await player.close();
 });
@@ -114,7 +118,7 @@ test('the current audio frame stops when its application turn is obsolete',async
 
 test('failed audio source startup releases nodes and allows the next playback',async()=>{
  let fail=true;
- const {player,sources,levels}=environment(undefined,undefined,()=>{
+ const {player,sources,levels,brightness}=environment(undefined,undefined,()=>{
   if(fail) {fail=false;throw new Error('audio output unavailable');}
  });
  await assert.rejects(()=>player.play(new ArrayBuffer(4),()=>true),/audio output unavailable/);
@@ -122,8 +126,49 @@ test('failed audio source startup releases nodes and allows the next playback',a
  assert.equal(player.finish,null);
  assert.equal(sources[0].disconnections,1);
  assert.equal(levels.at(-1),0);
+ assert.equal(brightness.at(-1),0.5);
  const next=player.play(new ArrayBuffer(4),()=>true);await tick();
  assert.equal(sources[1].started,true);
  player.stop();await next;
+ await player.close();
+});
+
+test('equal-volume playback tones change mouth brightness, and stopping resets it',async()=>{
+ let frequency=375;
+ const {player,levels,brightness}=environment(undefined,undefined,undefined,samples=>{
+  for(let i=0;i<samples.length;i++) samples[i]=0.1*Math.sin(2*Math.PI*frequency*i/48000);
+ });
+ let nextFrame;
+ globalThis.requestAnimationFrame=callback=>{nextFrame=callback;return 1;};
+ const playback=player.play(new ArrayBuffer(4),()=>true);
+ await tick();
+ const lowLevel=levels.at(-1), lowBrightness=brightness.at(-1);
+ frequency=3000;
+ nextFrame();
+ assert.ok(lowLevel>0 && Math.abs(lowLevel-levels.at(-1))<0.001);
+ assert.ok(lowBrightness<0.2 && brightness.at(-1)>0.8);
+ player.stop();
+ await playback;
+ assert.equal(levels.at(-1),0);
+ assert.equal(brightness.at(-1),0.5);
+ await player.close();
+});
+
+test('a later analyser error rejects playback and resets both mouth signals',async()=>{
+ let fail=false;
+ const {player,levels,brightness}=environment(undefined,undefined,undefined,samples=>{
+  if(fail) throw new Error('analyser unavailable');
+  samples.fill(0.1);
+ });
+ let nextFrame;
+ globalThis.requestAnimationFrame=callback=>{nextFrame=callback;return 1;};
+ const playback=player.play(new ArrayBuffer(4),()=>true);
+ await tick();
+ fail=true;
+ nextFrame();
+ await assert.rejects(playback,/analyser unavailable/);
+ assert.equal(player.source,null);
+ assert.equal(levels.at(-1),0);
+ assert.equal(brightness.at(-1),0.5);
  await player.close();
 });
