@@ -32,11 +32,34 @@ function Workspace({
   const save = async (e: FormEvent, kind: "memories" | "notes") => {
     e.preventDefault();
     const value = kind === "memories" ? memory : note;
-    if (await app.save(kind, value)) {
-      if (kind === "memories") setMemory("");
-      else setNote("");
+    if (
+      (await app.save(kind, value)) &&
+      app.snapshot().session === state.session
+    ) {
+      const setDraft = kind === "memories" ? setMemory : setNote;
+      setDraft((current) => (current === value ? "" : current));
     }
   };
+  if (!state.status)
+    return (
+      <section className="pairing">
+        <h2>비서 서버 연결</h2>
+        {state.busy ? (
+          <p role="status">서버 연결을 확인하고 있습니다.</p>
+        ) : (
+          <>
+            {state.error && (
+              <p role="alert" className="error">
+                {state.error}
+              </p>
+            )}
+            <button className="primary" onClick={() => void app.connect()}>
+              다시 연결
+            </button>
+          </>
+        )}
+      </section>
+    );
   const selectedService = state.status?.services?.find(
     (item) => item.id === state.service,
   );
@@ -105,12 +128,22 @@ function Workspace({
           </p>
         )}
         {state.status?.services
-          ?.filter((item) => !item.available)
+          ?.filter((item) => !item.available && item.reason !== state.error)
           .map((item) => (
             <p className="hint" key={item.id}>
               {item.label}: {item.reason || "서버 연결 설정이 필요합니다."}
             </p>
           ))}
+        {state.status.services?.some((item) => !item.available) &&
+          (state.session || selectedService?.available === false) && (
+            <button
+              type="button"
+              disabled={state.busy || state.voice !== "idle"}
+              onClick={() => void app.retryConnection()}
+            >
+              서비스 설정 다시 확인
+            </button>
+          )}
       </section>
       <nav aria-label="대화 모드">
         {(["assistant", "companion"] as const).map((value) => (
@@ -144,17 +177,19 @@ function Workspace({
               {state.voice !== "idle"
                 ? voiceLabel
                 : state.busy
-                  ? "응답 준비 중"
+                  ? state.session
+                    ? "응답 준비 중"
+                    : "대화 연결 중"
                   : state.session
                     ? "대화 준비됨"
-                    : "연결 중"}
+                    : "대화 연결 대기"}
             </span>
           </div>
           {state.status && (
             <p className="notice">
               {state.service === "demo"
                 ? "DEMO · 고정 응답입니다. 실제 AI 생성 답변이 아닙니다."
-                : serviceLabel + " · " + model}{" "}
+                : [serviceLabel, model].filter(Boolean).join(" · ")}{" "}
               / TTS: {state.status.tts} / STT:{" "}
               {state.status.stt_enabled ? "연결됨" : "미연결"}
             </p>
@@ -236,6 +271,13 @@ function Workspace({
               {state.error}
             </p>
           )}
+          {!state.session &&
+            !state.busy &&
+            selectedService?.available !== false && (
+              <button onClick={() => void app.retryConnection()}>
+                대화 연결 다시 시도
+              </button>
+            )}
           {state.warning && (
             <p role="status" className="notice">
               {state.warning}
@@ -298,16 +340,29 @@ function Workspace({
   );
 }
 export function App() {
-  const [token, setToken] = useState(
-    () => new URLSearchParams(location.hash.slice(1)).get("token") || "",
-  );
+  const [token, setToken] = useState("");
   const [app, setApp] = useState<Conversation | null>(null),
     [level, setLevel] = useState(0);
   const avatarBridge = useRef<AvatarMotionBridge | null>(null);
   useEffect(() => {
-    if (location.hash)
-      history.replaceState(null, "", location.pathname + location.search);
-  }, []);
+    const readFragment = () => {
+      if (!location.hash) return;
+      const incoming = new URLSearchParams(location.hash.slice(1)).get("token");
+      history.replaceState(
+        history.state,
+        "",
+        location.pathname + location.search,
+      );
+      if (incoming && !app?.snapshot().status) {
+        app?.stop();
+        setApp(null);
+        setToken(incoming);
+      }
+    };
+    readFragment();
+    window.addEventListener("hashchange", readFragment);
+    return () => window.removeEventListener("hashchange", readFragment);
+  }, [app]);
   useEffect(
     () => () => {
       app?.dispose();

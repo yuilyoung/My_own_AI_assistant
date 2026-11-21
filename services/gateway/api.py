@@ -13,6 +13,7 @@ from .config import Settings
 from .contracts import MemoryInput, SessionCreate, TurnInput
 from .services import Services
 from .speech import MAX_WAV_BYTES
+from .store import SessionRequestConflict
 
 
 def _is_loopback_peer(scope) -> bool:
@@ -137,6 +138,12 @@ def create_app(settings: Settings) -> FastAPI:
     @app.exception_handler(ValueError)
     async def invalid(_, exc):
         return JSONResponse({"detail": "Invalid request or capacity limit"}, status_code=422)
+
+    @app.exception_handler(SessionRequestConflict)
+    async def session_conflict(_, exc):
+        return JSONResponse(
+            {"detail": "request_id already used with different session parameters"}, status_code=409
+        )
 
     @app.get("/api/status")
     async def status():
