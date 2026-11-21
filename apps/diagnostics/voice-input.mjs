@@ -38,7 +38,6 @@ export class VoiceInput {
     const epoch = this.epoch, sid = this.sid;
     const current = () => this.epoch === epoch;
     this.state('transcribing');
-    let job = null;
     try {
       const wav = await this.recorder.finish();
       if (!current()) return;
@@ -46,8 +45,8 @@ export class VoiceInput {
       const created = await this.request(`/sessions/${sid}/transcriptions`, {
         method: 'POST', headers: {'Content-Type': 'audio/wav'}, body: wav,
       });
-      job = {sid, id: created.id};
-      if (!current()) return;
+      const job = {sid, id: created.id};
+      if (!current()) { void this.deleteJob(job); return; }
       this.active = job;
       const controller = new AbortController(); this.controller = controller;
       while (current()) {
@@ -63,8 +62,13 @@ export class VoiceInput {
     } catch (error) {
       if (current()) throw error;
     } finally {
-      if (job) await this.deleteJob(job);
-      if (current()) { this.active = null; this.controller = null; this.state('idle'); }
+      if (current()) {
+        const job = this.active;
+        this.active = null;
+        this.controller = null;
+        if (job) void this.deleteJob(job);
+        this.state('idle');
+      }
     }
   }
 }

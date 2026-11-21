@@ -18,6 +18,7 @@ export type AudioPlayer = {
   close(): Promise<void>;
 };
 type Item = { id: string; text: string };
+type StorageOperation = "list" | "memories" | "notes" | "forget";
 function defaultService(status: Status): ServiceId {
   if (status.default_service) return status.default_service;
   if (status.llm === "cloud") return "cloud";
@@ -38,6 +39,7 @@ export type View = {
   messages: { role: "user" | "assistant"; text: string }[];
   memories: Item[];
   notes: Item[];
+  storageErrors: Partial<Record<StorageOperation, string>>;
   busy: boolean;
   voice: VoiceKind;
   error: string;
@@ -55,6 +57,7 @@ export class Conversation {
     messages: [],
     memories: [],
     notes: [],
+    storageErrors: {},
     busy: false,
     voice: "idle",
     error: "",
@@ -62,6 +65,7 @@ export class Conversation {
   };
   private listeners = new Set<() => void>();
   private epoch = 0;
+  private listRevision = 0;
   private pendingRequestId?: string;
   private availabilityCheck?: AbortController;
   private controller: AbortController | null = null;
@@ -187,6 +191,7 @@ export class Conversation {
       messages: [],
       memories: [],
       notes: [],
+      storageErrors: {},
       error: "",
       warning: "",
       busy: true,
@@ -345,27 +350,42 @@ export class Conversation {
         this.patch({ error: String(error) });
     }
   }
+  private setStorageError(operation: StorageOperation, message?: string) {
+    if (this.state.storageErrors[operation] !== message)
+      this.patch({
+        storageErrors: { ...this.state.storageErrors, [operation]: message },
+      });
+  }
   async refresh() {
-    const session = this.state.session,
-      epoch = this.epoch,
-      mode = this.state.mode;
+    const { session, mode } = this.state;
     if (!session) return;
-    const memories = await this.client.request<Item[]>(
-      `/sessions/${session.id}/memories`,
-    );
-    if (epoch !== this.epoch || session.id !== this.state.session?.id) return;
-    this.patch({ memories });
-    if (mode === "assistant") {
-      const notes = await this.client.request<Item[]>(
-        `/sessions/${session.id}/notes`,
+    const revision = ++this.listRevision;
+    const current = () =>
+      this.state.session === session && this.listRevision === revision;
+    try {
+      const memories = await this.client.request<Item[]>(
+        `/sessions/${session.id}/memories`,
       );
-      if (epoch === this.epoch && session.id === this.state.session?.id)
+      if (!current()) return;
+      this.patch({ memories });
+      if (mode === "assistant") {
+        const notes = await this.client.request<Item[]>(
+          `/sessions/${session.id}/notes`,
+        );
+        if (!current()) return;
         this.patch({ notes });
+      }
+      if (current()) this.setStorageError("list");
+    } catch (error) {
+      if (current())
+        this.setStorageError(
+          "list",
+          "저장 목록을 불러오지 못했습니다. " + connectionError(error),
+        );
     }
   }
   async save(kind: "memories" | "notes", text: string) {
-    const session = this.state.session,
-      epoch = this.epoch;
+    const session = this.state.session;
     if (
       !session ||
       !text.trim() ||
@@ -377,32 +397,45 @@ export class Conversation {
         method: "POST",
         body: JSON.stringify({ text }),
       });
-      if (epoch !== this.epoch) return false;
+      if (this.state.session !== session) return false;
+      this.setStorageError(kind);
       await this.refresh();
-      return epoch === this.epoch && session.id === this.state.session?.id;
+      return this.state.session === session;
     } catch (error) {
-      if (epoch === this.epoch) this.patch({ error: String(error) });
+      if (this.state.session === session) {
+        const label = kind === "memories" ? "기억" : "메모";
+        this.setStorageError(
+          kind,
+          label + " 저장에 실패했습니다. " + connectionError(error),
+        );
+      }
       return false;
     }
   }
   async forget(id: string) {
-    const session = this.state.session,
-      epoch = this.epoch;
+    const session = this.state.session;
     if (!session) return;
     try {
       await this.client.request(
         `/sessions/${session.id}/memories/${encodeURIComponent(id)}`,
         { method: "DELETE" },
       );
-      if (epoch === this.epoch) await this.refresh();
+      if (this.state.session !== session) return;
+      this.setStorageError("forget");
+      await this.refresh();
     } catch (error) {
-      if (epoch === this.epoch) this.patch({ error: String(error) });
+      if (this.state.session === session)
+        this.setStorageError(
+          "forget",
+          "기억 삭제에 실패했습니다. " + connectionError(error),
+        );
     }
   }
   dispose() {
     this.availabilityCheck?.abort();
-    this.stop();
     this.listeners.clear();
+    this.patch({ session: null, storageErrors: {} });
+    this.stop();
     void this.player.close();
   }
 }

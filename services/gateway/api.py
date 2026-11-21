@@ -178,8 +178,9 @@ def create_app(settings: Settings) -> FastAPI:
         runtime = services.for_session(sid)
         if not runtime.available:
             raise HTTPException(503, runtime.reason)
+        started = runtime.engine.start(sid, body.text)
         runtime.transcriptions.cancel_session(sid)
-        return runtime.engine.start(sid, body.text)
+        return started
 
     @app.get("/api/sessions/{sid}/turns/{tid}")
     async def turn_status(sid: str, tid: str):

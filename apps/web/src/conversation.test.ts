@@ -159,6 +159,51 @@ it("ignores stale memory lists when the mode changes", async () => {
   expect(app.state.notes).toEqual([]);
 });
 
+it("keeps a deleted memory out of the list when a prior refresh arrives late", async () => {
+  const { app, client } = setup();
+  const memory = { id: "forgotten", text: "deleted memory" };
+  vi.mocked(client.request).mockResolvedValueOnce([memory]);
+  await app.connect();
+  const stale = deferred<(typeof memory)[]>();
+  vi.mocked(client.request).mockReturnValueOnce(stale.promise);
+  const reading = app.refresh();
+  await app.forget(memory.id);
+  stale.resolve([memory]);
+  await reading;
+  expect(app.state.memories).toEqual([]);
+});
+
+it("keeps initial saved items when the user starts a turn before the list loads", async () => {
+  const { app, client } = setup();
+  const reading = deferred<void>();
+  const memories = deferred<{ id: string; text: string }[]>();
+  const note = { id: "note", text: "existing note" };
+  vi.mocked(client.request).mockImplementation(async (path) => {
+    if (path.endsWith("/notes")) return [note];
+    reading.resolve();
+    return memories.promise;
+  });
+  const connecting = app.connect();
+  await reading.promise;
+  vi.spyOn(client, "createTurn").mockResolvedValue({
+    id: "t",
+    status: "queued",
+    segments: [],
+  });
+  vi.spyOn(client, "pollTurn").mockResolvedValue({
+    id: "t",
+    status: "completed",
+    segments: [],
+  });
+  app.setInput("hello");
+  await app.send();
+  const memory = { id: "memory", text: "existing memory" };
+  memories.resolve([memory]);
+  await connecting;
+  expect(app.state.memories).toEqual([memory]);
+  expect(app.state.notes).toEqual([note]);
+});
+
 it("cancels server inference when polling fails instead of losing its turn ID", async () => {
   const { app, client } = setup();
   await app.connect();
@@ -421,6 +466,48 @@ it("reports an obsolete save when the session changes during its refresh", async
   expect(await saving).toBe(false);
   expect(app.snapshot().notes).toEqual([]);
   expect(await app.save("memories", "current draft")).toBe(true);
+});
+
+it("acknowledges a successful write even when the subsequent list refresh fails", async () => {
+  const { app, client } = setup();
+  await app.connect();
+  vi.mocked(client.request)
+    .mockResolvedValueOnce({ id: "saved", text: "saved once" })
+    .mockRejectedValueOnce(new Error("HTTP 503"));
+  expect(await app.save("notes", "saved once")).toBe(true);
+  expect(app.snapshot().storageErrors.list).toContain("503");
+  expect(app.snapshot().error).toBe("");
+});
+
+it("preserves a failed write until that operation succeeds or the session changes", async () => {
+  const { app, client } = setup();
+  await app.connect();
+  vi.mocked(client.request).mockRejectedValueOnce(new Error("HTTP 409"));
+  expect(await app.save("notes", "draft")).toBe(false);
+  expect(app.snapshot().error).toBe("");
+  expect(app.snapshot().storageErrors.notes).toContain("409");
+  await app.save("memories", "memory");
+  expect(app.snapshot().storageErrors.notes).toContain("409");
+  await app.save("notes", "edited draft");
+  expect(app.snapshot().storageErrors.notes).toBeFalsy();
+  vi.mocked(client.request).mockRejectedValueOnce(new Error("HTTP 503"));
+  await app.forget("memory");
+  expect(app.snapshot().storageErrors.forget).toContain("503");
+  await app.changeMode("companion");
+  expect(app.snapshot().storageErrors.forget).toBeFalsy();
+});
+
+it("ignores a storage result delivered after disconnect", async () => {
+  const { app, client } = setup();
+  await app.connect();
+  const pending = deferred<{ id: string; text: string }[]>();
+  vi.mocked(client.request).mockReturnValueOnce(pending.promise);
+  const reading = app.refresh();
+  app.dispose();
+  const before = app.snapshot();
+  pending.resolve([{ id: "old", text: "detached" }]);
+  await reading;
+  expect(app.snapshot()).toBe(before);
 });
 
 it("reuses the first create UUID after a lost response with legacy status", async () => {

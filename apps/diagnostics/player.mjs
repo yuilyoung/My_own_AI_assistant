@@ -62,5 +62,10 @@ export class Player {
       }
     });
   }
-  async close() {this.stop();if(this.context)await this.context.close();this.context=null;}
+  async close() {
+    this.stop();
+    const context = this.context;
+    this.context = null;
+    if (context) await context.close();
+  }
 }

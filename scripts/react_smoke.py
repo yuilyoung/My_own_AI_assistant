@@ -184,9 +184,6 @@ def main():
                     page.goto(base + "/#token=" + token)
                     expect(page.get_by_label("연결 토큰")).not_to_have_value("")
                     assert not page.evaluate("Boolean(location.hash)")
-                    page.route("**/api/status", lambda route: route.fulfill(status=503), times=1)
-                    page.get_by_role("button", name="연결", exact=True).click()
-                    expect(page.get_by_role("alert")).to_contain_text("503")
                     committed_sessions = []
 
                     def drop_session_response(route):
@@ -195,8 +192,19 @@ def main():
                         committed_sessions.append(response.json()["id"])
                         route.abort("connectionreset")
 
+                    # Arm both faults before connecting. When its last one-shot route
+                    # expires, Playwright asynchronously disables request interception.
                     page.route("**/api/sessions", drop_session_response, times=1)
-                    page.get_by_role("button", name="다시 연결", exact=True).click()
+                    page.route("**/api/status", lambda route: route.fulfill(status=503), times=1)
+                    page.get_by_role("button", name="연결", exact=True).click()
+                    expect(page.get_by_role("alert")).to_contain_text("503")
+                    with page.expect_event(
+                        "requestfailed",
+                        predicate=lambda request: (
+                            request.method == "POST" and request.url == base + "/api/sessions"
+                        ),
+                    ):
+                        page.get_by_role("button", name="다시 연결", exact=True).click()
                     retry = page.get_by_role("button", name="대화 연결 다시 시도")
                     expect(retry).to_be_visible()
                     with page.expect_response("**/api/sessions") as replay:
