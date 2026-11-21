@@ -76,6 +76,40 @@ describe("local Cubism asset accessibility preflight", () => {
     ]);
   });
 
+  it("does not approve a model whose optional motion audio is missing", async () => {
+    const base = model();
+    const withSound = {
+      ...base,
+      FileReferences: {
+        ...base.FileReferences,
+        Motions: {
+          Greeting: [
+            {
+              File: "motions/greeting.motion3.json",
+              Sound: "sounds/greeting.wav",
+            },
+          ],
+        },
+      },
+    };
+    const read = vi.fn(async (url: string) => {
+      if (url.endsWith(".model3.json")) {
+        return new Response(JSON.stringify(withSound));
+      }
+      return new Response(null, {
+        status: url.endsWith("sounds/greeting.wav") ? 404 : 200,
+      });
+    });
+
+    const audit = await verifyLocalModelResources(modelPath, origin, read);
+    expect(audit.checked).toBe(6);
+    expect(audit.available).toBe(5);
+    expect(audit.issues).toEqual([
+      { path: "sounds/greeting.wav", reason: "HTTP 404" },
+    ]);
+    expect(read).toHaveBeenCalledTimes(7);
+  });
+
   it("rejects malicious paths before any asset HEAD request", async () => {
     const unsafe = model();
     unsafe.FileReferences.Moc = "../private.moc3";
