@@ -34,6 +34,44 @@ describe("official Cubism model3 metadata validation", () => {
     expect(parsed.referencedFiles).toContain("Haru.physics3.json");
   });
 
+  it("audits optional motion sound paths without treating audio as a motion name", () => {
+    const base = sample();
+    const withSound = {
+      ...base,
+      FileReferences: {
+        ...base.FileReferences,
+        Motions: {
+          Idle: [
+            {
+              File: "motions/idle.motion3.json",
+              Sound: "sounds/idle.wav",
+            },
+          ],
+        },
+      },
+    };
+    const parsed = parseModel3(withSound);
+    expect(parsed.motions).toEqual({ Idle: ["motions/idle.motion3.json"] });
+    expect(parsed.referencedFiles).toContain("sounds/idle.wav");
+
+    withSound.FileReferences.Motions.Idle[0].Sound = "../private.wav";
+    expect(() => parseModel3(withSound)).toThrow(/안전한 상대 경로/);
+  });
+
+  it("permits a motion with an empty optional Sound field", () => {
+    const base = sample();
+    const withEmptySound = {
+      ...base,
+      FileReferences: {
+        ...base.FileReferences,
+        Motions: {
+          Idle: [{ File: "motions/idle.motion3.json", Sound: "" }],
+        },
+      },
+    };
+    expect(parseModel3(withEmptySound).referencedFiles).not.toContain("");
+  });
+
   it("never assumes a hardcoded mouth parameter when LipSync is absent", () => {
     const input = sample();
     input.Groups = [];

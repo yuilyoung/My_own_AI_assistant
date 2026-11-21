@@ -90,9 +90,19 @@ export function parseModel3(value: unknown): CubismModel3 {
       ) {
         throw new Error("모션 그룹 이름이 유효하지 않습니다.");
       }
-      const files = entries(value).map(resource);
+      const files: string[] = [];
+      for (const item of entries(value)) {
+        const motion = record(item);
+        const file = localAssetPath(motion.File);
+        files.push(file);
+        referencedFiles.push(file);
+        // An optional sound belongs to the same model export. Omitting it
+        // makes the asset preflight pass even when motion audio is missing.
+        if (motion.Sound !== undefined && motion.Sound !== "") {
+          referencedFiles.push(localAssetPath(motion.Sound));
+        }
+      }
       motions[name] = files;
-      referencedFiles.push(...files);
     }
   }
   const lipSyncIds: string[] = [];

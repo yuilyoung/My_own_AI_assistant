@@ -23,7 +23,7 @@
 3. `cd apps/web; npm ci; npm run build`로 정적 자산을 포함해 빌드하고 로컬 Gateway를 시작한다.
 4. React 화면의 **모델 JSON 검사**에 `/avatar-local/Haru/Haru.model3.json`처럼 실제 파일명을 입력한다.
 
-**모델 JSON 검사**는 model3 메타데이터의 Moc·Textures·Expressions·Motions·LipSync 그룹을 읽고 안전한 상대 경로만 허용한다. 이후 **참조 파일 접근 검사**를 누르면 모든 고유 참조 파일에 동일 출처 `HEAD` 요청을 보내 서버의 접근 가능성을 확인한다. 파일이 없으면 HTTP 오류, SPA의 HTML fallback, 비어 있는 파일을 문제로 표시한다. `HEAD` 미지원 서버도 실패로 보고된다. **이 검사는 실제 파일 내용·MOC3 무결성, SDK/모델 버전 호환성, 사용권 충족, 실제 캔버스 렌더링, 표정·모션·립싱크 구동을 검사하지 않는다.** 두 검사 모두 통과하더라도 앱 완성으로 표시하지 않는다.
+**모델 JSON 검사**는 model3 메타데이터의 Moc·Textures·Expressions·Motions 및 모션의 선택적 `Sound`·LipSync 그룹을 읽고 안전한 상대 경로만 허용한다. 모션 `Sound`가 지정되어 있으면 해당 음성 파일도 HEAD 검사 대상이 된다. 빈 `Sound`는 허용하되 누락 파일·경로 탈출은 문제로 보고한다. 음성 자산의 접근 확인이 실제 모션 오디오 재생이나 SDK 호환성을 증명하지는 않는다. 이후 **참조 파일 접근 검사**를 누르면 모든 고유 참조 파일에 동일 출처 `HEAD` 요청을 보내 서버의 접근 가능성을 확인한다. 파일이 없으면 HTTP 오류, SPA의 HTML fallback, 비어 있는 파일을 문제로 표시한다. `HEAD` 미지원 서버도 실패로 보고된다. **이 검사는 실제 파일 내용·MOC3 무결성, SDK/모델 버전 호환성, 사용권 충족, 실제 캔버스 렌더링, 표정·모션·립싱크 구동을 검사하지 않는다.** 두 검사 모두 통과하더라도 앱 완성으로 표시하지 않는다.
 
 공식 Cubism Web Samples의 model3 예시: https://github.com/Live2D/CubismWebSamples/blob/develop/Samples/Resources/Haru/Haru.model3.json
 공식 Core 안내: https://docs.live2d.com/en/cubism-sdk-manual/cubism-sdk-for-web/

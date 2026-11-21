@@ -179,6 +179,10 @@ export function AvatarInspector({
       audit.available !== audit.checked
     )
       return;
+    // Release the previous WebGL renderer before creating another one on the
+    // same canvas. Otherwise a failing replacement factory leaves the old SDK
+    // alive and may race for GPU resources with the new instance.
+    bridge.detach();
     const controller = new AbortController();
     pending.current = controller;
     setBusy(true);

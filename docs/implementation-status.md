@@ -1,6 +1,24 @@
 # 구현·검증 상태 — React 음성·기억 통합
 
-최종 작업 확인일: 2026-11-19 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+최종 작업 확인일: 2026-11-21 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+
+## 2026-11-21 Live2D 모션 연결 음성 파일 사전 검사 보완 (PR #25 병합)
+
+- `.model3.json`의 `FileReferences.Motions[*][].Sound`가 비어 있지 않으면 모션 파일과 별도로 동일 모델 폴더 내의 안전한 상대 경로로 검증하고 참조 자산 목록에 포함한다. 기존 코드는 모션의 `File`만 검사하여 연결된 음성 파일이 없더라도 모든 HEAD 검사에 성공한 것처럼 표시할 수 있었다.
+- 모션 이름 매핑용 `motions` 목록은 이전처럼 `.motion3.json`만 보존한다. 빈 `Sound`는 선택 사항으로 허용하며, 경로 탈출은 거부한다. 실제 HEAD 404를 자산 문제로 보고하는 회귀 테스트를 추가했다.
+- **[PR #25](https://github.com/yuilyoung/My_own_AI_assistant/pull/25) 병합 완료:** 기능 브랜치 HEAD [f234c10](https://github.com/yuilyoung/My_own_AI_assistant/commit/f234c100839cfa93eda5f07cfc8a2dabff72458b)에 대해 [PR Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44843256819), [PR Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44843256806)가 모두 성공했다.
+- **병합 코드 [main SHA cf5233d](https://github.com/yuilyoung/My_own_AI_assistant/commit/cf5233dfe7c8850a5c863eae877823faf087ddbe) 검증 완료:** [main Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44843550855)와 [main Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44843550861) 모두 성공. React/Vitest **104 passed (13 files)**, Python **141 passed, upstream 경고 1건**, Prettier/ESLint/TypeScript/Vite 및 Ruff 검사 통과; Windows/Linux 합성 음성 E2E, Docker 컨테이너 스모크, Windows/Linux Python 3.11·3.13 검사 통과. main 산출물: `web-dist` **87,894 B**, `windows-synthetic-voice-report` **417 B**, `gateway-wheel` **21,661 B**. 여기의 CI는 위 병합 코드 SHA 기준이며 후속 문서 전용 커밋과 구분한다.
+- **미검증 범위:** 공식 Cubism SDK/Core·사용권 확인 모델의 WebGL 렌더링, 모션 음성 재생, 실제 립싱크, 사용자 Windows PC의 Ollama·whisper.cpp·MeloTTS/마이크·스피커 및 30분 안정성 시험은 수행하지 않았다. 모션 음성 HEAD 성공은 파일 접근 가능성만 뜻하며 콘텐츠·사용권·재생 성공이 아니다.
+
+
+
+## 2026-11-20 Live2D 로컬 SDK 재연결 자원 소유권 정리 (PR #24)
+
+- [PR #24](https://github.com/yuilyoung/My_own_AI_assistant/pull/24): 로컬 Cubism SDK 어댑터를 같은 canvas에 다시 연결할 때 이전 SDK를 **새 런타임 팩토리 호출 전에** `detach()`하고 기존 음성 RMS 연결을 해제한다. 이전에는 새 팩토리 호출 후에야 이전 SDK를 해제했기 때문에, 동일 WebGL canvas에서 두 런타임의 GPU 자원 소유가 겹칠 수 있고 새 팩토리 실패 시 이전 렌더러가 활성 상태로 남을 수 있었다.
+- [회귀 테스트 커밋 fb6ee51](https://github.com/yuilyoung/My_own_AI_assistant/commit/fb6ee51d3715b939442edd4800b6272afa59bf0c)과 [수정 커밋 3845646](https://github.com/yuilyoung/My_own_AI_assistant/commit/3845646d8981eb44878ccda1b6576dd361eed877): 재연결 중 이전 SDK 선해제, 새 팩토리 예외 시 이전 립싱크 재진입 방지 모의 SDK/React 테스트 2개를 추가했다.
+- **코드 SHA `3845646` 기준 PR CI 통과**: [Web frontend CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44646799407) — Prettier, ESLint, Vitest **101 passed (13 files)**, TypeScript/Vite 운영 빌드, Linux/Windows Chromium 합성 STT/TTS·SVG, Docker 패키지 API 스모크 성공; `web-dist` **87,865 bytes**, `windows-synthetic-voice-report` **417 bytes** 생성. [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44646799384) — Windows/Linux × Python 3.11/3.13, Node 테스트, Ruff, wheel 성공; `gateway-wheel` **21,662 bytes** 생성. 이는 문서 커밋 이전 **코드 SHA의 PR 이벤트 결과**이며 최종 병합된 main의 검사와 구분한다.
+- **[PR #24](https://github.com/yuilyoung/My_own_AI_assistant/pull/24) 병합 완료**: [main 코드 SHA `d8cec3d`](https://github.com/yuilyoung/My_own_AI_assistant/commit/d8cec3d4dc77c88d7b8fac3f871afdae16203318) 기준 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44647592443)와 [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44647592411) **모두 성공**. `web-dist` **87,865 bytes**, `windows-synthetic-voice-report` **417 bytes**, `gateway-wheel` **21,661 bytes** 생성 확인. 이 후속 상태 문서 커밋과 병합 코드 SHA는 구분한다.
+- **검증 범위**: 어댑터는 모의 객체이며 실제 Cubism SDK/Core, 캐릭터 WebGL 렌더링·GPU 자원 반환·실물 립싱크는 시험하지 않았다. Windows CI는 합성 장치를 사용했고 사용자 PC의 Ollama·whisper.cpp·MeloTTS·물리 마이크/스피커와 30분 안정성 시험은 진행하지 않았다. 공식 SDK는 이용 계약 동의 후 별도로 설치하고, 모델별 사용권을 확인해야 한다. 실제 자산 확보 전 MVP 완료 판정 금지.
 
 ## 2026-11-19 PR #22/#23 main 병합과 내장 SVG 아바타 브라우저 검증
 
