@@ -2,11 +2,13 @@
 
 최종 작업 확인일: 2026-11-21 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
 
-## 2026-11-21 Live2D 모션 연결 음성 파일 사전 검사 보완 (PR 검증 전)
+## 2026-11-21 Live2D 모션 연결 음성 파일 사전 검사 보완 (PR #25 병합)
 
 - `.model3.json`의 `FileReferences.Motions[*][].Sound`가 비어 있지 않으면 모션 파일과 별도로 동일 모델 폴더 내의 안전한 상대 경로로 검증하고 참조 자산 목록에 포함한다. 기존 코드는 모션의 `File`만 검사하여 연결된 음성 파일이 없더라도 모든 HEAD 검사에 성공한 것처럼 표시할 수 있었다.
 - 모션 이름 매핑용 `motions` 목록은 이전처럼 `.motion3.json`만 보존한다. 빈 `Sound`는 선택 사항으로 허용하며, 경로 탈출은 거부한다. 실제 HEAD 404를 자산 문제로 보고하는 회귀 테스트를 추가했다.
-- **검증 대기:** 이 항목의 테스트·formatter/lint·Vite 빌드 및 CI 증거는 아직 확보하지 않았다. 기존 main CI 결과를 이번 변경의 성공 증거로 사용하지 않는다. 공식 Cubism SDK/Core·모델의 WebGL 렌더링, 모션 음성 재생, 실제 립싱크, 사용자 Windows PC 장치·30분 안정성 시험은 여전히 미완료다.
+- **[PR #25](https://github.com/yuilyoung/My_own_AI_assistant/pull/25) 병합 완료:** 기능 브랜치 HEAD [f234c10](https://github.com/yuilyoung/My_own_AI_assistant/commit/f234c100839cfa93eda5f07cfc8a2dabff72458b)에 대해 [PR Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44843256819), [PR Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44843256806)가 모두 성공했다.
+- **병합 코드 [main SHA cf5233d](https://github.com/yuilyoung/My_own_AI_assistant/commit/cf5233dfe7c8850a5c863eae877823faf087ddbe) 검증 완료:** [main Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44843550855)와 [main Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44843550861) 모두 성공. React/Vitest **104 passed (13 files)**, Python **141 passed, upstream 경고 1건**, Prettier/ESLint/TypeScript/Vite 및 Ruff 검사 통과; Windows/Linux 합성 음성 E2E, Docker 컨테이너 스모크, Windows/Linux Python 3.11·3.13 검사 통과. main 산출물: `web-dist` **87,894 B**, `windows-synthetic-voice-report` **417 B**, `gateway-wheel` **21,661 B**. 여기의 CI는 위 병합 코드 SHA 기준이며 후속 문서 전용 커밋과 구분한다.
+- **미검증 범위:** 공식 Cubism SDK/Core·사용권 확인 모델의 WebGL 렌더링, 모션 음성 재생, 실제 립싱크, 사용자 Windows PC의 Ollama·whisper.cpp·MeloTTS/마이크·스피커 및 30분 안정성 시험은 수행하지 않았다. 모션 음성 HEAD 성공은 파일 접근 가능성만 뜻하며 콘텐츠·사용권·재생 성공이 아니다.
 
 
 
