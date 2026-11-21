@@ -36,24 +36,34 @@ def inspect_local_readiness(
         )
     )
 
+    if settings.cloud_configured:
+        checks.append(
+            Check("Cloud API", "PASS", "서버에 API 키와 모델 ID가 설정됨 (실제 호출은 미검증)")
+        )
+    else:
+        checks.append(
+            Check(
+                "Cloud API",
+                "FAIL" if settings.llm == "cloud" else "SKIP",
+                "클라우드 API를 사용하려면 서버에 CLOUD_API_KEY와 CLOUD_MODEL을 설정하세요.",
+            )
+        )
+
     if not settings.local_llm_enabled:
-        checks.append(Check("Ollama", "SKIP", "로컬 LLM 비활성화; LOCAL_LLM_ENABLED로 설정"))
+        checks.append(
+            Check(
+                "Ollama",
+                "FAIL" if settings.llm == "ollama" else "SKIP",
+                "로컬 LLM 비활성화. 사용하려면 LOCAL_LLM_ENABLED=true를 설정하세요.",
+            )
+        )
     else:
         try:
-            tags = client.get(settings.ollama_url + "/api/tags")
-            tags.raise_for_status()
-            models = tags.json()["models"]
-            installed = {
-                model["name"]
-                for model in models
-                if isinstance(model, dict) and isinstance(model.get("name"), str)
-            }
-            if settings.model not in installed:
+            # Let Ollama resolve the configured name exactly as it does for a chat turn.
+            details = client.post(settings.ollama_url + "/api/show", json={"model": settings.model})
+            if details.status_code == 404:
                 checks.append(Check("Ollama", "FAIL", "설정된 로컬 모델 태그를 찾지 못했습니다"))
             else:
-                details = client.post(
-                    settings.ollama_url + "/api/show", json={"model": settings.model}
-                )
                 details.raise_for_status()
                 info = details.json()
                 if info.get("remote_host") or info.get("remote_model"):
