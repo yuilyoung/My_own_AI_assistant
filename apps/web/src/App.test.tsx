@@ -1,7 +1,14 @@
 // @vitest-environment jsdom
 import React from "react";
 import { afterEach, expect, it, vi } from "vitest";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "./App";
 afterEach(() => {
@@ -261,6 +268,48 @@ it("shows a saved memory and clears its draft when a turn starts during the save
   await act(async () => finishSave());
   expect(draft.value).toBe("");
   expect(screen.getByText("A saved memory")).toBeTruthy();
+});
+
+it("keeps the chat error visible while a failed storage list is reloaded", async () => {
+  let finishRead!: (result: Response) => void;
+  const firstRead = new Promise<Response>((resolve) => {
+    finishRead = resolve;
+  });
+  let reads = 0;
+  vi.stubGlobal("fetch", async (url: string) => {
+    if (url === "/api/status")
+      return Response.json({
+        llm: "demo",
+        tts: "none",
+        model: null,
+        stt_enabled: false,
+      });
+    if (url === "/api/sessions") return Response.json({ id: "current" });
+    if (url.endsWith("/turns")) return new Response(null, { status: 502 });
+    if (url.endsWith("/memories")) {
+      if (++reads === 1) return firstRead;
+      return Response.json([{ id: "m", text: "Recovered memory" }]);
+    }
+    return Response.json([]);
+  });
+  const user = userEvent.setup();
+  render(<App />);
+  await user.type(screen.getByLabelText("연결 토큰"), "test-token");
+  await user.click(screen.getByRole("button", { name: "연결" }));
+  await screen.findByText("대화 준비됨");
+  await user.type(screen.getByLabelText("메시지"), "Hello");
+  await user.click(screen.getByRole("button", { name: "전송" }));
+  await screen.findByText(/HTTP 502/);
+  await act(async () => finishRead(new Response(null, { status: 503 })));
+  expect(screen.queryByText(/HTTP 502/)).toBeTruthy();
+  const storage = within(screen.getByRole("region", { name: "기억과 메모" }));
+  expect(storage.getByText(/HTTP 503/)).toBeTruthy();
+  await user.click(
+    storage.getByRole("button", { name: "저장 목록 다시 불러오기" }),
+  );
+  await screen.findByText("Recovered memory");
+  expect(screen.queryByText(/HTTP 503/)).toBeNull();
+  expect(screen.getByText(/HTTP 502/)).toBeTruthy();
 });
 
 it("connects, labels demo, sends reviewed text and clears it on mode change", async () => {

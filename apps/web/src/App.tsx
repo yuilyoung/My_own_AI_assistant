@@ -285,7 +285,19 @@ function Workspace({
           )}
         </section>
       </div>
-      <section className="storage">
+      <section className="storage" aria-label="기억과 메모">
+        {Object.entries(state.storageErrors).map(([operation, message]) =>
+          message ? (
+            <p key={operation} role="alert" className="error">
+              {message}{" "}
+              {operation === "list" && (
+                <button type="button" onClick={() => void app.refresh()}>
+                  저장 목록 다시 불러오기
+                </button>
+              )}
+            </p>
+          ) : null,
+        )}
         <div>
           <h2>승인한 기억</h2>
           <p>직접 저장한 내용만 이 모드의 다음 대화에 반영합니다.</p>

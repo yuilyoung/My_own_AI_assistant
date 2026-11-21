@@ -475,7 +475,26 @@ it("acknowledges a successful write even when the subsequent list refresh fails"
     .mockResolvedValueOnce({ id: "saved", text: "saved once" })
     .mockRejectedValueOnce(new Error("HTTP 503"));
   expect(await app.save("notes", "saved once")).toBe(true);
-  expect(app.snapshot().error).toContain("503");
+  expect(app.snapshot().storageErrors.list).toContain("503");
+  expect(app.snapshot().error).toBe("");
+});
+
+it("preserves a failed write until that operation succeeds or the session changes", async () => {
+  const { app, client } = setup();
+  await app.connect();
+  vi.mocked(client.request).mockRejectedValueOnce(new Error("HTTP 409"));
+  expect(await app.save("notes", "draft")).toBe(false);
+  expect(app.snapshot().error).toBe("");
+  expect(app.snapshot().storageErrors.notes).toContain("409");
+  await app.save("memories", "memory");
+  expect(app.snapshot().storageErrors.notes).toContain("409");
+  await app.save("notes", "edited draft");
+  expect(app.snapshot().storageErrors.notes).toBeFalsy();
+  vi.mocked(client.request).mockRejectedValueOnce(new Error("HTTP 503"));
+  await app.forget("memory");
+  expect(app.snapshot().storageErrors.forget).toContain("503");
+  await app.changeMode("companion");
+  expect(app.snapshot().storageErrors.forget).toBeFalsy();
 });
 
 it("ignores a storage result delivered after disconnect", async () => {

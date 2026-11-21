@@ -18,6 +18,7 @@ export type AudioPlayer = {
   close(): Promise<void>;
 };
 type Item = { id: string; text: string };
+type StorageOperation = "list" | "memories" | "notes" | "forget";
 function defaultService(status: Status): ServiceId {
   if (status.default_service) return status.default_service;
   if (status.llm === "cloud") return "cloud";
@@ -38,6 +39,7 @@ export type View = {
   messages: { role: "user" | "assistant"; text: string }[];
   memories: Item[];
   notes: Item[];
+  storageErrors: Partial<Record<StorageOperation, string>>;
   busy: boolean;
   voice: VoiceKind;
   error: string;
@@ -55,6 +57,7 @@ export class Conversation {
     messages: [],
     memories: [],
     notes: [],
+    storageErrors: {},
     busy: false,
     voice: "idle",
     error: "",
@@ -188,6 +191,7 @@ export class Conversation {
       messages: [],
       memories: [],
       notes: [],
+      storageErrors: {},
       error: "",
       warning: "",
       busy: true,
@@ -346,6 +350,12 @@ export class Conversation {
         this.patch({ error: String(error) });
     }
   }
+  private setStorageError(operation: StorageOperation, message?: string) {
+    if (this.state.storageErrors[operation] !== message)
+      this.patch({
+        storageErrors: { ...this.state.storageErrors, [operation]: message },
+      });
+  }
   async refresh() {
     const { session, mode } = this.state;
     if (!session) return;
@@ -362,13 +372,16 @@ export class Conversation {
         const notes = await this.client.request<Item[]>(
           `/sessions/${session.id}/notes`,
         );
-        if (current()) this.patch({ notes });
+        if (!current()) return;
+        this.patch({ notes });
       }
+      if (current()) this.setStorageError("list");
     } catch (error) {
       if (current())
-        this.patch({
-          error: "저장 목록을 불러오지 못했습니다. " + connectionError(error),
-        });
+        this.setStorageError(
+          "list",
+          "저장 목록을 불러오지 못했습니다. " + connectionError(error),
+        );
     }
   }
   async save(kind: "memories" | "notes", text: string) {
@@ -385,10 +398,17 @@ export class Conversation {
         body: JSON.stringify({ text }),
       });
       if (this.state.session !== session) return false;
+      this.setStorageError(kind);
       await this.refresh();
       return this.state.session === session;
     } catch (error) {
-      if (this.state.session === session) this.patch({ error: String(error) });
+      if (this.state.session === session) {
+        const label = kind === "memories" ? "기억" : "메모";
+        this.setStorageError(
+          kind,
+          label + " 저장에 실패했습니다. " + connectionError(error),
+        );
+      }
       return false;
     }
   }
@@ -400,15 +420,21 @@ export class Conversation {
         `/sessions/${session.id}/memories/${encodeURIComponent(id)}`,
         { method: "DELETE" },
       );
-      if (this.state.session === session) await this.refresh();
+      if (this.state.session !== session) return;
+      this.setStorageError("forget");
+      await this.refresh();
     } catch (error) {
-      if (this.state.session === session) this.patch({ error: String(error) });
+      if (this.state.session === session)
+        this.setStorageError(
+          "forget",
+          "기억 삭제에 실패했습니다. " + connectionError(error),
+        );
     }
   }
   dispose() {
     this.availabilityCheck?.abort();
     this.listeners.clear();
-    this.patch({ session: null });
+    this.patch({ session: null, storageErrors: {} });
     this.stop();
     void this.player.close();
   }

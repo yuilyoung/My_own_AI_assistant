@@ -221,6 +221,10 @@ meter {
   gap: 20px;
   margin-top: 20px;
 }
+.storage > .error {
+  grid-column: 1 / -1;
+  margin: 0;
+}
 .storage button {
   margin-top: 8px;
 }
