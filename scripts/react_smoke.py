@@ -181,15 +181,27 @@ def main():
                     page.get_by_role("button", name="연결", exact=True).click()
                     expect(page.get_by_role("alert")).to_contain_text("연결 토큰")
                     expect(page.get_by_label("LLM 서비스", exact=True)).to_have_count(0)
-                    page.get_by_role("button", name="연결 해제 / 토큰 다시 입력").click()
-                    expect(page.get_by_label("연결 토큰")).to_have_value("")
                     page.goto(base + "/#token=" + token)
                     expect(page.get_by_label("연결 토큰")).not_to_have_value("")
                     assert not page.evaluate("Boolean(location.hash)")
                     page.route("**/api/status", lambda route: route.fulfill(status=503), times=1)
                     page.get_by_role("button", name="연결", exact=True).click()
                     expect(page.get_by_role("alert")).to_contain_text("503")
+                    committed_sessions = []
+
+                    def drop_session_response(route):
+                        response = route.fetch()
+                        assert response.status == 201
+                        committed_sessions.append(response.json()["id"])
+                        route.abort("connectionreset")
+
+                    page.route("**/api/sessions", drop_session_response, times=1)
                     page.get_by_role("button", name="다시 연결", exact=True).click()
+                    retry = page.get_by_role("button", name="대화 연결 다시 시도")
+                    expect(retry).to_be_visible()
+                    with page.expect_response("**/api/sessions") as replay:
+                        retry.click()
+                    assert committed_sessions == [replay.value.json()["id"]]
                     expect(page.get_by_text("대화 준비됨")).to_be_visible()
                     assert token not in page.url
                     page.goto(base + "/#token=unused-while-connected")
@@ -315,6 +327,7 @@ def main():
                             "invalid_token_reentry",
                             "same_tab_token_link",
                             "temporary_status_failure_retry",
+                            "lost_session_response_reuses_committed_session",
                             "memory_scope",
                             "notes",
                             "worklet_capture",

@@ -69,3 +69,22 @@ it("pins the chosen service to session creation without sending provider keys", 
     JSON.stringify({ mode: "assistant", service: "cloud" }),
   );
 });
+
+it("sends an optional session request UUID in the authenticated JSON body", async () => {
+  const fetchApi = vi.fn().mockResolvedValue(Response.json({ id: "created" }));
+  vi.stubGlobal("fetch", fetchApi);
+  const requestId = "9b8a70e4-1924-4ff1-baa6-684f83958fb3";
+  await new GatewayClient("pairing-token").createSession(
+    "companion",
+    "cloud",
+    requestId,
+  );
+  const [url, options] = fetchApi.mock.calls[0];
+  expect(url).toBe("/api/sessions");
+  expect(options.headers.Authorization).toBe("Bearer pairing-token");
+  expect(JSON.parse(options.body)).toEqual({
+    mode: "companion",
+    service: "cloud",
+    request_id: requestId,
+  });
+});

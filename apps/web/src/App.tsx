@@ -32,9 +32,12 @@ function Workspace({
   const save = async (e: FormEvent, kind: "memories" | "notes") => {
     e.preventDefault();
     const value = kind === "memories" ? memory : note;
-    if (await app.save(kind, value)) {
-      if (kind === "memories") setMemory("");
-      else setNote("");
+    if (
+      (await app.save(kind, value)) &&
+      app.snapshot().session === state.session
+    ) {
+      const setDraft = kind === "memories" ? setMemory : setNote;
+      setDraft((current) => (current === value ? "" : current));
     }
   };
   if (!state.status)
@@ -131,6 +134,16 @@ function Workspace({
               {item.label}: {item.reason || "서버 연결 설정이 필요합니다."}
             </p>
           ))}
+        {state.status.services?.some((item) => !item.available) &&
+          (state.session || selectedService?.available === false) && (
+            <button
+              type="button"
+              disabled={state.busy || state.voice !== "idle"}
+              onClick={() => void app.retryConnection()}
+            >
+              서비스 설정 다시 확인
+            </button>
+          )}
       </section>
       <nav aria-label="대화 모드">
         {(["assistant", "companion"] as const).map((value) => (
@@ -261,7 +274,7 @@ function Workspace({
           {!state.session &&
             !state.busy &&
             selectedService?.available !== false && (
-              <button onClick={() => void app.changeMode(state.mode)}>
+              <button onClick={() => void app.retryConnection()}>
                 대화 연결 다시 시도
               </button>
             )}
@@ -340,7 +353,11 @@ export function App() {
         "",
         location.pathname + location.search,
       );
-      if (incoming && !app) setToken(incoming);
+      if (incoming && !app?.snapshot().status) {
+        app?.stop();
+        setApp(null);
+        setToken(incoming);
+      }
     };
     readFragment();
     window.addEventListener("hashchange", readFragment);

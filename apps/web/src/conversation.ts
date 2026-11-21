@@ -18,6 +18,16 @@ export type AudioPlayer = {
   close(): Promise<void>;
 };
 type Item = { id: string; text: string };
+function defaultService(status: Status): ServiceId {
+  if (status.default_service) return status.default_service;
+  if (status.llm === "cloud") return "cloud";
+  return status.llm === "ollama" ? "local" : "demo";
+}
+function connectionError(error: unknown): string {
+  if (error instanceof TypeError)
+    return "서버에 연결할 수 없습니다. 네트워크와 서버 상태를 확인하세요.";
+  return error instanceof Error ? error.message : String(error);
+}
 export type View = {
   mode: Mode;
   service: ServiceId | null;
@@ -52,6 +62,8 @@ export class Conversation {
   };
   private listeners = new Set<() => void>();
   private epoch = 0;
+  private pendingRequestId?: string;
+  private availabilityCheck?: AbortController;
   private controller: AbortController | null = null;
   private active: { sid: string; tid: string } | null = null;
   private voice: VoiceInput;
@@ -96,7 +108,31 @@ export class Conversation {
     if (old) void this.client.cancelTurn(old.sid, old.tid).catch(() => {});
     this.patch({ busy: false });
   }
-  async connect() {
+  connect() {
+    return this.connectToService(null);
+  }
+  async retryConnection() {
+    if (!this.state.session)
+      return this.connectToService(this.state.service, this.pendingRequestId);
+
+    this.availabilityCheck?.abort();
+    const check = new AbortController();
+    this.availabilityCheck = check;
+    this.patch({ error: "" });
+    try {
+      const status = await this.client.status(check.signal);
+      if (!check.signal.aborted) this.patch({ status });
+    } catch (error) {
+      if (!check.signal.aborted) this.patch({ error: connectionError(error) });
+    } finally {
+      if (this.availabilityCheck === check) this.availabilityCheck = undefined;
+    }
+  }
+  private async connectToService(
+    selected: ServiceId | null,
+    requestId?: string,
+  ) {
+    this.availabilityCheck?.abort();
     this.stop();
     const epoch = this.epoch;
     const controller = new AbortController();
@@ -106,27 +142,14 @@ export class Conversation {
       const status = await this.client.status(controller.signal);
       if (epoch !== this.epoch) return;
       this.controller = null;
-      const service =
-        status.default_service ??
-        (status.llm === "cloud"
-          ? "cloud"
-          : status.llm === "ollama"
-            ? "local"
-            : "demo");
+      const service = selected ?? defaultService(status);
       this.patch({ status, service });
-      await this.changeMode(this.state.mode);
+      if (epoch === this.epoch)
+        await this.startSession(this.state.mode, service, requestId);
     } catch (error) {
       if (epoch === this.epoch) {
         this.controller = null;
-        this.patch({
-          error:
-            error instanceof TypeError
-              ? "서버에 연결할 수 없습니다. 네트워크와 서버 상태를 확인하세요."
-              : error instanceof Error
-                ? error.message
-                : String(error),
-          busy: false,
-        });
+        this.patch({ error: connectionError(error), busy: false });
       }
     }
   }
@@ -143,9 +166,18 @@ export class Conversation {
     if (service === this.state.service && this.state.session) return;
     await this.changeMode(this.state.mode, service);
   }
-  async changeMode(mode: Mode, service = this.state.service) {
+  changeMode(mode: Mode, service = this.state.service) {
+    return this.startSession(mode, service);
+  }
+  private async startSession(
+    mode: Mode,
+    service: ServiceId | null,
+    requestId?: string,
+  ) {
+    this.availabilityCheck?.abort();
     this.stop();
     const epoch = this.epoch;
+    this.pendingRequestId = requestId;
     this.patch({
       mode,
       service,
@@ -159,22 +191,29 @@ export class Conversation {
       warning: "",
       busy: true,
     });
-    const option = this.state.status?.services?.find(
-      (item) => item.id === service,
-    );
-    if (option && !option.available) {
+    const status = this.state.status;
+    const option = status?.services?.find((item) => item.id === service);
+    if (
+      status &&
+      (status.services
+        ? !option?.available
+        : service !== defaultService(status))
+    ) {
       this.patch({
-        error: option.reason || "사용할 수 있는 LLM 서비스를 선택하세요.",
+        error: option?.reason || "사용할 수 있는 LLM 서비스를 선택하세요.",
         busy: false,
       });
       return;
     }
     try {
+      this.pendingRequestId ??= crypto.randomUUID();
       const session = await this.client.createSession(
         mode,
         service ?? undefined,
+        this.pendingRequestId,
       );
       if (epoch !== this.epoch) return;
+      this.pendingRequestId = undefined;
       this.patch({ session, busy: false });
       await this.refresh();
     } catch (error) {
@@ -340,7 +379,7 @@ export class Conversation {
       });
       if (epoch !== this.epoch) return false;
       await this.refresh();
-      return true;
+      return epoch === this.epoch && session.id === this.state.session?.id;
     } catch (error) {
       if (epoch === this.epoch) this.patch({ error: String(error) });
       return false;
@@ -361,6 +400,7 @@ export class Conversation {
     }
   }
   dispose() {
+    this.availabilityCheck?.abort();
     this.stop();
     this.listeners.clear();
     void this.player.close();

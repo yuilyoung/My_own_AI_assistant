@@ -69,10 +69,10 @@ export class GatewayClient {
   status(signal?: AbortSignal) {
     return this.request<Status>("/status", { signal });
   }
-  createSession(mode: Mode, service?: ServiceId) {
+  createSession(mode: Mode, service?: ServiceId, requestId?: string) {
     return this.request<Session>("/sessions", {
       method: "POST",
-      body: JSON.stringify({ mode, ...(service ? { service } : {}) }),
+      body: JSON.stringify({ mode, service, request_id: requestId }),
     });
   }
   createTurn(sessionId: string, text: string, signal?: AbortSignal) {
