@@ -1,6 +1,14 @@
 # 구현·검증 상태 — React 음성·기억 통합
 
-최종 작업 확인일: 2026-11-21 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+최종 작업 확인일: 2026-11-22 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+
+## 2026-11-22 필수 소프트웨어 시험 결과 증거 보존 (검증 중)
+
+- **기준 main 상태:** 2026-11-21 [PR #26](https://github.com/yuilyoung/My_own_AI_assistant/pull/26)~[PR #30](https://github.com/yuilyoung/My_own_AI_assistant/pull/30)이 병합되었다. [main HEAD `3e8cab0`](https://github.com/yuilyoung/My_own_AI_assistant/commit/3e8cab03162a9e797400aa7a106c6f1c888052fc)는 내장 SVG 캐릭터 서린, 대화 상태 보존, 필수 시험 채점 기능이 포함된 코드다. 이 SHA에서 [Web frontend CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44921573026) 및 [Local engine tests](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44921573013)가 성공했고 `web-dist`, `windows-synthetic-voice-report`, `gateway-wheel` 아티팩트가 생성되었다. **이것은 이번 보고서 보존 변경 전의 성공 결과다.**
+- **이번 변경:** `scripts/check_acceptance.py`의 8개 필수 시험 점수와 각 필수 테스트 사례, 전체 테스트 성공 여부를 stdout과 UTF-8 JSON 파일로 저장하는 선택적 `ACCEPTANCE_REPORT_PATH`를 추가했다. Windows/Ubuntu × Python 3.11/3.13 CI에서 `acceptance-<OS>-py<version>` 아티팩트로 보존하며, 필수 시험 실패 시에도 생성된 보고서를 업로드한다. 보고서 작성 전 프로세스가 실패하면 별도 산출물 없이 경고가 남는다. JSON 직렬화 및 실패한 필수 시험의 보존 단위 테스트를 추가했다.
+- **검증 경계:** 채점표는 이름이 지정된 **소프트웨어 테스트만** 평가한다. 실제 Cubism Core/모델 WebGL 출력, 립싱크의 물리적 시각 동작, Windows 사용자 PC의 Ollama·whisper.cpp·MeloTTS·마이크·스피커와 30분 안정성 검사는 포함하지 않는다. 공식 SDK/Core 다운로드 계약 및 모델별 권리는 계속 별도 확인이 필요하다.
+- **이번 변경 CI:** PR/병합 결과 확인 후 링크와 수치를 추가한다. 아직 이번 변경의 테스트 통과나 아티팩트 생성을 주장하지 않는다.
+
 
 ## 2026-11-21 Live2D 모션 연결 음성 파일 사전 검사 보완 (PR #25 병합)
 
