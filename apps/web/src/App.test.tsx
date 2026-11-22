@@ -340,6 +340,7 @@ it("connects, labels demo, sends reviewed text and clears it on mode change", as
   await user.click(screen.getByRole("button", { name: "연결" }));
   expect(await screen.findByText(/DEMO · 고정 응답/)).toBeTruthy();
   expect(screen.getByRole("img", { name: /기본 아바타/ })).toBeTruthy();
+  await user.selectOptions(screen.getByLabelText("아바타 종류"), "hana");
   await user.selectOptions(screen.getByLabelText("아바타 종류"), "live2d");
   expect(
     (screen.getByRole("button", { name: "마이크로 입력" }) as HTMLButtonElement)
@@ -360,7 +361,7 @@ it("connects, labels demo, sends reviewed text and clears it on mode change", as
       "",
     ),
   );
-  expect(screen.getByRole("img", { name: /기본 아바타/ })).toBeTruthy();
+  expect(screen.getByRole("img", { name: /하나/ })).toBeTruthy();
   await user.selectOptions(screen.getByLabelText("아바타 종류"), "live2d");
   expect(
     (screen.getByLabelText("로컬 모델 export 경로 점검") as HTMLInputElement)

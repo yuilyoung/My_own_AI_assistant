@@ -1,18 +1,23 @@
-import type { AvatarBindings, ExpressionCue, MotionCue } from "./avatar-motion";
+import {
+  expressionLabels,
+  motionLabels,
+  type AvatarBindings,
+  type ExpressionCue,
+  type MotionCue,
+} from "./avatar-motion";
 import type { CubismModel3 } from "./model3";
 
 export const expressionCues: readonly { cue: ExpressionCue; label: string }[] =
-  [
-    { cue: "neutral", label: "중립" },
-    { cue: "happy", label: "기쁨" },
-    { cue: "concerned", label: "걱정" },
-    { cue: "surprised", label: "놀람" },
-  ];
-export const motionCues: readonly { cue: MotionCue; label: string }[] = [
-  { cue: "idle", label: "대기" },
-  { cue: "nod", label: "끄덕임" },
-  { cue: "greeting", label: "인사" },
-];
+  (Object.keys(expressionLabels) as ExpressionCue[]).map((cue) => ({
+    cue,
+    label: cue === "neutral" ? "중립" : expressionLabels[cue],
+  }));
+export const motionCues: readonly { cue: MotionCue; label: string }[] = (
+  Object.keys(motionLabels) as MotionCue[]
+).map((cue) => ({
+  cue,
+  label: motionLabels[cue],
+}));
 
 /** Explicitly map user-owned model names; never guess generic SDK motion IDs. */
 export function AvatarBindingEditor({

@@ -1,12 +1,87 @@
 // @vitest-environment jsdom
 import { StrictMode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AvatarPanel } from "./AvatarPanel";
 import { AvatarMotionBridge } from "./avatar-motion";
 
 afterEach(cleanup);
+
+it("switches built-in characters while preserving a live reply and its audio level", async () => {
+  const user = userEvent.setup();
+  const bridge = new AvatarMotionBridge();
+  const cue = { emotion: "happy", gesture: "greeting" };
+  render(<AvatarPanel bridge={bridge} cue={cue} level={0.6} busy />);
+  const selector = screen.getByLabelText("아바타 종류");
+  for (const [value, name] of [
+    ["hana", "하나"],
+    ["isol", "이솔"],
+  ]) {
+    await user.selectOptions(selector, value);
+    const portrait = screen.getByRole("img", { name: new RegExp(name) });
+    expect(portrait.getAttribute("data-character")).toBe(value);
+    expect(portrait.textContent).toContain("기쁨");
+    expect(portrait.textContent).toContain("인사");
+    expect((screen.getByRole("meter") as HTMLMeterElement).value).toBe(0.6);
+    expect(bridge.ready).toBe(false);
+  }
+});
+
+it("previews a new gesture in silence and yields to the next reply", async () => {
+  const user = userEvent.setup();
+  const bridge = new AvatarMotionBridge();
+  const { rerender } = render(<AvatarPanel bridge={bridge} level={0} />);
+  await user.click(screen.getByText("표정·동작 미리보기"));
+  await user.click(screen.getByRole("button", { name: "갸웃하기" }));
+  expect(screen.getByRole("img", { name: /호기심.*고개 기울임/ })).toBeTruthy();
+  expect((screen.getByRole("meter") as HTMLMeterElement).value).toBe(0);
+  const reply = { emotion: "thoughtful", gesture: "point" };
+  rerender(<AvatarPanel bridge={bridge} level={0.3} cue={reply} busy />);
+  expect(screen.getByRole("img", { name: /사색.*가리키기/ })).toBeTruthy();
+  expect(
+    screen.getByRole<HTMLButtonElement>("button", { name: "갸웃하기" })
+      .disabled,
+  ).toBe(true);
+  rerender(<AvatarPanel bridge={bridge} level={0} cue={reply} />);
+  expect(screen.getByRole("img", { name: /사색.*가리키기/ })).toBeTruthy();
+});
+
+it.each(["close the preview", "start a turn"])(
+  "keeps a completed reply gesture at rest when I %s",
+  async (action) => {
+    const bridge = new AvatarMotionBridge();
+    const user = userEvent.setup();
+    const greeting = { emotion: "happy", gesture: "greeting" };
+    const panel = (cue: typeof greeting, busy = false) => (
+      <AvatarPanel bridge={bridge} level={0} cue={cue} busy={busy} />
+    );
+    const { rerender } = render(panel(greeting));
+    const hand = screen.getByRole("img").querySelector(".avatar-panel__hand")!;
+    fireEvent(
+      hand,
+      Object.assign(new Event("animationend", { bubbles: true }), {
+        animationName: "seorin-wave",
+      }),
+    );
+    expect(hand.querySelector("path")).toBeNull();
+    const summary = screen.getByText("표정·동작 미리보기");
+    await user.click(summary);
+    await user.click(screen.getByRole("button", { name: "갸웃하기" }));
+    if (action === "close the preview") await user.click(summary);
+    else rerender(panel(greeting, true));
+    await screen.findByRole("img", { name: /기쁨.*대기/ });
+    expect(hand.querySelector("path")).toBeNull();
+    rerender(panel({ ...greeting }));
+    expect(hand.querySelector("path")).toBeTruthy();
+  },
+);
 
 async function attachRenderer(bridge: AvatarMotionBridge) {
   const adapter = {

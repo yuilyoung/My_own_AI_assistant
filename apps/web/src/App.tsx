@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { FormEvent } from "react";
 import { GatewayClient, type ServiceId } from "./gateway";
 import { AvatarPanel } from "./AvatarPanel";
+import type { AvatarCharacter } from "./avatar-cast";
 import { AvatarMotionBridge } from "./avatar-motion";
 import { dispatchAvatarCues } from "./avatar-cues";
 import { Conversation } from "./conversation";
@@ -20,6 +21,7 @@ function Workspace({
   bridge: AvatarMotionBridge;
 }) {
   const state = useSyncExternalStore(app.subscribe, app.snapshot);
+  const [character, setCharacter] = useState<AvatarCharacter>("seorin");
   const [memory, setMemory] = useState(""),
     [note, setNote] = useState("");
   const end = useRef<HTMLDivElement>(null);
@@ -167,6 +169,8 @@ function Workspace({
           <AvatarPanel
             key={`${state.mode}:${state.service}`}
             bridge={bridge}
+            defaultCharacter={character}
+            onCharacterChange={setCharacter}
             level={level}
             brightness={brightness}
             cue={state.latestCue ?? undefined}

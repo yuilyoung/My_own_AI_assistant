@@ -111,6 +111,24 @@
   overflow-wrap: anywhere;
 }
 
+.avatar-panel__preview summary {
+  cursor: pointer;
+  color: #c2dedc;
+  font-size: 13px;
+}
+
+.avatar-panel__preview > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.avatar-panel__preview button {
+  padding: 6px;
+  font-size: 13px;
+}
+
 .avatar-panel__licensed {
   display: grid;
   min-width: 0;

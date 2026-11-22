@@ -43,6 +43,7 @@ def test_invalid_audio_contract(args):
 
 async def test_ollama_structured_request_and_no_thinking_output():
     calls = []
+    segment = {"text": "무엇이 궁금하세요?", "emotion": "curious", "gesture": "tilt"}
 
     def handler(request):
         calls.append(request)
@@ -51,18 +52,21 @@ async def test_ollama_structured_request_and_no_thinking_output():
         body = json.loads(request.content)
         assert body["think"] is False and body["stream"] is False
         assert body["format"]["additionalProperties"] is False
+        fields = body["format"]["$defs"]["Segment"]["properties"]
+        assert "curious" in fields["emotion"]["enum"]
+        assert "tilt" in fields["gesture"]["enum"]
         return httpx.Response(
             200,
             json={
                 "message": {
-                    "content": json.dumps({"segments": [{"text": "안녕"}]}),
+                    "content": json.dumps({"segments": [segment]}),
                     "thinking": "hidden",
                 }
             },
         )
 
     reply = await OllamaLLM(Settings(), httpx.MockTransport(handler)).reply([])
-    assert reply.segments[0].text == "안녕"
+    assert reply.segments[0].model_dump() == segment
     assert len(calls) == 2
 
 
