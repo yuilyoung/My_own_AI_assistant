@@ -22,7 +22,16 @@ jobs:
           node-version: '22'
       - run: python -m pip install -r requirements-dev.txt
       - name: Run Python and Node suites and score required software checks
+        env:
+          ACCEPTANCE_REPORT_PATH: ${{ runner.temp }}/acceptance-report.json
         run: python scripts/check_acceptance.py
+      - name: Preserve acceptance gate report (including failures)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: acceptance-${{ matrix.os }}-py${{ matrix.python }}
+          path: ${{ runner.temp }}/acceptance-report.json
+          if-no-files-found: warn
 
   quality:
     runs-on: ubuntu-latest
