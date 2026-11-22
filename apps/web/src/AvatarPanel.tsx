@@ -1,11 +1,14 @@
 import { useEffect, useId, useState } from "react";
 import { AvatarInspector } from "./AvatarInspector";
-import { SeorinAvatar } from "./SeorinAvatar";
+import { MotionAvatar } from "./MotionAvatar";
+import { avatarNames, type AvatarCharacter } from "./avatar-cast";
 import { normalizedLipSync } from "./avatar";
-import type {
-  AvatarMotionBridge,
-  ExpressionCue,
-  MotionCue,
+import {
+  isExpressionCue,
+  isMotionCue,
+  type AvatarMotionBridge,
+  type ExpressionCue,
+  type MotionCue,
 } from "./avatar-motion";
 import type { Segment } from "./gateway";
 import "./avatar-panel.css";
@@ -16,29 +19,52 @@ export type AvatarPanelProps = {
   brightness?: number;
   cue?: Pick<Segment, "emotion" | "gesture">;
   busy?: boolean;
+  defaultCharacter?: AvatarCharacter;
+  onCharacterChange?: (character: AvatarCharacter) => void;
 };
 
-/** A parent key tied to mode/service resets both selection and inspector state. */
+const previews = [
+  { label: "인사하기", emotion: "happy", gesture: "greeting" },
+  { label: "갸웃하기", emotion: "curious", gesture: "tilt" },
+  { label: "생각하며 끄덕이기", emotion: "thoughtful", gesture: "nod" },
+  { label: "가리켜 설명하기", emotion: "curious", gesture: "point" },
+] as const satisfies readonly {
+  label: string;
+  emotion: ExpressionCue;
+  gesture: MotionCue;
+}[];
+
 export function AvatarPanel({
   bridge,
   level,
   brightness,
   cue,
   busy = false,
+  defaultCharacter = "seorin",
+  onCharacterChange,
 }: AvatarPanelProps) {
-  const [kind, setKind] = useState<"builtin" | "live2d">("builtin");
+  const [kind, setKind] = useState<AvatarCharacter | "live2d">(
+    defaultCharacter,
+  );
+  const [preview, setPreview] = useState<{
+    source: AvatarPanelProps["cue"];
+    sample: Pick<(typeof previews)[number], "emotion" | "gesture"> | null;
+  } | null>(null);
   const id = useId();
   const audioLevel = normalizedLipSync(level, 1);
-  const emotion: ExpressionCue =
-    cue?.emotion === "happy" ||
-    cue?.emotion === "concerned" ||
-    cue?.emotion === "surprised"
-      ? cue.emotion
-      : "neutral";
-  const gesture: MotionCue =
-    cue?.gesture === "nod" || cue?.gesture === "greeting"
-      ? cue.gesture
-      : "idle";
+  const canPreview = !busy && audioLevel === 0;
+  const currentPreview = preview?.source === cue ? preview : null;
+  const sample = canPreview ? currentPreview?.sample : null;
+  if (preview && !currentPreview) setPreview(null);
+  else if (currentPreview?.sample && !canPreview)
+    setPreview({ source: cue, sample: null });
+  const visibleCue = sample ?? cue;
+  const emotion = isExpressionCue(visibleCue?.emotion)
+    ? visibleCue.emotion
+    : "neutral";
+  // Closing a preview restores the face. Only a new reply replays its gesture.
+  const motion = currentPreview && !sample ? "idle" : visibleCue?.gesture;
+  const gesture = isMotionCue(motion) ? motion : "idle";
   const status =
     audioLevel > 0 ? "말하는 중" : busy ? "답변 준비 중" : "대화 준비 완료";
 
@@ -56,24 +82,34 @@ export function AvatarPanel({
       <select
         className="avatar-panel__select"
         id={`${id}-kind`}
-        value={kind}
+        value={kind === "seorin" ? "builtin" : kind}
         onChange={(event) => {
+          const value = event.target.value;
+          const next =
+            value === "hana" || value === "isol" || value === "live2d"
+              ? value
+              : "seorin";
           bridge.detach();
-          setKind(event.target.value === "live2d" ? "live2d" : "builtin");
+          setPreview(null);
+          setKind(next);
+          if (next !== "live2d") onCharacterChange?.(next);
         }}
       >
-        <option value="builtin">서린 · 기본 2D 캐릭터</option>
+        <option value="builtin">{avatarNames.seorin} · 비서</option>
+        <option value="hana">{avatarNames.hana} · 도예가</option>
+        <option value="isol">{avatarNames.isol} · 천문학자</option>
         <option value="live2d">Live2D (사용권 필요)</option>
       </select>
-      {kind === "builtin" ? (
+      {kind !== "live2d" ? (
         <>
           <div className="avatar-panel__stage">
-            <SeorinAvatar
+            <MotionAvatar
+              character={kind}
               level={audioLevel}
               brightness={brightness}
               emotion={emotion}
               gesture={gesture}
-              cue={cue}
+              cue={visibleCue}
             />
           </div>
           <p className="avatar-panel__status" role="status" aria-atomic="true">
@@ -88,8 +124,34 @@ export function AvatarPanel({
             value={audioLevel}
           />
           <p className="avatar-panel__note">
-            TTS가 켜진 대화에서 서린의 입 모양이 답변 음성을 따라 움직입니다.
+            TTS가 켜진 대화에서 {avatarNames[kind]}의 입 모양이 답변 음성을 따라
+            움직입니다.
           </p>
+          <details
+            className="avatar-panel__preview"
+            onToggle={(event) => {
+              if (!event.currentTarget.open)
+                setPreview((last) =>
+                  last?.sample ? { source: last.source, sample: null } : last,
+                );
+            }}
+          >
+            <summary>표정·동작 미리보기</summary>
+            <div>
+              {previews.map(({ label, emotion, gesture }) => (
+                <button
+                  key={gesture}
+                  type="button"
+                  disabled={!canPreview}
+                  onClick={() =>
+                    setPreview({ source: cue, sample: { emotion, gesture } })
+                  }
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </details>
         </>
       ) : (
         <div className="avatar-panel__licensed">

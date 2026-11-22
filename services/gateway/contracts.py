@@ -5,8 +5,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 Mode = Literal["assistant", "companion"]
 Service = Literal["demo", "local", "cloud"]
-Emotion = Literal["neutral", "happy", "concerned", "surprised"]
-Gesture = Literal["idle", "nod", "greeting"]
+Emotion = Literal["neutral", "happy", "concerned", "surprised", "curious", "thoughtful"]
+Gesture = Literal["idle", "nod", "greeting", "tilt", "point"]
 
 
 class StrictModel(BaseModel):

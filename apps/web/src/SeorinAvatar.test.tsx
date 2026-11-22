@@ -3,8 +3,129 @@ import { afterEach, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { AvatarPanel } from "./AvatarPanel";
 import { AvatarMotionBridge } from "./avatar-motion";
+import { MotionAvatar } from "./MotionAvatar";
 
 afterEach(cleanup);
+
+it("draws distinct eyelids, gazes and catchlights for all six reply expressions", () => {
+  const bridge = new AvatarMotionBridge();
+  const frame = (emotion: string) => (
+    <AvatarPanel bridge={bridge} level={0.4} cue={{ emotion }} />
+  );
+  const { container, rerender } = render(frame("neutral"));
+  const shapes = new Set<string | null>(),
+    glances = new Set<string | null>(),
+    pupilLight = new Set<string | null>();
+  for (const emotion of [
+    "neutral",
+    "happy",
+    "concerned",
+    "surprised",
+    "curious",
+    "thoughtful",
+  ]) {
+    rerender(frame(emotion));
+    const eye = container.querySelector(".seorin__eyes")!;
+    shapes.add(eye.querySelector("clipPath path")!.getAttribute("d"));
+    const gaze = eye.querySelector(".seorin__gaze")!;
+    glances.add(gaze.getAttribute("transform"));
+    pupilLight.add(gaze.querySelector("circle")!.getAttribute("r"));
+  }
+  expect(shapes.size).toBe(6);
+  expect(glances.size).toBe(6);
+  expect(pupilLight.size).toBeGreaterThan(2);
+});
+
+it("keeps the speaker and expression visible in the articulated lip contour", () => {
+  const frame = (
+    character: "seorin" | "hana" | "isol",
+    emotion: "neutral" | "happy",
+  ) => (
+    <MotionAvatar
+      character={character}
+      emotion={emotion}
+      gesture="idle"
+      level={0.8}
+      brightness={0.4}
+    />
+  );
+  const { container, rerender } = render(frame("seorin", "neutral"));
+  const contour = () =>
+    container.querySelector(".seorin__lip-contour")?.getAttribute("d");
+  const neutral = contour();
+  rerender(frame("seorin", "happy"));
+  expect(contour()).toBeTruthy();
+  expect(contour()).not.toBe(neutral);
+  const smiles = [contour()];
+  for (const person of ["hana", "isol"] as const) {
+    rerender(frame(person, "happy"));
+    smiles.push(contour());
+  }
+  expect(new Set(smiles).size).toBe(3);
+});
+
+it("shows an index finger, rests at the end, and replays without interrupting speech", () => {
+  const cue = { gesture: "point" as const };
+  const frame = (current: typeof cue) => (
+    <MotionAvatar
+      character="seorin"
+      emotion="happy"
+      gesture={current.gesture}
+      cue={current}
+      level={0.65}
+    />
+  );
+  const { container, rerender } = render(frame(cue));
+  const hand = container.querySelector(".avatar-panel__hand")!;
+  const mouth = screen.getByTestId("avatar-mouth");
+  const finger = () => hand.querySelector('[data-pose="point"] path');
+  expect(finger()).toBeTruthy();
+  expect(hand.querySelector('[data-pose="greeting"]')).toBeNull();
+  const finish = (animationName: string) =>
+    fireEvent(
+      hand,
+      Object.assign(new Event("animationend", { bubbles: true }), {
+        animationName,
+      }),
+    );
+  finish("seorin-wave");
+  expect(finger()).toBeTruthy();
+  finish("avatar-point");
+  expect(finger()).toBeNull();
+  rerender(frame(cue));
+  expect(finger()).toBeNull();
+  rerender(frame({ ...cue }));
+  expect(finger()).toBeTruthy();
+  expect(screen.getByTestId("avatar-mouth")).toBe(mouth);
+});
+
+it("discards the previous character's animation end while the new speaker uses its own pose", () => {
+  const cue = { gesture: "greeting" as const };
+  const frame = (character: "hana" | "isol") => (
+    <MotionAvatar
+      character={character}
+      emotion="happy"
+      gesture="greeting"
+      cue={cue}
+      level={0.65}
+    />
+  );
+  const { container, rerender } = render(frame("hana"));
+  const oldHand = container.querySelector(".avatar-panel__hand")!;
+  rerender(frame("isol"));
+  fireEvent(
+    oldHand,
+    Object.assign(new Event("animationend", { bubbles: true }), {
+      animationName: "seorin-wave",
+    }),
+  );
+  const hand = container.querySelector(".avatar-panel__hand")!;
+  expect(hand.querySelector("path")).toBeTruthy();
+  expect(screen.getByRole("img", { name: /이솔/ })).toBeTruthy();
+  expect(
+    Number(screen.getByTestId("avatar-mouth").getAttribute("ry")),
+  ).toBeGreaterThan(2);
+});
 
 it("uses a relaxed sleeve for idle and nod cues", () => {
   const bridge = new AvatarMotionBridge();

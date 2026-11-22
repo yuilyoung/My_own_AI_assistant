@@ -1,22 +1,9 @@
-import type {
-  AvatarMotionBridge,
-  ExpressionCue,
-  MotionCue,
+import {
+  isExpressionCue,
+  isMotionCue,
+  type AvatarMotionBridge,
 } from "./avatar-motion";
 import type { Segment } from "./gateway";
-
-function isExpressionCue(value: unknown): value is ExpressionCue {
-  return (
-    value === "neutral" ||
-    value === "happy" ||
-    value === "concerned" ||
-    value === "surprised"
-  );
-}
-
-function isMotionCue(value: unknown): value is MotionCue {
-  return value === "idle" || value === "nod" || value === "greeting";
-}
 
 /**
  * Only dispatch server-defined cues to an already attached, user-owned renderer.

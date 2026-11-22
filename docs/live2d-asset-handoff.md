@@ -12,7 +12,7 @@
 
 ## 확보한 뒤 진행할 작업
 
-파일 목록·SHA-256·revision을 기록하고 실제 SDK API에 맞는 어댑터를 구현한다. 실제 모델의 파라미터/표정/모션 목록을 읽어 허용된 neutral/happy/concerned/surprised, idle/nod/greeting을 매핑한다. 없는 표정/모션을 임의로 성공 처리하지 않는다. 실제 렌더링, 음성 입모양, 취소·언로드, 오류 및 누락 자산 테스트를 수행한다.
+파일 목록·SHA-256·revision을 기록하고 실제 SDK API에 맞는 어댑터를 구현한다. 실제 모델의 파라미터/표정/모션 목록을 읽어 허용된 neutral/happy/concerned/surprised/curious/thoughtful, idle/nod/greeting/tilt/point을 매핑한다. 없는 표정/모션을 임의로 성공 처리하지 않는다. 실제 렌더링, 음성 입모양, 취소·언로드, 오류 및 누락 자산 테스트를 수행한다.
 
 `assets/manifest.example.json`은 기록 양식이며 현재 자동 로더가 아니다. 파일을 복사하는 것만으로 Live2D가 활성화되지 않는다. 실제 LLM/STT/TTS 가중치와 Windows 실기기 검증도 별도로 필요하다.
 
@@ -41,7 +41,7 @@ React의 **모델 JSON 검사**는 이제 이 매핑에 필요한 표정 이름�
 
 ## 2026-11-04: 모델별 의미 매핑 및 수동 동작 시험
 
-참조 자산 HEAD 검사를 통과한 다음 React 아바타 패널에서 실제 `.model3.json`에 기록된 표정 이름과 비어 있지 않은 모션 그룹을 선택할 수 있다. 매핑의 기본값은 미연결이며, 사용자가 선택한 `neutral/happy/concerned/surprised`, `idle/nod/greeting`만 `AvatarMotionBridge.attach()`로 전달된다. 기존 연결 중 매핑을 바꾸면 먼저 렌더러를 정리하므로 새 설정을 적용하려면 재연결해야 한다. SDK 어댑터가 부착된 뒤에만 수동 표정·모션 테스트 버튼이 나타난다.
+참조 자산 HEAD 검사를 통과한 다음 React 아바타 패널에서 실제 `.model3.json`에 기록된 표정 이름과 비어 있지 않은 모션 그룹을 선택할 수 있다. 매핑의 기본값은 미연결이며, 사용자가 선택한 `neutral/happy/concerned/surprised/curious/thoughtful`, `idle/nod/greeting/tilt/point`만 `AvatarMotionBridge.attach()`로 전달된다. 기존 연결 중 매핑을 바꾸면 먼저 렌더러를 정리하므로 새 설정을 적용하려면 재연결해야 한다. SDK 어댑터가 부착된 뒤에만 수동 표정·모션 테스트 버튼이 나타난다.
 
 이 기능은 애니메이션 이름을 정확하게 전달하기 위한 **UI/계약 검증 경로**이다. SDK, 캐릭터, 실제 WebGL/표정/모션 시각적 검증을 대체하지 않는다.
 

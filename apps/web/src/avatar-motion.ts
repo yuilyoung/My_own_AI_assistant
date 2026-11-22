@@ -1,8 +1,32 @@
 import { normalizedLipSync, type AvatarAdapter } from "./avatar";
 import type { CubismModel3 } from "./model3";
 
-export type ExpressionCue = "neutral" | "happy" | "concerned" | "surprised";
-export type MotionCue = "idle" | "nod" | "greeting";
+export const expressionLabels = {
+  neutral: "차분함",
+  happy: "기쁨",
+  concerned: "걱정",
+  surprised: "놀람",
+  curious: "호기심",
+  thoughtful: "사색",
+} as const;
+export const motionLabels = {
+  idle: "대기",
+  nod: "끄덕임",
+  greeting: "인사",
+  tilt: "고개 기울임",
+  point: "가리키기",
+} as const;
+
+export type ExpressionCue = keyof typeof expressionLabels;
+export type MotionCue = keyof typeof motionLabels;
+
+export function isExpressionCue(value: unknown): value is ExpressionCue {
+  return typeof value === "string" && Object.hasOwn(expressionLabels, value);
+}
+
+export function isMotionCue(value: unknown): value is MotionCue {
+  return typeof value === "string" && Object.hasOwn(motionLabels, value);
+}
 
 /** Map semantic cues to names in the user's licensed model export, not guessed IDs. */
 export type AvatarBindings = {
@@ -18,21 +42,13 @@ type Attached = {
   controller: AbortController;
 };
 
-const expressionCues: ExpressionCue[] = [
-  "neutral",
-  "happy",
-  "concerned",
-  "surprised",
-];
-const motionCues: MotionCue[] = ["idle", "nod", "greeting"];
-
 export function validateAvatarBindings(
   manifest: CubismModel3,
   bindings: AvatarBindings,
 ): void {
   for (const [cue, name] of Object.entries(bindings.expressions ?? {})) {
     if (
-      !expressionCues.includes(cue as ExpressionCue) ||
+      !isExpressionCue(cue) ||
       typeof name !== "string" ||
       !Object.hasOwn(manifest.expressions, name)
     ) {
@@ -41,7 +57,7 @@ export function validateAvatarBindings(
   }
   for (const [cue, group] of Object.entries(bindings.motions ?? {})) {
     if (
-      !motionCues.includes(cue as MotionCue) ||
+      !isMotionCue(cue) ||
       typeof group !== "string" ||
       !Object.hasOwn(manifest.motions, group) ||
       manifest.motions[group].length === 0

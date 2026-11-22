@@ -67,13 +67,17 @@ def serve():
         async def reply(self, messages):
             if self.service == "cloud":
                 assert "로컬 전용 기억" not in json.dumps(messages, ensure_ascii=False)
+            emotion, gesture = {
+                "어떤 점이 궁금해?": ("curious", "tilt"),
+                "어디를 가리키는 거야?": ("thoughtful", "point"),
+            }.get(messages[-1]["content"], ("happy", "greeting"))
             return Reply.model_validate(
                 {
                     "segments": [
                         {
                             "text": self.service + " 모의 응답입니다.",
-                            "emotion": "happy",
-                            "gesture": "greeting",
+                            "emotion": emotion,
+                            "gesture": gesture,
                         }
                     ]
                 }
@@ -93,6 +97,68 @@ def serve():
         if service != "demo":
             runtime.engine.llm = FixtureLLM(service)
     uvicorn.run(app, host="127.0.0.1", port=settings.port, access_log=False)
+
+
+def check_avatar_cast(page, turns):
+    """Change portraits and send real turns within the current local session."""
+    from playwright.sync_api import expect
+
+    selector = page.get_by_label("아바타 종류")
+    history = page.get_by_role("log", name="대화 내용").locator("article")
+    turn_path = turns[-1]
+    cases = [
+        (
+            "hana",
+            "하나",
+            ".hana__kerchief",
+            "어떤 점이 궁금해?",
+            "호기심.*고개 기울임",
+            "tilt",
+            ".avatar-panel__head",
+        ),
+        (
+            "isol",
+            "이솔",
+            ".isol__braid",
+            "어디를 가리키는 거야?",
+            "사색.*가리키기",
+            "point",
+            ".avatar-panel__hand",
+        ),
+    ]
+    for character, name, artwork, question, cue_label, gesture, joint in cases:
+        previous_history = history.all_text_contents()
+        assert previous_history, "Expected an existing conversation before changing portrait"
+        expect(selector.locator(f'option[value="{character}"]')).to_have_count(1)
+        selector.select_option(character)
+        portrait = page.get_by_role("img", name=re.compile(name))
+        expect(portrait).to_have_attribute("data-character", character)
+        expect(portrait.locator(artwork)).to_be_visible()
+        assert history.all_text_contents() == previous_history, "Switching portrait changed history"
+
+        count = len(turns)
+        page.get_by_label("메시지", exact=True).fill(question)
+        page.get_by_role("button", name="전송", exact=True).click()
+        expect(portrait).to_have_accessible_name(re.compile(cue_label))
+        expect(portrait.get_by_test_id("avatar-character")).to_have_attribute(
+            "data-gesture", gesture
+        )
+        expect(portrait.locator(joint)).not_to_have_css("animation-name", "none")
+        expect(page.get_by_role("meter")).not_to_have_attribute("value", "0")
+        mouth = portrait.get_by_test_id("avatar-mouth")
+        speaking_height = float(mouth.get_attribute("ry"))
+        expect(page.get_by_text("대화 준비됨")).to_be_visible()
+        assert float(mouth.get_attribute("ry")) < speaking_height, f"{name}'s mouth did not close"
+        assert turns[count:] == [turn_path], "Avatar selection created a different chat session"
+        assert history.all_text_contents()[: len(previous_history)] == previous_history
+        expect(history).to_have_count(len(previous_history) + 2)
+
+    page.emulate_media(reduced_motion="reduce")
+    expect(portrait.locator(".seorin__eyes")).to_have_css("animation-name", "none")
+    expect(portrait.locator(".avatar-panel__hand")).to_have_css("animation-name", "none")
+    page.emulate_media(reduced_motion="no-preference")
+    selector.select_option("builtin")
+    expect(page.get_by_role("img", name=re.compile("서린"))).to_be_visible()
 
 
 def main():
@@ -323,6 +389,7 @@ def main():
                     expect(meter).to_have_attribute("value", "0")
                     expect(mouth).to_have_attribute("rx", closed_width)
                     expect(mouth).to_have_attribute("ry", closed_height)
+                    check_avatar_cast(page, turns)
                     selector.select_option("cloud")
                     expect(page.get_by_text("대화 준비됨")).to_be_visible()
                     expect(
@@ -377,6 +444,9 @@ def main():
                             "builtin_avatar_reply_cues",
                             "seorin_greeting_returns_to_rest",
                             "seorin_spectral_mouth_width_and_stop_reset",
+                            "cast_selection_keeps_session_and_history",
+                            "hana_tilt_isol_point_and_speech",
+                            "cast_reduced_motion",
                             "mode_cancel",
                             "service_switch_cancel_and_isolation",
                         ],

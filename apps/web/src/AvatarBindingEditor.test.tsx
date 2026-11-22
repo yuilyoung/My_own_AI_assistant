@@ -78,3 +78,32 @@ it("does not allow mapping edits before asset inspection is finished", async () 
   expect(screen.queryByText("표정 테스트: 기쁨")).toBeNull();
   expect(onChange).not.toHaveBeenCalled();
 });
+
+it("keeps new cues unbound until a model-specific mapping is selected", async () => {
+  const onChange = vi.fn();
+  render(
+    <AvatarBindingEditor
+      manifest={manifest}
+      bindings={{}}
+      disabled={false}
+      ready
+      onChange={onChange}
+      onExpression={vi.fn()}
+      onMotion={vi.fn()}
+    />,
+  );
+  const user = userEvent.setup();
+  for (const [kind, label, group, cue, name] of [
+    ["표정", "호기심", "expressions", "curious", "F01"],
+    ["표정", "사색", "expressions", "thoughtful", "F01"],
+    ["모션", "고개 기울임", "motions", "tilt", "Idle"],
+    ["모션", "가리키기", "motions", "point", "Idle"],
+  ]) {
+    const select = screen.getByLabelText(
+      `${kind}: ${label}`,
+    ) as HTMLSelectElement;
+    expect(select.value).toBe("");
+    await user.selectOptions(select, name);
+    expect(onChange).toHaveBeenLastCalledWith({ [group]: { [cue]: name } });
+  }
+});
