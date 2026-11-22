@@ -6,6 +6,7 @@ its collected parameter cases must pass for its group to earn any points.
 """
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -122,6 +123,16 @@ def score_reports(python_report, node_reports):
     return {"score": 100 * passed_count / len(gates), "target": 70, "gates": gates}
 
 
+def report_json(result, destination=None):
+    """Return the normal stdout report and optionally preserve UTF-8 CI evidence."""
+    payload = json.dumps(result, ensure_ascii=False, indent=2)
+    if destination is not None:
+        target = Path(destination)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(payload + "\n", encoding="utf-8")
+    return payload
+
+
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     with tempfile.TemporaryDirectory() as directory:
@@ -154,7 +165,7 @@ def main():
             suites_passed = suites_passed and node_run.returncode == 0
         result = score_reports(python_report, node_reports)
         result["suites_passed"] = suites_passed
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+        print(report_json(result, os.environ.get("ACCEPTANCE_REPORT_PATH")))
         return 0 if result["suites_passed"] and result["score"] >= result["target"] else 1
 
 
