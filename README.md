@@ -168,7 +168,7 @@ node --test apps/diagnostics/tests/*.test.mjs
 
 ## CI와 산출물
 
-- Python: Ruff formatter/lint, Windows·Linux × Python 3.11·3.13 테스트, Gateway wheel 빌드.
+- Python: Ruff formatter/lint, Windows·Linux × Python 3.11·3.13 테스트, 필수 소프트웨어 시험 8개 자동 채점(`python scripts/check_acceptance.py`), Gateway wheel 빌드. CI의 각 OS/Python 조합은 테스트가 실패해도 점수·필수 사례 이름·결과를 `acceptance-<OS>-py<version>` JSON artifact로 보존합니다(보고서 생성 전에 중단되면 파일 없음으로 표시). 이 점수는 하드웨어 인수 결과가 아닙니다.
 - Web: `npm ci`, Prettier, ESLint, TypeScript, Vitest/React 통합 테스트, Vite 운영 빌드.
 - 운영 브라우저: Chromium의 합성 마이크 → AudioWorklet → WAV 업로드 → 합성 STT → 사용자 검토·전송 → 합성 TTS/RMS 재생, 모드 전환과 기억 격리.
 - Windows 운영 smoke: GitHub Actions의 Windows 실행기에서 Gateway를 별도 프로세스로 시작해 빌드된 React·AudioWorklet MIME·로컬 API 인증·demo 응답·모드별 기억 격리를 검사합니다. **사용자 PC에서 실제 모델을 검증한 것은 아닙니다.**

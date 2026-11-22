@@ -1,8 +1,9 @@
+import json
 import xml.etree.ElementTree as ET
 
 import pytest
 
-from scripts.check_acceptance import score_reports
+from scripts.check_acceptance import report_json, score_reports
 
 
 def junit(path, cases):
@@ -91,3 +92,23 @@ def test_companion_read_and_real_remote_peer_checks_are_required(tmp_path):
     )
     junit(python, cases)
     assert score_reports(python, {})["score"] == 25
+
+
+def test_acceptance_report_artifact_preserves_failed_checks(tmp_path):
+    report = {
+        "score": 12.5,
+        "target": 70,
+        "gates": {"모드 간 기억 격리": {"passed": False, "tests": ["required-case"]}},
+        "suites_passed": False,
+    }
+    destination = tmp_path / "artifacts" / "acceptance.json"
+    output = report_json(report, destination)
+    assert json.loads(output) == report
+    assert json.loads(destination.read_text(encoding="utf-8")) == report
+    assert "모드 간 기억 격리" in destination.read_text(encoding="utf-8")
+
+
+def test_acceptance_report_without_artifact_does_not_write_files(tmp_path):
+    before = list(tmp_path.iterdir())
+    assert json.loads(report_json({"score": 100})) == {"score": 100}
+    assert list(tmp_path.iterdir()) == before
