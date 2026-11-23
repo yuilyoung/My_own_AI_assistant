@@ -80,3 +80,19 @@ def test_public_binding_rejects_remote_clients_spoofing_localhost(tmp_path):
         ) as local:
             local.headers["Authorization"] = "Bearer " + settings.token
             assert local.get("/api/status").status_code == 200
+
+
+def test_public_origin_rejects_unprotected_local_avatar_mount(tmp_path):
+    """A token on /api is not authentication for /avatar-local static files."""
+    models = tmp_path / "private-cubism-export"
+    models.mkdir()
+    # Local-only use remains available; it does not publish model files.
+    assert Settings(avatar_dir=models).avatar_dir == models
+
+    with pytest.raises(ValueError, match="Public avatar assets"):
+        Settings(
+            token="a" * 64,
+            host="0.0.0.0",
+            public_origin="https://assistant.example",
+            avatar_dir=models,
+        )
