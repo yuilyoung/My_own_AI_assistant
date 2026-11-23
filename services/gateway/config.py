@@ -93,9 +93,9 @@ class Settings:
                 raise ValueError("Public deployment requires an explicit access token")
         if self.host == "0.0.0.0" and not self.public_origin:
             raise ValueError("Public binding requires ASSISTANT_PUBLIC_ORIGIN")
-        loopback_endpoint(self.ollama_url)
-        loopback_endpoint(self.melo_url)
-        loopback_endpoint(self.supertonic_url)
+        object.__setattr__(self, "ollama_url", loopback_endpoint(self.ollama_url))
+        object.__setattr__(self, "melo_url", loopback_endpoint(self.melo_url))
+        object.__setattr__(self, "supertonic_url", loopback_endpoint(self.supertonic_url))
         if self.local_llm_enabled is None:
             object.__setattr__(self, "local_llm_enabled", self.llm == "ollama")
         elif type(self.local_llm_enabled) is not bool:

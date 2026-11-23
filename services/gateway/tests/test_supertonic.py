@@ -24,7 +24,13 @@ def test_selected_turn_voice_reaches_worker_and_returns_session_audio(tmp_path):
         return httpx.Response(200, content=wav_bytes(rate=44100))
 
     app = create_app(
-        Settings(data_dir=tmp_path, token=TOKEN, tts="supertonic", supertonic_token=TOKEN)
+        Settings(
+            data_dir=tmp_path,
+            token=TOKEN,
+            tts="supertonic",
+            supertonic_token=TOKEN,
+            supertonic_url="http://127.0.0.1:8767/",
+        )
     )
     app.state.engine.tts.transport = httpx.MockTransport(synthesize)
     with TestClient(app, base_url="http://127.0.0.1:8765") as client:
@@ -75,7 +81,9 @@ def test_supertonic_worker_contract_and_readiness(tmp_path):
     ) as client:
         assert client.get("/health").status_code == 401
         client.headers["Authorization"] = "Bearer " + TOKEN
-        settings = Settings(tts="supertonic", supertonic_token=TOKEN)
+        settings = Settings(
+            tts="supertonic", supertonic_token=TOKEN, supertonic_url="http://127.0.0.1:8767/"
+        )
         checks = inspect_local_readiness(settings, client, tmp_path)
         assert any(c.component == "Supertonic 2" and c.status == "PASS" for c in checks)
         assert received == []
