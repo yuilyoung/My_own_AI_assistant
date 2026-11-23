@@ -126,7 +126,7 @@ it("shows an original SVG avatar by default without attaching a licensed runtime
   expect(bridge.ready).toBe(false);
 });
 
-it("opens the existing licensed inspector and explains server assets in cloud deployments", async () => {
+it("opens the licensed inspector and warns public deployments about private assets", async () => {
   const user = userEvent.setup();
   const bridge = new AvatarMotionBridge();
   render(<AvatarPanel bridge={bridge} level={0} />);
@@ -140,10 +140,12 @@ it("opens the existing licensed inspector and explains server assets in cloud de
   expect(screen.getByLabelText("로컬 모델 export 경로 점검")).toBeTruthy();
   expect(screen.getByRole("img", { name: "Live2D 로컬 캔버스" })).toBeTruthy();
   expect(screen.getByText(/사용권이 확인된 모델/).textContent).toContain("SDK");
-  expect(screen.getByText(/클라우드에서도/).textContent).toContain(
+  expect(screen.getByText(/로컬 Gateway/).textContent).toContain(
     "/avatar-local/",
   );
-  expect(screen.getByText(/클라우드에서도/).textContent).toContain("같은 출처");
+  expect(screen.getByText(/공개 서버는/).textContent).toContain(
+    "비공개 모델 자산을 제공하지 않습니다.",
+  );
   expect(
     (
       screen.getByRole("button", {

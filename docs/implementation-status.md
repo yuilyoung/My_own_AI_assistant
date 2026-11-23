@@ -1,6 +1,14 @@
 # 구현·검증 상태 — React 음성·기억 통합
 
-최종 작업 확인일: 2026-11-22 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+최종 작업 확인일: 2026-11-23 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+
+## 2026-11-23 공개 서버의 Cubism 자산 유출 방지 (신규 검증)
+
+- **작업 전 main:** [SHA `ca22411`](https://github.com/yuilyoung/My_own_AI_assistant/commit/ca22411cdd8e2114866d2d395f00cf9b96e19e33)에서 [PR #32](https://github.com/yuilyoung/My_own_AI_assistant/pull/32) 내장 SVG 캐릭터 하나·이솔 추가까지 병합된 것을 확인했다. 이에 대한 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44984690050)와 [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44984690038)는 성공했다. **이 결과는 아래 수정 전 코드의 CI다.**
+- **문제:** `ASSISTANT_PUBLIC_ORIGIN`으로 공개한 HTTPS Gateway에서 `/api/`는 Bearer 인증을 검사하지만 `/avatar-local/` 정적 모델 파일은 인증 대상이 아니었다. `ASSISTANT_AVATAR_DIR`을 공개 서버에 지정하거나, Vite 빌드에서 `apps/web/public/avatar-local/`의 비공개 파일이 `dist/`로 복사되면 Core/모델 자산이 인증 없이 노출될 수 있었다.
+- **수정:** 공개 Gateway에서는 `ASSISTANT_AVATAR_DIR` 자체를 거부하고 `/avatar-local` 및 하위 URL을 404로 차단한다. Linux/Windows 웹 빌드 CI가 `dist/avatar-local` 존재를 검사해 배포 산출물의 비공개 파일 포함을 거부하도록 했다. 로컬 loopback Gateway에서의 명시적 모델 폴더 마운트는 유지한다. UI·README·로컬/클라우드·자산 인계 안내를 이 정책에 맞게 수정했다.
+- **새 회귀 검사:** 공개 설정의 비공개 폴더 거부, 공개 정적 웹 빌드에 이미 복사된 가짜 `.moc3` 파일의 차단을 검증한다. 테스트 파일은 실제 모델 파일을 사용하지 않는다.
+- **검증 경계:** 코드는 공개 HTTP 경로를 차단하고 CI에서 산출물을 검사한다. 이미 외부에 올린 artifact/CDN 복사본은 자동 삭제하지 않는다. 공식 Cubism SDK/Core와 사용권 확인 모델의 실제 WebGL 렌더링, TTS 립싱크, 물리 Windows PC의 마이크·스피커·LLM/STT/TTS 및 30분 안정성은 **여전히 미검증**이다. CI의 최종 성공 여부는 해당 브랜치/병합 커밋의 별도 Actions 결과로 확인해야 한다.
 
 ## 2026-11-22 필수 소프트웨어 시험 결과 증거 보존 (검증 중)
 

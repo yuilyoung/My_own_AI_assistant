@@ -160,9 +160,10 @@ export function AvatarPanel({
             어댑터가 필요합니다. SDK와 모델은 포함되어 있지 않습니다.
           </p>
           <p className="avatar-panel__note">
-            클라우드에서도 현재 페이지와 같은 출처의 <code>/avatar-local/</code>{" "}
-            경로로 서버가 모델 자산을 제공해야 합니다. 여기서 로컬 경로는
-            Gateway 서버 기준입니다.
+            로컬 Gateway: <code>/avatar-local/</code>
+          </p>
+          <p className="avatar-panel__note">
+            공개 서버는 비공개 모델 자산을 제공하지 않습니다.
           </p>
           <AvatarInspector bridge={bridge} />
         </div>

@@ -59,23 +59,23 @@ Windows에서 `.\scripts\check-readiness.ps1 -Provider cloud`를 실행하면 �
 
 **아바타 종류**에서 서린·하나·이솔 중 한 명을 선택하세요. 세 캐릭터는 앱에 포함되어 로컬과 Render에서 별도 설치 없이 보입니다. 아바타를 바꾸는 동안에도 현재 대화와 음성 재생이 이어집니다. 연결된 화면에서 서비스나 대화 모드를 바꾸면 마지막으로 선택한 내장 캐릭터로 새 대화를 시작합니다. [캐릭터와 모션 가이드](design/motion-characters.md)
 
-**Live2D**를 선택하면 기존 모델 검사와 SDK 어댑터 연결 화면을 사용합니다. 사용 가능한 캐릭터 export 전체 폴더, Cubism Core/Framework, 실제 렌더러를 구현한 `runtime/adapter.js`가 필요합니다. 이 저장소는 해당 비공개 파일이나 완성된 공식 SDK 렌더러를 포함하지 않습니다. 로컬·클라우드 모두 동일 출처 `/avatar-local/` 경로로 자산을 제공해야 합니다.
+**Live2D**는 현재 **loopback Gateway로 실행하는 사용자 PC 전용**입니다. 사용권이 확인된 모델 export 전체 폴더와 사용자가 직접 설치한 Cubism Core/Framework 및 `runtime/adapter.js`가 필요합니다. 이 저장소에는 완성된 공식 SDK 렌더러나 비공개 자산이 포함되지 않습니다. Render 같은 **공개 HTTPS 배포에서는 내장 SVG 캐릭터만 지원**하며, API 토큰이 있더라도 정적 모델 파일은 인증되지 않으므로 공개 제공하지 않습니다.
 
-배포 서버에서 파일을 제공하려면 `ASSISTANT_AVATAR_DIR`을 다음 구조의 **서버 디렉터리 절대 경로**로 지정합니다.
+로컬 PC에서는 **웹 빌드·공개 저장소 밖의 폴더**를 `ASSISTANT_AVATAR_DIR`에 지정합니다.
 
 ```text
 private-avatar-assets/
   Haru/
     Haru.model3.json
-    ...모델이 참조하는 moc3, 텍스처, 표정, 모션 파일 전체
+    ...모델이 참조하는 moc3, 텍스처, 표정, 모션 파일
   runtime/
     adapter.js
     ...어댑터가 사용하는 SDK/Core 파일
 ```
 
-예를 들어 `ASSISTANT_AVATAR_DIR=/var/data/private-avatar-assets`라면 웹 화면에는 `/avatar-local/Haru/Haru.model3.json`을 입력합니다. 폴더는 실제로 존재하고 앱 실행 계정이 읽을 수 있어야 합니다. 설정한 디렉터리 전체는 웹에 공개되므로 키·대화 DB·개인 문서를 넣지 마세요. 자산의 웹 제공이 허용되는 이용 조건인지 확인해야 합니다.
+예를 들어 PC에서 `ASSISTANT_AVATAR_DIR=C:\\private-avatar-assets`로 지정하면 화면에는 `/avatar-local/Haru/Haru.model3.json`을 입력합니다. 파일은 현재 Gateway 컴퓨터에 있어야 합니다. **`apps/web/public/avatar-local/`에 넣으면 Vite 빌드시 `dist/`로 복사**되어 배포 산출물에 포함될 수 있으므로 권장하지 않습니다. Git 무시 설정만으로 빌드·배포 자산 유출을 막을 수 없습니다.
 
-로컬은 본인 PC의 폴더를 지정합니다. Render는 지원되는 영구 디스크나 비공개 자산 공급 절차로 서버에 파일을 설치한 뒤 경로를 설정해야 합니다. 본인 PC의 폴더 경로를 Render 환경 변수에 넣어도 파일이 업로드되지는 않습니다. 캐릭터/SDK 파일은 Git과 기본 Docker 빌드에 포함하지 않습니다. 추가 자산이 없을 때도 기본 아바타는 사용할 수 있습니다.
+공개 배포에서 `ASSISTANT_PUBLIC_ORIGIN`과 `ASSISTANT_AVATAR_DIR`을 함께 설정하면 서버가 시작을 거부합니다. 또한 공개 Gateway는 번들된 웹 디렉터리에 `/avatar-local/` 파일이 존재하더라도 해당 URL에 HTTP 404를 반환합니다. 단, 이미 배포 산출물이나 외부 CDN에 자산 파일을 포함시켰다면 **서버의 URL 차단만으로 파일 복사본이 삭제되지는 않습니다.** 실제 자산을 공개하려면 모델·SDK의 재배포 허가와 인증된 자산 전달 방식을 별도 설계해야 합니다.
 
 자세한 SDK 어댑터 계약은 [Live2D 자산 연결 안내](live2d-asset-handoff.md)를 참고하세요. 실제 Live2D 표시는 본인 자산으로 별도 확인해야 합니다.
 

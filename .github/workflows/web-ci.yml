@@ -53,6 +53,12 @@ jobs:
         run: npm test
       - name: Typecheck and production build
         run: npm run build
+      - name: Reject private Cubism exports in public web artifact
+        run: |
+          if [ -e dist/avatar-local ]; then
+            echo "Refusing to ship private /avatar-local assets in web-dist or Docker" >&2
+            exit 1
+          fi
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.11'
@@ -114,6 +120,11 @@ jobs:
       - name: Build production React application
         working-directory: apps/web
         run: npm run build
+      - name: Reject private Cubism exports in Windows web build
+        run: |
+          if (Test-Path "apps/web/dist/avatar-local") {
+            throw "Private /avatar-local assets must not be bundled in the static build"
+          }
       - name: Install Gateway dependencies
         run: python -m pip install -r requirements.txt
       - name: Check Windows local readiness CLI (demo, no inference)
