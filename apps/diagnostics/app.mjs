@@ -1,4 +1,4 @@
-import {TurnGate} from './core.mjs';
+import {TurnGate,ttsLabel} from './core.mjs';
 import {Player} from './player.mjs';
 import {MicrophoneRecorder} from './recorder.mjs';
 import {VoiceInput} from './voice-input.mjs';
@@ -67,7 +67,7 @@ async function connect(event){
   try{sessionStorage.setItem('assistant-token',token);}catch{}
   $('pairing').hidden=true;$('profile').textContent=status.profile==='demo'?'DEMO · 고정 응답':'LOCAL · 로컬 모델';
   $('llm').textContent=status.llm==='demo'?'테스트 고정 응답':status.model;
-  $('tts').textContent=status.tts==='none'?'미연결 · 텍스트만':'로컬 MeloTTS';
+  $('tts').textContent=ttsLabel(status.tts);
   $('notice').textContent=status.llm==='demo'?'데모 모드입니다. AI가 생성한 답변이 아닌 고정 문구를 반환합니다.':'로컬 모델 모드입니다. 모델·음성 워커의 실행 상태는 첫 대화에서 확인합니다.';
   await switchMode(mode);
  }catch(error){connected=false;$('pairing').hidden=false;showError(error);state('연결 실패');}

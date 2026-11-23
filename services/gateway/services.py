@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from .config import Settings
 from .contracts import Service
 from .engine import Engine
-from .providers import CloudLLM, DemoLLM, MeloTTS, OllamaLLM, SilentTTS
+from .providers import CloudLLM, DemoLLM, MeloTTS, OllamaLLM, SilentTTS, SupertonicTTS
 from .speech import WhisperCpp
 from .store import Store
 from .transcription import Transcriptions
@@ -67,16 +67,17 @@ class Services:
                 CloudLLM(settings),
             ),
         ]
+        if settings.tts == "supertonic":
+            tts = SupertonicTTS(settings)
+        elif settings.tts == "melo":
+            tts = MeloTTS(settings)
+        else:
+            tts = SilentTTS()
         self.runtimes: dict[Service, ServiceRuntime] = {}
         for service, label, partition, available, model, reason, llm in definitions:
             directory = settings.data_dir / partition
             store = Store(directory / "state.sqlite3")
-            engine = Engine(
-                store,
-                llm,
-                SilentTTS() if settings.tts == "none" else MeloTTS(settings),
-                settings.timeout,
-            )
+            engine = Engine(store, llm, tts, settings.timeout)
             recognizer = (
                 WhisperCpp(
                     settings.whisper_cli,

@@ -2,13 +2,14 @@
 
 import argparse
 import json
+import os
 import sys
-from dataclasses import asdict, replace
+from dataclasses import asdict
 from pathlib import Path
 
 import httpx
 
-from .config import Settings, optional_env_bool
+from .config import Settings
 from .readiness import inspect_local_readiness
 
 
@@ -18,18 +19,19 @@ def main(argv: list[str] | None = None) -> int:
         sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
     parser = argparse.ArgumentParser(description="Check local AI assistant MVP prerequisites")
     parser.add_argument("--provider", choices=["demo", "ollama", "cloud"])
-    parser.add_argument("--voice", action="store_true", help="Require MeloTTS worker")
+    parser.add_argument(
+        "--voice", action="store_true", help="Require the selected or configured voice worker"
+    )
+    parser.add_argument("--tts-provider", choices=["none", "melo", "supertonic"])
     parser.add_argument("--microphone", action="store_true", help="Require whisper.cpp files")
     parser.add_argument("--json", action="store_true", help="Machine-readable, secret-free results")
     args = parser.parse_args(argv)
     try:
-        settings = Settings.from_env()
-        settings = replace(
-            settings,
-            llm=args.provider or settings.llm,
-            local_llm_enabled=optional_env_bool("LOCAL_LLM_ENABLED"),
-            tts="melo" if args.voice else settings.tts,
-            stt="whisper_cpp" if args.microphone else settings.stt,
+        tts = args.tts_provider or os.getenv("TTS_PROVIDER", "none")
+        if args.voice and not args.tts_provider and tts == "none":
+            tts = "supertonic" if os.getenv("SUPERTONIC_TOKEN") else "melo"
+        settings = Settings.from_env(
+            llm=args.provider, tts=tts, stt="whisper_cpp" if args.microphone else None
         )
     except (ValueError, TypeError) as exc:
         if args.json:

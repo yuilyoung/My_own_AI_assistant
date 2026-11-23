@@ -8,6 +8,15 @@ export class TurnGate {
 
 const noiseFloor = 0.015;
 
+export function ttsLabel(provider) {
+  switch (provider) {
+    case 'none': return '미연결 · 텍스트만';
+    case 'melo': return '로컬 MeloTTS';
+    case 'supertonic': return '로컬 Supertonic 2';
+    default: return provider ?? '알 수 없음';
+  }
+}
+
 /** RMS amplitude, not phoneme recognition. Suitable for a Live2D LipSync parameter. */
 export function mouthLevel(samples) {
   if (!samples.length) return 0;

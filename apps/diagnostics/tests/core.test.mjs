@@ -1,6 +1,12 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {TurnGate,mouthLevel,voiceBrightness} from '../core.mjs';
+import {TurnGate,mouthLevel,voiceBrightness,ttsLabel} from '../core.mjs';
+
+test('labels the TTS provider reported by the gateway',()=>{
+ assert.equal(ttsLabel('supertonic'),'로컬 Supertonic 2');
+ assert.equal(ttsLabel('melo'),'로컬 MeloTTS');
+ assert.equal(ttsLabel('none'),'미연결 · 텍스트만');
+});
 
 test('silence closes mouth',()=>assert.equal(mouthLevel(new Float32Array(20)),0));
 test('loud audio is clamped',()=>assert.equal(mouthLevel(new Float32Array([1,-1])),1));

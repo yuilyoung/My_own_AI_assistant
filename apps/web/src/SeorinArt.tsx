@@ -2,80 +2,87 @@ import { memo } from "react";
 import type { PaintedFaceRig } from "./PaintedFace";
 import type { MotionCue } from "./avatar-motion";
 import office from "./portraits/seorin/office.webp";
-import jacket from "./portraits/seorin/jacket.webp";
-import raisedJacket from "./portraits/seorin/raised-jacket.webp";
-import head from "./portraits/seorin/head-base.webp";
-import earring from "./portraits/seorin/earring.webp";
-import earringUnderpaint from "./portraits/seorin/earring-underpaint.webp";
-import frontLock from "./portraits/seorin/front-sweep.webp";
-import leftEye from "./portraits/seorin/eye-l.webp";
-import rightEye from "./portraits/seorin/eye-r.webp";
-import leftSocket from "./portraits/seorin/socket-left.webp";
-import leftIris from "./portraits/seorin/iris-left.webp";
-import leftLashes from "./portraits/seorin/lashes-left.webp";
-import rightSocket from "./portraits/seorin/socket-right.webp";
-import rightIris from "./portraits/seorin/iris-right.webp";
-import rightLashes from "./portraits/seorin/lashes-right.webp";
-import leftBrow from "./portraits/seorin/brow-l.webp";
-import rightBrow from "./portraits/seorin/brow-r.webp";
-import leftBlink from "./portraits/seorin/closed-l.webp";
-import rightBlink from "./portraits/seorin/closed-r.webp";
-import lips from "./portraits/seorin/lip.webp";
+import eyeL from "./portraits/seorin/eye-l.webp";
+import eyeR from "./portraits/seorin/eye-r.webp";
+import browL from "./portraits/seorin/brow-l.webp";
+import browR from "./portraits/seorin/brow-r.webp";
+import lip from "./portraits/seorin/lip.webp";
 import upperLip from "./portraits/seorin/upper-lip.webp";
 import lowerLip from "./portraits/seorin/lower-lip.webp";
+import socketLeft from "./portraits/seorin/socket-left.webp";
+import irisLeft from "./portraits/seorin/iris-left.webp";
+import lashesLeft from "./portraits/seorin/lashes-left.webp";
+import closedL from "./portraits/seorin/closed-l.webp";
+import socketRight from "./portraits/seorin/socket-right.webp";
+import irisRight from "./portraits/seorin/iris-right.webp";
+import lashesRight from "./portraits/seorin/lashes-right.webp";
+import closedR from "./portraits/seorin/closed-r.webp";
+import frontSweep from "./portraits/seorin/front-sweep.webp";
+import earring from "./portraits/seorin/earring.webp";
+import headBase from "./portraits/seorin/head-base.webp";
+import restSleeve from "./portraits/seorin/rest-sleeve.webp";
+import jacket from "./portraits/seorin/jacket.webp";
+import raisedJacket from "./portraits/seorin/raised-jacket.webp";
+import waveForearm from "./portraits/seorin/wave-forearm.webp";
 import wave from "./portraits/seorin/wave.webp";
+import pointForearm from "./portraits/seorin/point-forearm.webp";
 import point from "./portraits/seorin/point.webp";
 
 type ArmPose = Extract<MotionCue, "greeting" | "point">;
 
-// Every painted crop uses the same 600-unit drawing and uniform stage scale.
-const placement = "translate(0 9) scale(.6)";
+// All crops use the coordinates of the 1024 × 1536 portfolio portrait.
+const scale = 354 / 1536;
+const placement = `translate(62 6) scale(${scale})`;
+function stagePoint(x: number, y: number) {
+  return `${62 + x * scale}px ${6 + y * scale}px`;
+}
+
 const faceRig = {
   transform: placement,
   eyes: [
     {
-      open: { src: leftEye, x: 198, y: 183, width: 86, height: 38 },
+      open: { src: eyeL, x: 392, y: 276, width: 98, height: 36 },
       gaze: {
-        socket: { src: leftSocket, x: 215, y: 197, width: 52, height: 18 },
-        iris: { src: leftIris, x: 230, y: 187, width: 29, height: 29 },
-        lid: { src: leftLashes, x: 215, y: 197, width: 52, height: 18 },
+        socket: { src: socketLeft, x: 413, y: 286, width: 72, height: 21 },
+        iris: { src: irisLeft, x: 438, y: 277, width: 33, height: 32 },
+        lid: { src: lashesLeft, x: 392, y: 276, width: 98, height: 36 },
         contour:
-          "M 218 206.67 Q 222.33 203 227 202.17 Q 231.83 200.33 238.67 200 Q 245.83 198.83 253.5 199.83 Q 259 200 264.83 202.83 Q 264.33 205 259.17 206.67 Q 251.5 208.67 244.5 210.17 Q 238.83 211.5 233.5 212.67 Q 228.17 212.83 223.83 211 Q 220.33 209.33 218 207.5 Z",
-        travel: [4.1, 1.45],
+          "M414 298.4 Q421 293 437 290 Q456 285.4 468 288.5 Q478 289.6 483.4 294.6 Q462 300.4 452 302.1 Q436 306.7 427 305.3 Q421 304.2 414 298.4Z",
+        travel: [5.2, 1.7],
       },
-      brow: { src: leftBrow, x: 192, y: 169, width: 87, height: 25 },
-      closed: { src: leftBlink, x: 197, y: 191, width: 85, height: 34 },
-      center: [244, 202],
-      blinkY: 211,
+      brow: { src: browL, x: 394, y: 255, width: 96, height: 21 },
+      closed: { src: closedL, x: 401, y: 295, width: 83, height: 17 },
+      center: [453.7, 292.6],
+      blinkY: 305,
     },
     {
-      open: { src: rightEye, x: 296, y: 167, width: 80, height: 41 },
+      open: { src: eyeR, x: 532, y: 250, width: 100, height: 45 },
       gaze: {
-        socket: { src: rightSocket, x: 309, y: 179, width: 51, height: 20 },
-        iris: { src: rightIris, x: 319, y: 172, width: 27, height: 28 },
-        lid: { src: rightLashes, x: 309, y: 179, width: 51, height: 19 },
+        socket: { src: socketRight, x: 540, y: 267, width: 68, height: 25 },
+        iris: { src: irisRight, x: 558, y: 263, width: 33, height: 33 },
+        lid: { src: lashesRight, x: 532, y: 250, width: 100, height: 45 },
         contour:
-          "M 311.17 194.67 Q 315.17 189.33 320 187.17 Q 324.67 184.5 330 183.5 Q 337.83 181.17 344.33 182.17 Q 351 182.17 357.33 182.33 Q 356.33 185 353.33 188.5 Q 351 192.17 346.83 193.33 Q 341.17 195 335.33 195 Q 328.33 195.33 322.5 196.17 L 315.5 196.67 Q 312.83 196.17 311.17 195.5 Z",
-        travel: [3.8, 1.35],
+          "M541.5 287.8 Q550 277.6 563.6 275 Q577.5 270 595.6 270.7 L606.2 268.3 Q602.5 279.5 592.6 284.2 Q575.7 289.4 556.1 290.4 L541.5 290.5Z",
+        travel: [5.2, 1.7],
       },
-      brow: { src: rightBrow, x: 290, y: 150, width: 79, height: 36 },
-      closed: { src: rightBlink, x: 297, y: 175, width: 79, height: 36 },
-      center: [334, 188],
-      blinkY: 198,
+      brow: { src: browR, x: 518, y: 232, width: 99, height: 35 },
+      closed: { src: closedR, x: 540, y: 264, width: 80, height: 30 },
+      center: [574.3, 278.8],
+      blinkY: 290,
     },
   ],
   mouth: {
-    rest: { src: lips, x: 269, y: 257, width: 69, height: 36 },
-    upper: { src: upperLip, x: 269, y: 257, width: 69, height: 36 },
-    lower: { src: lowerLip, x: 269, y: 257, width: 69, height: 36 },
-    center: [304, 274.8],
-    width: 52.5,
-    height: 19,
-    angle: -11.6,
-    cornerRise: 3.5,
-    color: "#683a40",
-    tongue: "#bc7271",
-    teeth: "#f9ead5",
+    rest: { src: lip, x: 494, y: 376, width: 82, height: 38 },
+    upper: { src: upperLip, x: 494, y: 376, width: 81, height: 23 },
+    lower: { src: lowerLip, x: 494, y: 381, width: 82, height: 33 },
+    center: [534, 394.5],
+    width: 72,
+    height: 29,
+    angle: -10.4,
+    cornerRise: 4.7,
+    color: "#713d42",
+    tongue: "#c87878",
+    teeth: "#f7e6d5",
   },
 } satisfies PaintedFaceRig;
 
@@ -87,140 +94,85 @@ const Backdrop = memo(function SeorinBackdrop() {
   );
 });
 
-const costume = placement + " translate(35 288)";
-
 const Wardrobe = memo(function SeorinWardrobe({
-  id,
-  greeting: raised,
+  greeting,
 }: {
-  id: string;
   greeting: boolean;
 }) {
-  // The two masks follow the shoulder seam in the 560 × 312 costume crop.
-  // The stationary panel overlaps the moving sleeve under the armhole.
   return (
     <g data-art="seorin-office-tailoring">
       <g transform={placement}>
-        <path
-          d="M142 385Q175 375 210 370L243 364L267 428L248 600H138Z"
-          fill="#40383b"
-        />
-        <path
-          d="M262 282Q306 303 351 269L356 345Q315 374 261 338Z"
-          fill="#bc9079"
-        />
+        <image href={jacket} x="96" y="419" width="730" height="1117" />{" "}
+        {greeting ? null : (
+          <image
+            className="seorin__resting-sleeve"
+            href={restSleeve}
+            x="692"
+            y="574"
+            width="255"
+            height="962"
+          />
+        )}
       </g>
-      {raised ? (
-        <>
-          <defs>
-            <clipPath id={id + "-coat-panel"}>
-              <path d="M0 0H423V98Q431 127 421 165Q414 195 426 235Q430 247 438 261L435 312H0Z" />
-            </clipPath>
-            <clipPath id={id + "-upper-sleeve"}>
-              <path d="M419 74Q425 123 417 153Q406 186 414 219Q419 245 428 258Q488 301 516 300Q529 295 537 278Q509 274 484 250Q472 237 469 201Q464 150 444 98L440 75Z" />
-            </clipPath>
-          </defs>
-          <g transform={costume}>
+      {greeting && (
+        <g className="narration__upper-arm seorin__raised-sleeve">
+          <g transform={placement}>
             <image
               href={raisedJacket}
-              width="560"
-              height="312"
-              clipPath={`url(#${id}-coat-panel)`}
+              x="759"
+              y="574"
+              width="174"
+              height="483"
             />
           </g>
-          <g className="narration__upper-arm seorin__raised-sleeve">
-            <g transform={costume}>
-              {/* The folded forearm uncovers the far side of the upper sleeve. */}
-              <path
-                d="M430 117Q453 118 463 145L523 245Q538 264 530 280Q524 295 510 295Q481 293 451 267L427 248Q411 200 430 117Z"
-                fill="#4b3e42"
-              />
-              <path
-                d="M430 170Q441 188 455 202Q483 225 516 272Q486 245 468 242Q446 225 430 170Z"
-                fill="#3a3034"
-              />
-              <path
-                d="M447 237Q478 268 518 287Q490 285 457 260Z"
-                fill="#2e272a"
-              />
-              <image
-                href={raisedJacket}
-                width="560"
-                height="312"
-                clipPath={`url(#${id}-upper-sleeve)`}
-              />
-            </g>
-          </g>
-        </>
-      ) : (
-        <g className="seorin__resting-sleeve" transform={costume}>
-          <image href={jacket} width="528" height="312" />
         </g>
       )}
     </g>
   );
 });
-
-const Forearm = memo(function SeorinForearm({ id }: { id: string }) {
-  return (
-    <g transform={costume}>
-      <defs>
-        {" "}
-        <clipPath id={id + "-forearm"}>
-          <path d="M435 0H560V312H506Q485 291 474 276Q466 261 467 237Q471 221 469 201Q465 151 451 110L440 86Z" />
-        </clipPath>
-      </defs>
-      <image
-        href={raisedJacket}
-        width="560"
-        height="312"
-        clipPath={`url(#${id}-forearm)`}
-      />
-    </g>
-  );
-});
-
 const Hand = memo(function SeorinHand({ gesture }: { gesture: ArmPose }) {
   return (
     <g transform={placement}>
-      <image
-        href={gesture === "point" ? point : wave}
-        x="429"
-        y="147"
-        width="132"
-        height="198"
-      />
+      {gesture === "point" ? (
+        <image href={point} x="772" y="431" width="151" height="253" />
+      ) : (
+        <image href={wave} x="754" y="393" width="177" height="276" />
+      )}
     </g>
   );
 });
-
+const Forearm = memo(function SeorinForearm({ gesture }: { gesture: ArmPose }) {
+  return (
+    <g transform={placement}>
+      {gesture === "point" ? (
+        <image href={pointForearm} x="759" y="661" width="205" height="399" />
+      ) : (
+        <image href={waveForearm} x="759" y="646" width="204" height="411" />
+      )}
+    </g>
+  );
+});
 const HairBehind = memo(function SeorinHead() {
   return (
     <g transform={placement}>
-      <image href={head} x="83" y="0" width="363" height="600" />
-      <image href={earringUnderpaint} x="371" y="236" width="19" height="29" />
+      <image href={headBase} x="122" y="2" width="863" height="968" />
     </g>
   );
 });
-
 const Accessory = memo(function SeorinGoldDrop() {
   return (
     <g transform={placement}>
-      <image href={earring} x="371" y="236" width="19" height="29" />
+      <image href={earring} x="630" y="322" width="19" height="57" />
     </g>
   );
 });
-
 const Fringe = memo(function SeorinLooseLock() {
   return (
     <g transform={placement}>
-      <g className="anime__hair-tip" style={{ transformOrigin: "144px 262px" }}>
-        <image href={frontLock} x="83" y="249" width="69" height="138" />
-      </g>
+      <image href={frontSweep} x="228" y="710" width="162" height="253" />
     </g>
   );
 });
-
 export const seorinArt = {
   Backdrop,
   Wardrobe,
@@ -230,12 +182,15 @@ export const seorinArt = {
   Forearm,
   Hand,
   faceRig,
-  shoulderPivot: "273px 244px",
-  elbowPivot: "327px 344px",
-  handPivot: "298px 211px",
-  neckPivot: "184px 205px",
-  fringePivot: "86.4px 166.2px",
-  accessoryPivot: "228px 151.3px",
-  baseImages: [office, jacket, head, frontLock, earringUnderpaint, earring],
-  poseImages: { greeting: [raisedJacket, wave], point: [raisedJacket, point] },
+  shoulderPivot: stagePoint(820, 578),
+  elbowPivot: stagePoint(831, 1020),
+  handPivot: stagePoint(829, 657),
+  neckPivot: stagePoint(541, 516),
+  fringePivot: stagePoint(294, 745),
+  accessoryPivot: stagePoint(639, 329),
+  baseImages: [office, jacket, restSleeve, headBase, frontSweep, earring],
+  poseImages: {
+    greeting: [raisedJacket, waveForearm, wave],
+    point: [raisedJacket, pointForearm, point],
+  },
 };

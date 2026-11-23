@@ -185,7 +185,7 @@ def create_app(settings: Settings) -> FastAPI:
         runtime = services.for_session(sid)
         if not runtime.available:
             raise HTTPException(503, runtime.reason)
-        started = runtime.engine.start(sid, body.text)
+        started = runtime.engine.start(sid, body.text, body.voice)
         runtime.transcriptions.cancel_session(sid)
         return started
 

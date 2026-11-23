@@ -1,6 +1,6 @@
 import { memo } from "react";
 import type { PaintedFaceRig } from "./PaintedFace";
-import { isolBody } from "./IsolBodyArt";
+import { isolBody, isolProjection, isolPivot } from "./IsolBodyArt";
 import campus from "./portraits/isol/campus.webp";
 import head from "./portraits/isol/head.webp";
 import fringe from "./portraits/isol/fringe.webp";
@@ -22,9 +22,6 @@ import lashesRight from "./portraits/isol/lashes-right.webp";
 import lidLeft from "./portraits/isol/lid-left.webp";
 import lidRight from "./portraits/isol/lid-right.webp";
 
-// Use one uniform projection for the portrait and the features extracted from it.
-const placement = "translate(-19 8) scale(.62)";
-
 const Backdrop = memo(function IsolCampus() {
   return (
     <image className="isol__campus" href={campus} width="360" height="360" />
@@ -33,7 +30,7 @@ const Backdrop = memo(function IsolCampus() {
 
 const HairBehind = memo(function IsolHead() {
   return (
-    <g transform={placement}>
+    <g transform={isolProjection}>
       <image
         className="isol__head"
         href={head}
@@ -52,11 +49,11 @@ const Fringe = memo(function IsolBob() {
       <g
         className="isol__bob-left"
         style={{
-          transformOrigin: "99px 107px",
+          transformOrigin: isolPivot(190, 160),
           transform: "rotate(calc(.75 * var(--lock-left-angle, 0deg)))",
         }}
       >
-        <g transform={placement}>
+        <g transform={isolProjection}>
           <image
             className="isol__lock-left"
             href={bobLeft}
@@ -70,11 +67,11 @@ const Fringe = memo(function IsolBob() {
       <g
         className="isol__bob-right"
         style={{
-          transformOrigin: "225px 106px",
+          transformOrigin: isolPivot(394, 158),
           transform: "rotate(calc(.75 * var(--lock-right-angle, 0deg)))",
         }}
       >
-        <g transform={placement}>
+        <g transform={isolProjection}>
           <image
             className="isol__lock-right"
             href={bobRight}
@@ -85,7 +82,7 @@ const Fringe = memo(function IsolBob() {
           />
         </g>
       </g>
-      <g transform={placement}>
+      <g transform={isolProjection}>
         <image
           className="isol__fringe"
           href={fringe}
@@ -100,7 +97,7 @@ const Fringe = memo(function IsolBob() {
 });
 
 const faceRig: PaintedFaceRig = {
-  transform: placement,
+  transform: isolProjection,
   eyes: [
     {
       open: { src: eyeLeft, x: 227, y: 152, width: 55, height: 39 },
@@ -154,7 +151,7 @@ export const isolArt = {
   HairBehind,
   Fringe,
   faceRig,
-  neckPivot: "169px 184px",
-  fringePivot: "151px 53px",
+  neckPivot: isolPivot(302, 313),
+  fringePivot: isolPivot(274, 73),
   baseImages: [campus, head, bobLeft, bobRight, fringe, ...isolBody.bodyImages],
 };
