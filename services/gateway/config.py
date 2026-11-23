@@ -117,6 +117,13 @@ class Settings:
         object.__setattr__(self, "cloud_base_url", self.cloud_base_url.rstrip("/"))
         if self.avatar_dir is not None and not self.avatar_dir.is_dir():
             raise ValueError("ASSISTANT_AVATAR_DIR must be an existing directory")
+        if self.public_origin and self.avatar_dir is not None:
+            # /avatar-local is a static mount, not covered by /api bearer
+            # authentication. Never publish private Cubism exports by accident.
+            raise ValueError(
+                "Public avatar assets require authenticated delivery; "
+                "ASSISTANT_AVATAR_DIR is supported only for loopback deployments"
+            )
         if self.stt not in {"none", "whisper_cpp"}:
             raise ValueError("Unknown STT provider")
         if self.stt == "whisper_cpp":
