@@ -1,6 +1,7 @@
 """Compare the normal Chromium composition with the approved, unsplit design plates."""
 
 import base64
+import time
 from pathlib import Path
 
 from playwright.sync_api import expect
@@ -13,12 +14,14 @@ PLATES = {
         "webp",
         (62, 6, 354 / 1536),
         {
-            "eyes": (468, 287),
-            "chin": (538, 466),
-            "left_lapel": (423, 635),
-            "right_lapel": (640, 602),
-            "jacket_button": (622, 1050),
-            "notebook": (460, 1172),
+            "eyes": (451, 264),
+            "left_brow": (483, 220),
+            "right_brow": (543, 215),
+            "chin": (523, 432),
+            "left_collar": (421, 572),
+            "right_collar": (626, 571),
+            "badge_corner": (708, 749),
+            "folio_corner": (456, 918),
         },
     ),
     "hana": (
@@ -51,7 +54,7 @@ PLATES = {
 # Measured in stage units from each artist's registered shoulder, elbow,
 # wrist and longest painted fingertip on the source greeting/point plates.
 ARM_LENGTHS = {
-    "seorin": {"upperArm": 102, "forearm": 84, "greeting": 61, "point": 54},
+    "seorin": {"upperArm": 101.2, "forearm": 73.7, "greeting": 63.5, "point": 61.2},
     "hana": {"upperArm": 89, "forearm": 85, "greeting": 74, "point": 69},
     "isol": {"upperArm": 110, "forearm": 90, "greeting": 64, "point": 65},
 }
@@ -169,6 +172,11 @@ def check_proportions(page, base, token):
     # sampling the screenshot. The regular audio tests keep their real clock.
     page.clock.install(time=1750000000000)
     page.clock.pause_at(1750000000300)
+    failed_assets = []
+    page.on("requestfailed", lambda request: failed_assets.append((request.url, request.failure)))
+    page.on(
+        "response", lambda r: failed_assets.append((r.url, r.status)) if r.status >= 400 else None
+    )
     page.goto(f"{base}/#token={token}")
     page.get_by_role("button", name="연결", exact=True).evaluate("button => button.click()")
     expect(page.get_by_text("대화 준비됨")).to_be_visible()
@@ -199,6 +207,18 @@ def check_proportions(page, base, token):
         preview.locator("summary").evaluate("button => button.click()")
         for pose, label in [("greeting", "인사하기"), ("point", "가리켜 설명하기")]:
             preview.get_by_role("button", name=label).evaluate("button => button.click()")
+            # HTTP and image decoding use real time. Start the gesture sample
+            # window only once all its layers are decoded and the real hand mounts.
+            hand = portrait.locator(f'.avatar-panel__hand [data-pose="{pose}"] image')
+            deadline = time.monotonic() + 10
+            while not hand.count():
+                assert time.monotonic() < deadline, (
+                    character,
+                    pose,
+                    "hand did not mount",
+                    failed_assets,
+                )
+                page.clock.run_for(17)
             samples = measures[character][pose] = []
             for _ in range(150):
                 page.clock.run_for(17)

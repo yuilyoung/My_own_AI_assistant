@@ -32,7 +32,8 @@ export type NarrationPose = {
   lockLeftAngle: number;
   lockRightAngle: number;
   accessoryAngle: number;
-  browY: number;
+  /** Fraction of the painted brow's local speech travel, independent of its expression. */
+  browLift: number;
   gestureProgress: number;
   gestureDone: boolean;
   armPose: Arm;
@@ -138,7 +139,7 @@ export function createNarrationMotion(character: AvatarCharacter, seed = 1) {
     lockLeftAngle: 0,
     lockRightAngle: 0,
     accessoryAngle: 0,
-    browY: 0,
+    browLift: 0,
     gestureProgress: 0,
     gestureDone: true,
     armPose: "idle",
@@ -159,6 +160,13 @@ export function createNarrationMotion(character: AvatarCharacter, seed = 1) {
   let remainder = 0,
     slowLevel = 0,
     accentCooldown = 0;
+  // Seorin accents the beginning of a phrase. Short gaps between syllables
+  // keep the gate closed, even as the mouth and head articulate new attacks.
+  const phrasePause = 0.6;
+  const browDuration = 0.54;
+  let quietTime = 0;
+  let phraseReady = true;
+  let browTime = browDuration;
   let breathPhase = 0,
     breathPeriod = (3.7 + random()) * tempo;
   let nextGlance = (1 + random() * 1.6) * tempo,
@@ -224,11 +232,22 @@ export function createNarrationMotion(character: AvatarCharacter, seed = 1) {
     const rise = (pose.level - previous) / step;
     accentCooldown -= step;
     pose.accent *= Math.exp(-step / 0.17);
-    // A rising syllable must clear the recent baseline, with room to settle
-    // before a second beat. A held vowel cannot retrigger the brow/head pulse.
+    // A rising syllable must clear the recent baseline before the next head beat.
     if (accentCooldown <= 0 && rise > 0.85 && pose.level - slowLevel > 0.065) {
       pose.accent = clamp(0.28 + 0.11 * rise, 0, 1);
       accentCooldown = 0.32 * tempo;
+    }
+    if (character === "seorin") {
+      quietTime = volume <= 0.025 ? Math.min(phrasePause, quietTime + step) : 0;
+      if (quietTime >= phrasePause) phraseReady = true;
+      if (phraseReady && volume >= 0.075) {
+        phraseReady = false;
+        browTime = 0;
+      }
+      browTime = Math.min(browDuration, browTime + step);
+      pose.browLift = beat(browTime, 0, 0.15, 0.2, browDuration);
+    } else {
+      pose.browLift = unit(pose.accent * 0.9 * strength + pose.level * 0.125);
     }
 
     nextGlance -= step;
@@ -337,7 +356,6 @@ export function createNarrationMotion(character: AvatarCharacter, seed = 1) {
     );
     pose.torsoAngle = torso.advance(pose.headAngle * 0.32 + armLean * 0.18);
     pose.torsoY = -pose.breath * 0.8 + pose.headY * 0.22;
-    pose.browY = -pose.accent * 1.8 * strength - pose.level * 0.25;
     // Each child follows the moving attachment. The difference between the
     // sprung and driven angle is a local rotation, with opposite initial travel.
     const anchor = pose.headAngle + pose.headX * 0.55;

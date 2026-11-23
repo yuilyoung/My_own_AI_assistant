@@ -2,7 +2,12 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
 import { isolArt } from "./IsolArt";
-import { PaintedFace, paintedFeatureImages } from "./PaintedFace";
+import {
+  PaintedFace,
+  paintedFeatureImages,
+  type PaintedFaceRig,
+} from "./PaintedFace";
+import { seorinArt } from "./SeorinArt";
 
 afterEach(cleanup);
 
@@ -93,4 +98,72 @@ it("keeps each feature's rotation and scale centered on the drawing as an expres
     </svg>,
   );
   checkPivots();
+});
+
+it("anchors Seorin's brows independently and keeps lash padding and syllable accents out of their tilt", () => {
+  const [left, right] = seorinArt.faceRig.eyes;
+  const forehead = "M340 150H660V300H315Z";
+  const pivots = [left, right].map(
+    ({ brow }, i) =>
+      [
+        brow.x + brow.width * (i === 0 ? 0.2 : 0.8),
+        brow.y + brow.height / 2,
+      ] as const,
+  );
+  const frame = (extraPadding: number, level: number) => {
+    const rig: PaintedFaceRig = {
+      ...seorinArt.faceRig,
+      eyes: [
+        {
+          ...left,
+          browPivot: pivots[0],
+          browClip: forehead,
+          open: { ...left.open, height: left.open.height + extraPadding },
+        },
+        {
+          ...right,
+          browPivot: pivots[1],
+          open: { ...right.open, height: right.open.height + extraPadding },
+        },
+      ],
+    };
+    return (
+      <svg>
+        <PaintedFace
+          id="seorin-brows"
+          rig={rig}
+          character="seorin"
+          emotion="curious"
+          level={level}
+          brightness={0.5}
+        />
+      </svg>
+    );
+  };
+  const { container, rerender } = render(frame(0, 0));
+  const poses = () =>
+    Array.from(
+      container.querySelectorAll<SVGGElement>(".painted-face__brow-pose"),
+      (brow) => [brow.style.transformOrigin, brow.getAttribute("transform")],
+    );
+  const original = poses();
+  expect(original.map(([pivot]) => pivot)).toEqual(
+    pivots.map(([x, y]) => `${x}px ${y}px`),
+  );
+  expect(original[0][1]).not.toEqual(original[1][1]);
+  const clip = container
+    .querySelector(".painted-face__brow-pose")!
+    .parentElement!.getAttribute("clip-path");
+  expect(clip).toBe("url(#seorin-brows-eye-0-forehead)");
+  expect(
+    container
+      .querySelector("#seorin-brows-eye-0-forehead path")
+      ?.getAttribute("d"),
+  ).toBe(forehead);
+  rerender(frame(40, 0.9));
+  expect(poses()).toEqual(original);
+  const eyes = container.querySelectorAll<SVGGElement>(".painted-face__eye");
+  eyes.forEach((eye) =>
+    expect(eye.style.getPropertyValue("--brow-tilt")).toBe("0deg"),
+  );
 });

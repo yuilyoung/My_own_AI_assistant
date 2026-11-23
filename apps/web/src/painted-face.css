@@ -18,7 +18,8 @@
   transform: translateY(calc((var(--blink, 0) - 1) * var(--lid-travel)));
 }
 
-.seorin__speech-brows {
+.painted-face__brow-emphasis {
+  transform-origin: inherit;
   transform: translateY(calc(var(--brow-lift, 0) * var(--brow-range)))
     rotate(calc(var(--accent, 0) * var(--brow-tilt)));
 }

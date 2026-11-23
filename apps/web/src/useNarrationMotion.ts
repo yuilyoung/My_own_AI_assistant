@@ -9,7 +9,7 @@ import {
 const restingArmAngle = { hana: 5, seorin: 6, isol: 4 };
 // At rest the forearm folds across the waist. Its elbow stays attached as the
 // hand travels into the painted wave, including for a cue interrupted mid-reach.
-const foldedElbow = { hana: -98, seorin: -195, isol: -112 };
+const foldedElbow = { hana: -98, seorin: -190, isol: -112 };
 const heldTilt = { hana: -5, seorin: -3.5, isol: 4 };
 type Arm = Exclude<NarrationPose["armPose"], "idle">;
 
@@ -30,7 +30,7 @@ function draw(
   channel("--blink", pose.blink);
   channel("--gaze-x", pose.gazeX);
   channel("--gaze-y", pose.gazeY);
-  channel("--brow-lift", Math.min(1, Math.max(0, -pose.browY / 2)));
+  channel("--brow-lift", pose.browLift);
   channel("--head-x", pose.headX, "px");
   channel("--head-y", pose.headY, "px");
   channel("--head-angle", pose.headAngle, "deg");

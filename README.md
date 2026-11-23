@@ -156,7 +156,7 @@ $env:WHISPER_MODEL = 'C:\tools\whisper.cpp\models\ggml-small.bin'
 
 ### 한국어 TTS
 
-Supertonic 2 워커를 설치하면 실제 대화 답변을 하나(F2), 서린(F1), 이솔(F5)의 한국어 음성으로 읽습니다. 워커와 Gateway에 동일한 `SUPERTONIC_TOKEN`을 지정하고, 워커를 시작한 뒤 아래 명령으로 연결하세요. 마이크로 질문도 입력하려면 whisper.cpp를 준비하고 실행 명령에 `-Microphone`을 더하세요. [Supertonic 2 모델 다운로드와 워커 설치](workers/tts-supertonic/README.md)
+Supertonic 2 워커를 설치하면 실제 대화 답변을 하나(F4), 서린(F1), 이솔(F2)의 한국어 음성으로 읽습니다. 워커와 Gateway에 동일한 `SUPERTONIC_TOKEN`을 지정하고, 워커를 시작한 뒤 아래 명령으로 연결하세요. 마이크로 질문도 입력하려면 whisper.cpp를 준비하고 실행 명령에 `-Microphone`을 더하세요. [Supertonic 2 모델 다운로드와 워커 설치](workers/tts-supertonic/README.md)
 
 ```powershell
 .\scripts\check-readiness.ps1 -TtsProvider supertonic
