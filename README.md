@@ -43,7 +43,7 @@ React/Vite 화면과 개발용 진단 화면을 제공합니다. 두 화면은 �
 
 데모, 같은 서버의 Ollama, 설정한 클라우드 API를 웹 화면의 **LLM 서비스**에서 전환할 수 있습니다. 전환 시 새 대화를 시작하고 서비스별 기억·메모를 분리합니다. 클라우드 키와 모델은 서버에 설정하며, 키가 없으면 해당 옵션을 사용할 수 없습니다. Render의 로컬 옵션은 사용자 PC의 Ollama를 자동 연결하지 않습니다.
 
-**개인 비서 → 아바타 종류**에서 한국 교복을 입은 고등학생 하나, 직장인 서린, 대학생 이솔을 선택할 수 있습니다. **가상 소개팅**에는 성인 캐릭터인 서린과 이솔이 등장합니다. **표정·동작 미리보기**에서 **인사말 듣기**와 **내레이션 미리듣기**를 누르면 캐릭터마다 다른 목소리로 인사하고 자신을 소개합니다. 여섯 샘플은 웹 앱에 포함되어 음성 워커를 설치하기 전에도 들을 수 있습니다. 대화 답변을 생성하거나 읽는 동안에는 아바타 선택이 잠기고, 답변이 끝나거나 중지되면 다시 선택할 수 있습니다. [캐릭터별 원화·동작 영상](docs/design/motion-characters.md) · [세 캐릭터의 자세 비교](docs/design/portrait-proportions.webp) · [서비스 설정 안내](docs/local-cloud-services.md)
+**개인 비서 → 아바타 종류**에서 한국 교복을 입은 고등학생 하나, 흰 셔츠와 차콜 스커트 정장을 입은 직장인 서린, 대학생 이솔을 선택할 수 있습니다. **가상 소개팅**에는 성인 캐릭터인 서린과 이솔이 등장합니다. **표정·동작 미리보기**에서 **인사말 듣기**와 **내레이션 미리듣기**를 누르면 캐릭터마다 다른 목소리로 인사하고 자신을 소개합니다. 여섯 샘플은 웹 앱에 포함되어 음성 워커를 설치하기 전에도 들을 수 있습니다. 대화 답변을 생성하거나 읽는 동안에는 아바타 선택이 잠기고, 답변이 끝나거나 중지되면 다시 선택할 수 있습니다. [캐릭터별 원화·동작 영상](docs/design/motion-characters.md) · [세 캐릭터의 자세 비교](docs/design/portrait-proportions.webp) · [서비스 설정 안내](docs/local-cloud-services.md)
 
 ## Windows에서 실행
 
@@ -156,7 +156,7 @@ $env:WHISPER_MODEL = 'C:\tools\whisper.cpp\models\ggml-small.bin'
 
 ### 한국어 TTS
 
-Supertonic 2 워커를 설치하면 실제 대화 답변을 하나(F4), 서린(F1), 이솔(F2)의 한국어 음성으로 읽습니다. 워커와 Gateway에 동일한 `SUPERTONIC_TOKEN`을 지정하고, 워커를 시작한 뒤 아래 명령으로 연결하세요. 마이크로 질문도 입력하려면 whisper.cpp를 준비하고 실행 명령에 `-Microphone`을 더하세요. [Supertonic 2 모델 다운로드와 워커 설치](workers/tts-supertonic/README.md)
+Supertonic 2 워커를 설치하면 실제 대화 답변을 하나(F4), 서린(F1), 이솔(F2)의 한국어 음성으로 읽습니다. 세 목소리 모두 기존 캐릭터별 발화 속도의 1.2배로 말하며, 하나의 밝은 고음과 서린의 차분한 억양, 이솔의 부드러운 말투를 유지합니다. 워커와 Gateway에 동일한 `SUPERTONIC_TOKEN`을 지정하고, 워커를 시작한 뒤 아래 명령으로 연결하세요. 마이크로 질문도 입력하려면 whisper.cpp를 준비하고 실행 명령에 `-Microphone`을 더하세요. [Supertonic 2 모델 다운로드와 워커 설치](workers/tts-supertonic/README.md)
 
 ```powershell
 .\scripts\check-readiness.ps1 -TtsProvider supertonic

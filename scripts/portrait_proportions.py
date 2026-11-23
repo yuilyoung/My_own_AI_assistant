@@ -14,14 +14,17 @@ PLATES = {
         "webp",
         (62, 6, 354 / 1536),
         {
-            "eyes": (451, 264),
-            "left_brow": (483, 220),
-            "right_brow": (543, 215),
-            "chin": (523, 432),
-            "left_collar": (421, 572),
-            "right_collar": (626, 571),
-            "badge_corner": (708, 749),
-            "folio_corner": (456, 918),
+            "eyes": (472, 218),
+            "left_brow": (500, 186),
+            "right_brow": (551, 184),
+            "chin": (537, 352),
+            "bob_curl": (618, 338),
+            "left_collar": (431, 477),
+            "right_collar": (667, 476),
+            "badge_corner": (693, 586),
+            "folio_corner": (494, 742),
+            "waistband": (566, 800),
+            "skirt_hem": (650, 1451),
         },
     ),
     "hana": (
@@ -54,7 +57,7 @@ PLATES = {
 # Measured in stage units from each artist's registered shoulder, elbow,
 # wrist and longest painted fingertip on the source greeting/point plates.
 ARM_LENGTHS = {
-    "seorin": {"upperArm": 101.2, "forearm": 73.7, "greeting": 63.5, "point": 61.2},
+    "seorin": {"upperArm": 82.7, "forearm": 64.3, "greeting": 52.2, "point": 47.5},
     "hana": {"upperArm": 89, "forearm": 85, "greeting": 74, "point": 69},
     "isol": {"upperArm": 110, "forearm": 90, "greeting": 64, "point": 65},
 }

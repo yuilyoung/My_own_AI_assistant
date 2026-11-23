@@ -27,7 +27,7 @@ whisper.cpp/Ollama/MeloTTS/Silero의 코드 라이선스 및 Qwen/Melo의 모델
 
 하나, 서린, 이솔은 이 프로젝트를 위해 생성한 원본 일러스트다. 원화에서 눈·입술·머리·의상을 분리했고, 인사와 가리키기에 쓸 소매와 손도 인물별로 제작했다. 한국 교복 참고 사진에서는 재킷의 깃과 흰 셔츠, 리본의 배치를 관찰했다. 사진과 외부 작품의 스틸은 참고 링크로 제공하며 앱과 영상에는 프로젝트 원화를 사용한다. [한국 교복 사진](https://github.com/uUZINN/gogyobok-blogSite/blob/a21640d0ffb017322668a5d0658dbe08f81c135c/assets/img/main_slide06.jpg) · [세 캐릭터의 원화와 작화 출처](motion-characters.md)
 
-세 인물의 인사·자기소개 대본은 이 프로젝트에서 작성했다. 낭독에는 로컬 Supertonic 2의 F4(하나), F1(서린), F2(이솔) 스타일을 사용했다. 하나의 음색과 발화 속도는 10대 인물의 말투에 맞게 조율했다. 브라우저에 배포하는 파일은 합성된 음원이며 추론용 모델은 워커를 사용할 때 따로 받는다. 제작사 예제 코드는 MIT, Supertonic 2 가중치는 OpenRAIL-M 조건을 따른다. [제작사 코드와 라이선스](https://github.com/supertone-oss-archive/supertonic#license) · [Supertonic 2 모델 라이선스](https://huggingface.co/supertone-oss-archive/supertonic-2/blob/main/LICENSE) · [INT8 모델 배포 파일과 체크섬](../../workers/tts-supertonic/README.md)
+세 인물의 인사·자기소개 대본은 이 프로젝트에서 작성했다. 낭독에는 로컬 Supertonic 2의 F4(하나), F1(서린), F2(이솔) 스타일을 사용했다. 하나의 음색은 10대 인물의 밝은 말투에 맞게 조율했다. 세 목소리는 캐릭터마다 조율한 음높이와 억양을 유지하면서 기존 녹음의 1.2배 속도로 낭독한다. 브라우저에 배포하는 파일은 합성된 음원이며 추론용 모델은 워커를 사용할 때 따로 받는다. 제작사 예제 코드는 MIT, Supertonic 2 가중치는 OpenRAIL-M 조건을 따른다. [제작사 코드와 라이선스](https://github.com/supertone-oss-archive/supertonic#license) · [Supertonic 2 모델 라이선스](https://huggingface.co/supertone-oss-archive/supertonic-2/blob/main/LICENSE) · [INT8 모델 배포 파일과 체크섬](../../workers/tts-supertonic/README.md)
 
 ## Live2D의 별도 배포 관문
 
