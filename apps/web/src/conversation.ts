@@ -1,3 +1,4 @@
+import type { AvatarCharacter } from "./avatar-cast";
 import {
   GatewayClient,
   type Mode,
@@ -226,7 +227,7 @@ export class Conversation {
         this.patch({ error: String(error), busy: false });
     }
   }
-  async send() {
+  async send(voice?: AvatarCharacter) {
     const text = this.state.input.trim(),
       session = this.state.session;
     if (
@@ -258,7 +259,7 @@ export class Conversation {
       }
       if (!current()) return;
       // Let creation finish so its ID can be cancelled even after a mode switch.
-      const turn = await this.client.createTurn(sid, text);
+      const turn = await this.client.createTurn(sid, text, undefined, voice);
       if (!current()) {
         void this.client.cancelTurn(sid, turn.id).catch(() => {});
         return;

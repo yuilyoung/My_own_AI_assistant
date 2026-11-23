@@ -98,25 +98,31 @@ def inspect_local_readiness(
     if settings.tts == "none":
         checks.append(Check("MeloTTS", "SKIP", "TTS 비활성화"))
     else:
+        if settings.tts == "supertonic":
+            name, worker = "Supertonic 2", "supertonic-2"
+            endpoint, token = settings.supertonic_url, settings.supertonic_token
+        else:
+            name, worker = "MeloTTS", "melo-tts"
+            endpoint, token = settings.melo_url, settings.melo_token
         try:
             # The authenticated health endpoint never starts synthesis.
             response = client.get(
-                settings.melo_url + "/health",
-                headers={"Authorization": "Bearer " + settings.melo_token},
+                endpoint + "/health",
+                headers={"Authorization": "Bearer " + token},
             )
             valid = response.status_code == 200 and response.json() == {
                 "status": "reachable",
-                "worker": "melo-tts",
+                "worker": worker,
             }
         except (httpx.HTTPError, ValueError, TypeError):
             valid = False
         checks.append(
             Check(
-                "MeloTTS",
+                name,
                 "PASS" if valid else "FAIL",
                 "인증된 워커 health 응답 확인 (실제 합성은 미검증)"
                 if valid
-                else "MeloTTS 워커 실행 상태·주소·인증 토큰을 확인하세요",
+                else f"{name} 워커 실행 상태·주소·인증 토큰을 확인하세요",
             )
         )
 

@@ -1,3 +1,5 @@
+import type { AvatarCharacter } from "./avatar-cast";
+
 export type ServiceId = "demo" | "local" | "cloud";
 export type ServiceOption = {
   id: ServiceId;
@@ -75,10 +77,15 @@ export class GatewayClient {
       body: JSON.stringify({ mode, service, request_id: requestId }),
     });
   }
-  createTurn(sessionId: string, text: string, signal?: AbortSignal) {
+  createTurn(
+    sessionId: string,
+    text: string,
+    signal?: AbortSignal,
+    voice?: AvatarCharacter,
+  ) {
     return this.request<Turn>(
       `/sessions/${encodeURIComponent(sessionId)}/turns`,
-      { method: "POST", body: JSON.stringify({ text }), signal },
+      { method: "POST", body: JSON.stringify({ text, voice }), signal },
     );
   }
   pollTurn(sessionId: string, turnId: string, signal?: AbortSignal) {

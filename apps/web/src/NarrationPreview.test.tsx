@@ -134,3 +134,40 @@ it("stops an active narration before the page enters the back-forward cache", as
     screen.getByRole("button", { name: "내레이션 미리듣기" }),
   ).toBeTruthy();
 });
+
+it("plays the selected student's Korean greeting, then switches to her own introduction", async () => {
+  const user = userEvent.setup();
+  state.close.mockResolvedValue(undefined);
+  state.play.mockReturnValue(new Promise(() => {}));
+  const fetchClip = vi.fn(async () => new Response(new ArrayBuffer(8)));
+  vi.stubGlobal("fetch", fetchClip);
+  render(
+    <AvatarPanel
+      bridge={new AvatarMotionBridge()}
+      level={0}
+      defaultCharacter="hana"
+    />,
+  );
+  await user.click(screen.getByText("표정·동작 미리보기"));
+  await user.click(screen.getByRole("button", { name: "인사말 듣기" }));
+  expect(fetchClip).toHaveBeenLastCalledWith(
+    expect.stringContaining("hana-greeting"),
+    expect.anything(),
+  );
+  act(() => state.report?.(0.55, 0.7));
+  expect(screen.getByTestId("avatar-character").dataset.gesture).toBe(
+    "greeting",
+  );
+  await user.click(screen.getByRole("button", { name: "내레이션 미리듣기" }));
+  expect(fetchClip).toHaveBeenLastCalledWith(
+    expect.stringContaining("hana-intro"),
+    expect.anything(),
+  );
+  expect(state.close).toHaveBeenCalledTimes(1);
+  await user.selectOptions(screen.getByLabelText("아바타 종류"), "isol");
+  await user.click(screen.getByRole("button", { name: "내레이션 미리듣기" }));
+  expect(fetchClip).toHaveBeenLastCalledWith(
+    expect.stringContaining("isol-intro"),
+    expect.anything(),
+  );
+});

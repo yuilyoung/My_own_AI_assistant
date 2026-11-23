@@ -1,7 +1,11 @@
 import { useEffect, useId, useState } from "react";
 import { AvatarInspector } from "./AvatarInspector";
 import { MotionAvatar } from "./MotionAvatar";
-import { avatarNames, type AvatarCharacter } from "./avatar-cast";
+import {
+  avatarNames,
+  characterForMode,
+  type AvatarCharacter,
+} from "./avatar-cast";
 import { useNarrationPreview } from "./useNarrationPreview";
 import { normalizedLipSync } from "./avatar";
 import {
@@ -26,7 +30,14 @@ export type AvatarPanelProps = {
   onCharacterChange?: (character: AvatarCharacter) => void;
 };
 
-const narrationCue = { emotion: "curious", gesture: "point" } as const;
+const narrationCues = {
+  greeting: { emotion: "happy", gesture: "greeting" },
+  intro: { emotion: "curious", gesture: "point" },
+} as const;
+const speechSamples = [
+  { sample: "greeting", label: "인사말 듣기" },
+  { sample: "intro", label: "내레이션 미리듣기" },
+] as const;
 const narrationReady = { emotion: "curious", gesture: "idle" } as const;
 const previews = [
   { label: "인사하기", emotion: "happy", gesture: "greeting" },
@@ -54,7 +65,7 @@ export function AvatarPanel({
     defaultCharacter,
   );
   const kind =
-    preferred === "hana" && mode === "companion" ? "seorin" : preferred;
+    preferred === "live2d" ? "live2d" : characterForMode(preferred, mode);
   const [preview, setPreview] = useState<{
     source: AvatarPanelProps["cue"];
     sample: Pick<(typeof previews)[number], "emotion" | "gesture"> | null;
@@ -77,7 +88,7 @@ export function AvatarPanel({
     setPreview({ source: cue, sample: null });
   const visibleCue = playback
     ? playback.started
-      ? narrationCue
+      ? narrationCues[playback.sample]
       : narrationReady
     : (sample ?? cue);
   const emotion = isExpressionCue(visibleCue?.emotion)
@@ -105,6 +116,7 @@ export function AvatarPanel({
         className="avatar-panel__select"
         id={`${id}-kind`}
         value={kind === "seorin" ? "builtin" : kind}
+        disabled={busy}
         onChange={(event) => {
           const value = event.target.value;
           const next =
@@ -178,20 +190,23 @@ export function AvatarPanel({
                   {label}
                 </button>
               ))}
-              <button
-                type="button"
-                className="avatar-panel__narration"
-                disabled={!canPlayNarration}
-                onClick={() => {
-                  if (playback) narration.stop();
-                  else {
-                    setPreview({ source: cue, sample: null });
-                    void narration.start();
-                  }
-                }}
-              >
-                {playback ? "미리듣기 중지" : "내레이션 미리듣기"}
-              </button>
+              {speechSamples.map(({ sample, label }) => (
+                <button
+                  key={sample}
+                  type="button"
+                  className="avatar-panel__narration"
+                  disabled={!canPlayNarration}
+                  onClick={() => {
+                    if (playback?.sample === sample) narration.stop();
+                    else {
+                      setPreview({ source: cue, sample: null });
+                      void narration.start(sample);
+                    }
+                  }}
+                >
+                  {playback?.sample === sample ? "미리듣기 중지" : label}
+                </button>
+              ))}
             </div>
             {narration.failed && (
               <p role="alert">

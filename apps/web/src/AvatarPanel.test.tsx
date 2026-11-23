@@ -15,11 +15,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it("switches built-in characters while preserving a live reply and its audio level", async () => {
+it("keeps the selected speaker throughout a reply and allows changing it after playback", async () => {
   const user = userEvent.setup();
   const bridge = new AvatarMotionBridge();
   const cue = { emotion: "happy", gesture: "greeting" };
-  render(<AvatarPanel bridge={bridge} cue={cue} level={0.6} busy />);
+  const { rerender } = render(<AvatarPanel bridge={bridge} level={0} />);
   const selector = screen.getByLabelText("아바타 종류");
   for (const label of [
     "하나 · 17세 고등학생",
@@ -28,18 +28,20 @@ it("switches built-in characters while preserving a live reply and its audio lev
   ]) {
     expect(within(selector).getByRole("option", { name: label })).toBeTruthy();
   }
-  for (const [value, name] of [
-    ["hana", "하나"],
-    ["isol", "이솔"],
-  ]) {
-    await user.selectOptions(selector, value);
-    const portrait = screen.getByRole("img", { name: new RegExp(name) });
-    expect(portrait.getAttribute("data-character")).toBe(value);
-    expect(portrait.textContent).toContain("기쁨");
-    expect(portrait.textContent).toContain("인사");
-    expect((screen.getByRole("meter") as HTMLMeterElement).value).toBe(0.6);
-    expect(bridge.ready).toBe(false);
+  await user.selectOptions(selector, "hana");
+  for (const level of [0, 0.6, 0]) {
+    rerender(<AvatarPanel bridge={bridge} cue={cue} level={level} busy />);
+    await user.selectOptions(selector, "isol");
+    expect(
+      screen.getByRole("img", { name: /하나/ }).getAttribute("data-character"),
+    ).toBe("hana");
+    expect((screen.getByRole("meter") as HTMLMeterElement).value).toBe(level);
   }
+  rerender(<AvatarPanel bridge={bridge} cue={cue} level={0} />);
+  await user.selectOptions(selector, "isol");
+  expect(screen.getByRole("img", { name: /이솔/ })).toBeTruthy();
+  await user.selectOptions(selector, "live2d");
+  expect(screen.getByLabelText("로컬 모델 export 경로 점검")).toBeTruthy();
 });
 
 it("previews a new gesture in silence and yields to the next reply", async () => {
@@ -334,16 +336,13 @@ it("reacts to supported gesture cues and safely resets unknown cues", () => {
   ).toBe("idle");
 });
 
-it("shows busy feedback while preserving the usable selector", async () => {
-  const user = userEvent.setup();
+it("shows distinct feedback while preparing and speaking a reply", () => {
   const bridge = new AvatarMotionBridge();
   const { rerender } = render(<AvatarPanel bridge={bridge} level={0} busy />);
   expect(screen.getByRole("status").textContent).toContain("답변 준비 중");
 
   rerender(<AvatarPanel bridge={bridge} level={0.4} busy />);
   expect(screen.getByRole("status").textContent).toContain("말하는 중");
-  await user.selectOptions(screen.getByLabelText("아바타 종류"), "live2d");
-  expect(screen.getByLabelText("로컬 모델 export 경로 점검")).toBeTruthy();
 });
 
 it("keeps a completed wave at rest across audio frames and replays it for a fresh reply", () => {

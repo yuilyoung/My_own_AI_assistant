@@ -5,3 +5,10 @@ export const avatarNames = {
 } as const;
 
 export type AvatarCharacter = keyof typeof avatarNames;
+
+export function characterForMode(
+  character: AvatarCharacter,
+  mode: "assistant" | "companion",
+): AvatarCharacter {
+  return mode === "companion" && character === "hana" ? "seorin" : character;
+}

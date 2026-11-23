@@ -55,13 +55,15 @@ class Settings:
     cloud_api_key: str = field(default="", repr=False)
     cloud_model: str = ""
     cloud_base_url: str = "https://api.openai.com/v1"
-    tts: Literal["none", "melo"] = "none"
+    tts: Literal["none", "melo", "supertonic"] = "none"
     stt: Literal["none", "whisper_cpp"] = "none"
     whisper_cli: Path | None = None
     whisper_model: Path | None = None
     ollama_url: str = "http://127.0.0.1:11434"
     melo_url: str = "http://127.0.0.1:8766"
     melo_token: str = ""
+    supertonic_url: str = "http://127.0.0.1:8767"
+    supertonic_token: str = field(default="", repr=False)
     model: str = "qwen3:4b"
     timeout: float = 90.0
     web_dir: Path = field(default_factory=default_web_dir)
@@ -91,8 +93,9 @@ class Settings:
                 raise ValueError("Public deployment requires an explicit access token")
         if self.host == "0.0.0.0" and not self.public_origin:
             raise ValueError("Public binding requires ASSISTANT_PUBLIC_ORIGIN")
-        loopback_endpoint(self.ollama_url)
-        loopback_endpoint(self.melo_url)
+        object.__setattr__(self, "ollama_url", loopback_endpoint(self.ollama_url))
+        object.__setattr__(self, "melo_url", loopback_endpoint(self.melo_url))
+        object.__setattr__(self, "supertonic_url", loopback_endpoint(self.supertonic_url))
         if self.local_llm_enabled is None:
             object.__setattr__(self, "local_llm_enabled", self.llm == "ollama")
         elif type(self.local_llm_enabled) is not bool:
@@ -136,7 +139,11 @@ class Settings:
                 raise ValueError("Configure existing WHISPER_CLI and WHISPER_MODEL files")
             if ".en." in self.whisper_model.name.lower():
                 raise ValueError("Korean STT requires a multilingual model, not .en")
-        if self.llm not in {"demo", "ollama", "cloud"} or self.tts not in {"none", "melo"}:
+        if self.llm not in {"demo", "ollama", "cloud"} or self.tts not in {
+            "none",
+            "melo",
+            "supertonic",
+        }:
             raise ValueError("Unknown provider; no fallback is allowed")
         if not 1024 <= self.port <= 65535 or self.timeout <= 0:
             raise ValueError("Invalid port/timeout")
@@ -146,9 +153,11 @@ class Settings:
             raise ValueError("Token must have at least 32 characters")
         if self.tts == "melo" and len(self.melo_token) < 32:
             raise ValueError("MELO_TOKEN must have at least 32 characters")
+        if self.tts == "supertonic" and len(self.supertonic_token) < 32:
+            raise ValueError("SUPERTONIC_TOKEN must have at least 32 characters")
 
     @classmethod
-    def from_env(cls):
+    def from_env(cls, *, llm: str | None = None, tts: str | None = None, stt: str | None = None):
         return cls(
             web_dir=Path(os.environ["ASSISTANT_WEB_DIR"])
             if os.getenv("ASSISTANT_WEB_DIR")
@@ -158,7 +167,7 @@ class Settings:
             host=os.getenv("ASSISTANT_HOST", "127.0.0.1"),
             public_origin=os.getenv("ASSISTANT_PUBLIC_ORIGIN", ""),
             port=int(os.getenv("PORT", os.getenv("ASSISTANT_PORT", "8765"))),
-            llm=os.getenv("LLM_PROVIDER", "demo"),
+            llm=llm or os.getenv("LLM_PROVIDER", "demo"),
             local_llm_enabled=optional_env_bool("LOCAL_LLM_ENABLED"),
             cloud_api_key=os.getenv("CLOUD_API_KEY", "").strip(),
             cloud_model=os.getenv("CLOUD_MODEL", "").strip(),
@@ -166,12 +175,14 @@ class Settings:
             avatar_dir=Path(os.environ["ASSISTANT_AVATAR_DIR"])
             if os.getenv("ASSISTANT_AVATAR_DIR")
             else None,
-            tts=os.getenv("TTS_PROVIDER", "none"),
-            stt=os.getenv("STT_PROVIDER", "none"),
+            tts=tts or os.getenv("TTS_PROVIDER", "none"),
+            stt=stt or os.getenv("STT_PROVIDER", "none"),
             whisper_cli=Path(os.environ["WHISPER_CLI"]) if os.getenv("WHISPER_CLI") else None,
             whisper_model=Path(os.environ["WHISPER_MODEL"]) if os.getenv("WHISPER_MODEL") else None,
             ollama_url=os.getenv("OLLAMA_URL", "http://127.0.0.1:11434"),
             melo_url=os.getenv("MELO_URL", "http://127.0.0.1:8766"),
             melo_token=os.getenv("MELO_TOKEN", ""),
+            supertonic_url=os.getenv("SUPERTONIC_URL", "http://127.0.0.1:8767"),
+            supertonic_token=os.getenv("SUPERTONIC_TOKEN", ""),
             model=os.getenv("OLLAMA_MODEL", "qwen3:4b"),
         )

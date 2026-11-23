@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { FormEvent } from "react";
 import { GatewayClient, type ServiceId } from "./gateway";
 import { AvatarPanel } from "./AvatarPanel";
-import type { AvatarCharacter } from "./avatar-cast";
+import { characterForMode, type AvatarCharacter } from "./avatar-cast";
 import { AvatarMotionBridge } from "./avatar-motion";
 import { dispatchAvatarCues } from "./avatar-cues";
 import { Conversation } from "./conversation";
@@ -226,7 +226,7 @@ function Workspace({
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              void app.send();
+              void app.send(characterForMode(character, state.mode));
             }}
           >
             <label htmlFor="message">메시지</label>

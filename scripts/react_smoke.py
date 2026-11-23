@@ -198,8 +198,9 @@ def mouth_box(portrait, *, speaking):
 def check_expression_profiles(page, selector):
     """The same preview should pose each character's own painted eyes differently."""
     from playwright.sync_api import expect
+    from portrait_proportions import check_breathing
 
-    eye_art, curious_poses = set(), set()
+    eye_art, curious_poses, breathing = set(), set(), {}
     preview = page.locator("details.avatar-panel__preview")
     summary = preview.locator("summary")
     if preview.get_attribute("open") is not None:
@@ -214,6 +215,7 @@ def check_expression_profiles(page, selector):
         expect(eyes.first).to_be_visible()
         expect(brows.first).to_be_visible()
         decoded_layers(portrait)
+        breathing[value] = check_breathing(portrait.locator(".narration__torso"))
         eye_art.add(tuple(eyes.evaluate_all("images => images.map(i => i.href.baseVal)")))
         pose = portrait.locator(".painted-face__eye-pose").first
         neutral = pose.evaluate("eye => getComputedStyle(eye).transform")
@@ -232,6 +234,7 @@ def check_expression_profiles(page, selector):
         expect(pose).to_have_css("transform", neutral)
     assert len(eye_art) == 3 and len(curious_poses) == 3, (eye_art, curious_poses)
     selector.select_option("builtin")
+    return breathing
 
 
 def check_surprised_mouth(page, avatars):
@@ -415,6 +418,13 @@ def check_delayed_wave(page, selector):
     selector.select_option("builtin")
 
 
+def send_with_voice(page, question, voice):
+    page.get_by_label("메시지", exact=True).fill(question)
+    with page.expect_request(lambda r: r.method == "POST" and r.url.endswith("/turns")) as turn:
+        page.get_by_role("button", name="전송", exact=True).click()
+    assert turn.value.post_data_json == {"text": question, "voice": voice}
+
+
 def check_avatar_cast(page, turns, portraits):
     """Change portraits and send real turns within the current local session."""
     from playwright.sync_api import expect
@@ -452,8 +462,7 @@ def check_avatar_cast(page, turns, portraits):
         assert history.all_text_contents() == previous_history, "Switching portrait changed history"
 
         count = len(turns)
-        page.get_by_label("메시지", exact=True).fill(question)
-        page.get_by_role("button", name="전송", exact=True).click()
+        send_with_voice(page, question, character)
         expect(portrait).to_have_accessible_name(re.compile(cue_label))
         expect(portrait.get_by_test_id("avatar-character")).to_have_attribute(
             "data-gesture", gesture
@@ -751,7 +760,7 @@ def main():
                         expect(avatars.locator(f'option[value="{option}"]')).to_contain_text(role)
                     check_cold_portrait(page, avatars)
                     check_delayed_wave(page, avatars)
-                    check_expression_profiles(page, avatars)
+                    breathing = check_expression_profiles(page, avatars)
                     portraits = {
                         "seorin": check_portrait(
                             page, portrait, "seorin", '[data-art="seorin-office-tailoring"]'
@@ -818,6 +827,8 @@ def main():
                     expect(avatars).to_have_value("builtin")
                     expect(avatars.locator('option[value="hana"]')).to_have_count(0)
                     expect(portrait).to_be_visible()
+                    send_with_voice(page, "소개팅 인사", "seorin")
+                    expect(page.get_by_text("대화 준비됨")).to_be_visible()
                     expect(
                         page.get_by_role("listitem").filter(has_text="비서 전용 기억")
                     ).to_have_count(0)
@@ -891,11 +902,18 @@ def main():
                         screenshot = Path(screenshot_path)
                         screenshot.parent.mkdir(parents=True, exist_ok=True)
                         page.screenshot(path=str(screenshot), full_page=True)
+                    from portrait_proportions import check_proportions
+
+                    proof_context = browser.new_context(**profile)
+                    proportions = check_proportions(proof_context.new_page(), base, token)
+                    proof_context.close()
                     browser.close()
                     report = {
                         "react_browser": "passed",
                         "browser_profile": "Pixel 7" if mobile else "desktop",
                         "portraits": portraits,
+                        "portrait_proportions": proportions,
+                        "max_breathing_scale_error": breathing,
                         "synthetic_stt_tts": True,
                         "real_model_inference": False,
                         "synthetic_local_cloud_switching": True,
@@ -931,8 +949,12 @@ def main():
                             "bundled_korean_preview_plays_and_stops",
                             "microphone_interrupts_preview_until_recording_finishes",
                             "character_specific_painted_eyes_and_acting",
+                            "cast_breathing_preserves_anatomical_scale",
+                            "original_plate_face_and_clothing_registration",
+                            "painted_neck_shoulder_wrist_and_elbow_at_mid_and_full_reach",
                             "surprised_mouth_keeps_its_anchor_during_transition",
                             "assistant_avatar_restored_after_adult_mode",
+                            "turn_posts_selected_hana_isol_and_companion_seorin_voices",
                             "hana_tilt_isol_point_and_speech",
                             "narrated_phrases_follow_audio_and_settle_in_pause",
                             "narrated_gaze_head_torso_and_secondary_hair",

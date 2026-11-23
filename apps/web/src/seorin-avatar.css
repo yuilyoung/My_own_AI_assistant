@@ -15,8 +15,7 @@
 /* Torso, neck and trailing hair have independent joints in the 360-unit stage. */
 .narration__torso {
   transform-origin: 176px 349px;
-  transform: translateY(var(--torso-y, 0px)) rotate(var(--torso-angle, 0deg))
-    scaleY(calc(1 + var(--breath, 0) * 0.0025));
+  transform: translateY(var(--torso-y, 0px)) rotate(var(--torso-angle, 0deg));
 }
 
 .seorin .avatar-panel__head,

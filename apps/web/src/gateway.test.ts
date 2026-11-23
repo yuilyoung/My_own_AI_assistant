@@ -88,3 +88,15 @@ it("sends an optional session request UUID in the authenticated JSON body", asyn
     request_id: requestId,
   });
 });
+
+it("sends the selected Korean voice on a turn while preserving cancellation", async () => {
+  const client = new GatewayClient("local-test-token");
+  const request = vi.spyOn(client, "request").mockResolvedValue({ id: "turn" });
+  const abort = new AbortController();
+  await client.createTurn("session", "안녕하세요", abort.signal, "isol");
+  expect(request).toHaveBeenCalledWith("/sessions/session/turns", {
+    method: "POST",
+    body: JSON.stringify({ text: "안녕하세요", voice: "isol" }),
+    signal: abort.signal,
+  });
+});

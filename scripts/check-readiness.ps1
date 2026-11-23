@@ -1,6 +1,7 @@
 param(
     [ValidateSet("demo", "ollama", "cloud")][string]$Provider = "demo",
     [switch]$Voice,
+    [ValidateSet("none", "melo", "supertonic")][string]$TtsProvider,
     [switch]$Microphone,
     [switch]$Json
 )
@@ -10,6 +11,7 @@ $Python = Join-Path $Root ".venv\Scripts\python.exe"
 if (!(Test-Path $Python)) { throw "Run scripts\setup.ps1 first." }
 $env:PYTHONPATH = Join-Path $Root "services"
 $Options = @("--provider", $Provider)
+if ($TtsProvider) { $Options += @("--tts-provider", $TtsProvider) }
 if ($Voice) { $Options += "--voice" }
 if ($Microphone) { $Options += "--microphone" }
 if ($Json) { $Options += "--json" }

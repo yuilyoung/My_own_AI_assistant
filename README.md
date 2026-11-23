@@ -1,6 +1,6 @@
 # My own AI assistant
 
-Windows 로컬 PC에서 시작해 Mac mini로 이전할 수 있는 **개인 AI 비서 + 가상 소개팅 공통 엔진**입니다. 최종 화면은 2D Live2D 캐릭터를 사용합니다.
+Windows 로컬 PC에서 시작해 Mac mini로 이전할 수 있는 **개인 AI 비서 + 가상 소개팅 공통 엔진**입니다. 세 캐릭터의 원화를 브라우저에서 움직여 대화 화면에 표시합니다.
 
 > 로컬과 클라우드 연결을 제공하는 React 화면에서 텍스트 대화, 버튼식 음성 입력·전사 검토, 음성 재생, 모드별 기억과 비서 메모를 사용할 수 있습니다. 실제 Live2D 렌더러는 아직 연결되지 않았습니다. 기본 실행은 고정 응답 demo이며 실제 AI 대화에는 로컬 모델 설치 또는 클라우드 API 키·모델 설정이 필요합니다.
 
@@ -8,11 +8,11 @@ Windows 로컬 PC에서 시작해 Mac mini로 이전할 수 있는 **개인 AI �
 
 - 현재는 Windows 로컬 1인용으로 실행하고, Mac mini는 향후 서버 이전 대상입니다.
 - 비서와 소개팅은 엔진 코드를 공유하지만 대화 기억과 도구 권한은 서버에서 분리합니다.
-- 로컬 LLM/Ollama, whisper.cpp STT, MeloTTS 한국어 음성을 단계적으로 연결합니다.
+- Ollama로 로컬 대화를, whisper.cpp로 마이크 전사를, Supertonic 2 또는 MeloTTS로 한국어 답변 낭독을 연결할 수 있습니다.
 - 기본 진단 모드의 고정 응답을 실제 AI 응답으로 표시하지 않습니다.
 - 유료 API, API 키, 캐릭터 구매는 기본 진단 실행의 필수 조건이 아닙니다.
 - 마이크는 사용자가 버튼으로 시작하며, 전사 결과를 확인한 뒤 직접 전송합니다.
-- API 키, 대화 데이터, 모델 가중치, Cubism Core와 캐릭터 자산은 저장소에 포함하지 않습니다.
+- API 키, 대화 데이터, 모델 가중치와 개인 Cubism 자산은 각 실행 환경에 따로 둡니다. 저장소에는 이 프로젝트에서 만든 캐릭터 원화와 한국어 미리듣기 음원이 들어 있습니다.
 - 인터넷 공개·다중 사용자 서비스·상용 배포는 이번 로컬 MVP의 범위가 아닙니다.
 
 ## 문서
@@ -34,7 +34,7 @@ Windows 로컬 PC에서 시작해 Mac mini로 이전할 수 있는 **개인 AI �
                     |
   모드 정책 / 대화 취소 / 기억 / 제한된 비서 도구
           |          |          |          |
-        SQLite     Ollama   whisper.cpp   MeloTTS
+        SQLite     Ollama   whisper.cpp   Supertonic 2 / MeloTTS
 ```
 
 React/Vite 화면과 개발용 진단 화면을 제공합니다. 두 화면은 동일한 인증 API와 음성 모듈을 사용하며 HTTP 폴링으로 상태를 확인합니다. Gateway는 React 운영 빌드가 있으면 이를 제공하고, 없으면 진단 화면을 제공합니다.
@@ -43,7 +43,7 @@ React/Vite 화면과 개발용 진단 화면을 제공합니다. 두 화면은 �
 
 데모, 같은 서버의 Ollama, 설정한 클라우드 API를 웹 화면의 **LLM 서비스**에서 전환할 수 있습니다. 전환 시 새 대화를 시작하고 서비스별 기억·메모를 분리합니다. 클라우드 키와 모델은 서버에 설정하며, 키가 없으면 해당 옵션을 사용할 수 없습니다. Render의 로컬 옵션은 사용자 PC의 Ollama를 자동 연결하지 않습니다.
 
-**개인 비서 → 아바타 종류**에서 고등학생 하나, 직장인 서린, 대학생 이솔을 선택할 수 있습니다. 성인 캐릭터와 대화하는 **가상 소개팅**에서는 서린과 이솔을 선택할 수 있습니다. **표정·동작 미리보기 → 내레이션 미리듣기**에서 한국어 샘플을 재생하면 발음과 쉼에 맞춰 눈, 입술, 고개와 머리카락이 움직입니다. 인사와 가리키기도 직접 실행할 수 있습니다. TTS가 켜져 있으면 캐릭터의 입이 재생 음량과 음색을 따라 움직입니다. **Live2D**에서는 사용권을 확보한 모델과 SDK 어댑터를 연결할 수 있습니다. [캐릭터와 모션 가이드](docs/design/motion-characters.md) · [서비스 설정 안내](docs/local-cloud-services.md)
+**개인 비서 → 아바타 종류**에서 한국 교복을 입은 고등학생 하나, 직장인 서린, 대학생 이솔을 선택할 수 있습니다. **가상 소개팅**에는 성인 캐릭터인 서린과 이솔이 등장합니다. **표정·동작 미리보기**에서 **인사말 듣기**와 **내레이션 미리듣기**를 누르면 캐릭터마다 다른 목소리로 인사하고 자신을 소개합니다. 여섯 샘플은 웹 앱에 포함되어 음성 워커를 설치하기 전에도 들을 수 있습니다. 대화 답변을 생성하거나 읽는 동안에는 아바타 선택이 잠기고, 답변이 끝나거나 중지되면 다시 선택할 수 있습니다. [캐릭터별 원화·동작 영상](docs/design/motion-characters.md) · [세 캐릭터의 자세 비교](docs/design/portrait-proportions.webp) · [서비스 설정 안내](docs/local-cloud-services.md)
 
 ## Windows에서 실행
 
@@ -68,7 +68,7 @@ cd ../..
 
 ### Windows 로컬 준비 상태 점검 (비침습적 검사)
 
-Gateway를 시작하기 전 현재 PC의 준비 상태를 확인할 수 있습니다. 빌드 파일, 클라우드 API 키와 모델 ID 설정 여부, Ollama 로컬 모델 등록 여부, whisper.cpp 실행 파일·다국어 모델 경로, MeloTTS 인증 라우트를 확인합니다. **모델 추론·합성·마이크 녹음·SDK 로딩을 실행하지 않으며 네트워크는 구성된 loopback 주소로만 연결합니다.**
+Gateway를 시작하기 전 현재 PC의 준비 상태를 확인할 수 있습니다. 빌드 파일, 클라우드 API 키와 모델 ID 설정 여부, Ollama 로컬 모델 등록 여부, whisper.cpp 실행 파일·다국어 모델 경로, 선택한 TTS 워커의 인증 라우트를 확인합니다. **모델 추론·합성·마이크 녹음·SDK 로딩을 실행하지 않으며 네트워크는 구성된 loopback 주소로만 연결합니다.**
 
 ```powershell
 .\scripts\check-readiness.ps1
@@ -87,7 +87,7 @@ Gateway를 시작하기 전 현재 PC의 준비 상태를 확인할 수 있습�
 
 공식 SDK와 캐릭터별 사용권을 직접 확인한 모델 export 전체 폴더는 **웹 빌드 외부의 비공개 폴더**에 두고, 로컬 Gateway의 환경 변수 `ASSISTANT_AVATAR_DIR`에 그 폴더 경로를 설정합니다. `apps/web/public/avatar-local/`에 넣으면 Vite가 웹 배포 산출물(`dist/`)로 파일을 복사할 수 있으므로 권장하지 않습니다. SDK 자산 추가만으로 React를 다시 빌드할 필요는 없습니다. React 아바타 패널의 **모델 JSON 검사**에 `/avatar-local/Haru/Haru.model3.json`을 입력하면 모델 참조 경로와 LipSync 파라미터 목록을 검사합니다. 이 기능은 실제 Cubism Core/Framework를 실행하거나 모델을 그리지 않습니다. 추가로 **참조 파일 접근 검사**를 누르면 `.model3.json`에 명시된 고유 자산에 동일 출처 `HEAD` 요청(최대 4개 병렬)을 보내 HTTP 실패·빈 파일·HTML fallback을 보고합니다. 이는 현재 서버에서의 접근 가능성만 확인하며 파일 무결성, SDK 호환성, 이용 조건 또는 실제 렌더링을 증명하지 않습니다. [자산 전달·검증 안내](docs/live2d-asset-handoff.md)를 참고하세요.
 
-> 2026-11-23: 공개 HTTPS Gateway는 인증되지 않은 `/avatar-local/` 정적 파일 요청을 **404로 차단**하고, `ASSISTANT_PUBLIC_ORIGIN`과 `ASSISTANT_AVATAR_DIR`의 동시 설정을 거부합니다. 클라우드 **LLM API를 로컬 PC에서 사용하는 것**과 `Render` 등의 **공개 Gateway 배포**는 다릅니다. 공개 배포에서는 현재 내장 SVG만 지원합니다. 사용권이 있는 Cubism 자산이라도 별도 인증·배포 설계 전에는 공개하지 마세요. 이미 빌드 산출물에 복사한 자산은 제거 후 재배포해야 합니다.
+> 2026-11-23: 공개 HTTPS Gateway는 인증되지 않은 `/avatar-local/` 정적 파일 요청을 **404로 차단**하고, `ASSISTANT_PUBLIC_ORIGIN`과 `ASSISTANT_AVATAR_DIR`의 동시 설정을 거부합니다. 클라우드 **LLM API를 로컬 PC에서 사용하는 것**과 `Render` 등의 **공개 Gateway 배포**는 다릅니다. 공개 배포에서는 SVG에서 WebP 원화 레이어를 합성하는 내장 캐릭터를 사용합니다. 사용권이 있는 Cubism 자산이라도 별도 인증·배포 설계 전에는 공개하지 마세요. 이미 빌드 산출물에 복사한 자산은 제거 후 재배포해야 합니다.
 >
 > Live2D 진행 상황: React 음성 RMS → SDK 어댑터 브리지와 모델별 표정·모션 이름 확인은 구현했으나, 공식 Cubism Core/렌더러와 캐릭터는 미연결입니다. 실제 렌더링·립싱크는 미완료입니다.
 >
@@ -144,7 +144,7 @@ ollama pull qwen3:4b
 
 ### 버튼식 한국어 음성 입력
 
-공식 whisper.cpp 실행 파일과 다국어 모델을 별도 설치합니다. 실제 마이크·한국어 모델의 품질과 지연은 아직 검증하지 않았습니다.
+공식 whisper.cpp 실행 파일과 다국어 모델을 별도 설치합니다. Gateway에서 whisper.cpp v1.8.2와 다국어 small 모델로 한국어 샘플 세 편을 전사했습니다. 브라우저의 가상 마이크로 재생한 이솔의 음성도 녹음부터 전사까지 시험했고, 띄어쓰기와 문장부호를 제외한 한글 음절이 대본과 일치했습니다. 물리 마이크와 생활 소음이 있는 방에서의 정확도·지연은 별도 측정이 필요합니다.
 
 ```powershell
 $env:WHISPER_CLI = 'C:\tools\whisper.cpp\build\bin\Release\whisper-cli.exe'
@@ -156,7 +156,14 @@ $env:WHISPER_MODEL = 'C:\tools\whisper.cpp\models\ggml-small.bin'
 
 ### 한국어 TTS
 
-`workers/tts-melo/server.py`를 MeloTTS가 설치된 별도 환경에서 실행합니다. 워커와 Gateway에 동일한 32자 이상 임의의 `MELO_TOKEN`을 설정한 뒤 `start.ps1 -Provider ollama -Voice`로 연결합니다. Gateway 설치가 MeloTTS·PyTorch·가중치를 자동 설치하지는 않습니다. OS/모델 호환성은 실기기 검증이 필요합니다.
+Supertonic 2 워커를 설치하면 실제 대화 답변을 하나(F2), 서린(F1), 이솔(F5)의 한국어 음성으로 읽습니다. 워커와 Gateway에 동일한 `SUPERTONIC_TOKEN`을 지정하고, 워커를 시작한 뒤 아래 명령으로 연결하세요. 마이크로 질문도 입력하려면 whisper.cpp를 준비하고 실행 명령에 `-Microphone`을 더하세요. [Supertonic 2 모델 다운로드와 워커 설치](workers/tts-supertonic/README.md)
+
+```powershell
+.\scripts\check-readiness.ps1 -TtsProvider supertonic
+.\scripts\start.ps1 -Provider ollama -TtsProvider supertonic
+```
+
+MeloTTS의 단일 한국어 음성을 사용하려면 별도 환경에서 `workers/tts-melo/server.py`를 실행합니다. 워커와 Gateway에 동일한 32자 이상 `MELO_TOKEN`을 지정하고 `.\scripts\start.ps1 -Provider ollama -TtsProvider melo`로 연결하세요.
 
 ## 테스트
 
