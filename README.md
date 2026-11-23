@@ -85,8 +85,10 @@ Gateway를 시작하기 전 현재 PC의 준비 상태를 확인할 수 있습�
 
 
 
-공식 SDK와 캐릭터별 사용권을 직접 확인한 모델 export 전체 폴더를 `apps/web/public/avatar-local/Haru/` 같은 로컬 전용 경로에 넣고 React를 다시 빌드합니다. React 아바타 패널의 **모델 JSON 검사**에 `/avatar-local/Haru/Haru.model3.json`을 입력하면 모델 참조 경로와 LipSync 파라미터 목록을 검사합니다. 이 기능은 실제 Cubism Core/Framework를 실행하거나 모델을 그리지 않습니다. 추가로 **참조 파일 접근 검사**를 누르면 `.model3.json`에 명시된 고유 자산에 동일 출처 `HEAD` 요청(최대 4개 병렬)을 보내 HTTP 실패·빈 파일·HTML fallback을 보고합니다. 이는 현재 서버에서의 접근 가능성만 확인하며 파일 무결성, SDK 호환성, 이용 조건 또는 실제 렌더링을 증명하지 않습니다. [자산 전달·검증 안내](docs/live2d-asset-handoff.md)를 참고하세요.
+공식 SDK와 캐릭터별 사용권을 직접 확인한 모델 export 전체 폴더는 **웹 빌드 외부의 비공개 폴더**에 두고, 로컬 Gateway의 환경 변수 `ASSISTANT_AVATAR_DIR`에 그 폴더 경로를 설정합니다. `apps/web/public/avatar-local/`에 넣으면 Vite가 웹 배포 산출물(`dist/`)로 파일을 복사할 수 있으므로 권장하지 않습니다. SDK 자산 추가만으로 React를 다시 빌드할 필요는 없습니다. React 아바타 패널의 **모델 JSON 검사**에 `/avatar-local/Haru/Haru.model3.json`을 입력하면 모델 참조 경로와 LipSync 파라미터 목록을 검사합니다. 이 기능은 실제 Cubism Core/Framework를 실행하거나 모델을 그리지 않습니다. 추가로 **참조 파일 접근 검사**를 누르면 `.model3.json`에 명시된 고유 자산에 동일 출처 `HEAD` 요청(최대 4개 병렬)을 보내 HTTP 실패·빈 파일·HTML fallback을 보고합니다. 이는 현재 서버에서의 접근 가능성만 확인하며 파일 무결성, SDK 호환성, 이용 조건 또는 실제 렌더링을 증명하지 않습니다. [자산 전달·검증 안내](docs/live2d-asset-handoff.md)를 참고하세요.
 
+> 2026-11-23: 공개 HTTPS Gateway는 인증되지 않은 `/avatar-local/` 정적 파일 요청을 **404로 차단**하고, `ASSISTANT_PUBLIC_ORIGIN`과 `ASSISTANT_AVATAR_DIR`의 동시 설정을 거부합니다. 클라우드 **LLM API를 로컬 PC에서 사용하는 것**과 `Render` 등의 **공개 Gateway 배포**는 다릅니다. 공개 배포에서는 현재 내장 SVG만 지원합니다. 사용권이 있는 Cubism 자산이라도 별도 인증·배포 설계 전에는 공개하지 마세요. 이미 빌드 산출물에 복사한 자산은 제거 후 재배포해야 합니다.
+>
 > Live2D 진행 상황: React 음성 RMS → SDK 어댑터 브리지와 모델별 표정·모션 이름 확인은 구현했으나, 공식 Cubism Core/렌더러와 캐릭터는 미연결입니다. 실제 렌더링·립싱크는 미완료입니다.
 >
 > 2026-11-20: 로컬 Cubism 어댑터 **재연결** 시 동일 WebGL canvas에 새 런타임을 만들기 전에 이전 렌더러를 해제합니다. 새 어댑터 팩토리가 실패해도 기존 SDK로 음성 RMS가 계속 전달되지 않도록 했습니다. 모의 SDK 재연결/실패 React 회귀 테스트 2개로 검증했으며, 공식 Cubism Core·모델의 실제 화면 및 사용자 Windows PC 검증 결과는 아닙니다. ([PR #24](https://github.com/yuilyoung/My_own_AI_assistant/pull/24))
