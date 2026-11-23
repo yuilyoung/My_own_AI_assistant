@@ -8,7 +8,7 @@
 - 사용할 캐릭터의 **실행용 export 전체 폴더**: `.model3.json`, 참조된 `.moc3`, 텍스처, 표정·모션, physics/pose 등 모델 JSON이 참조하는 부속 파일. `.cmo3` 원본만으로 브라우저 실행을 대신할 수 없다.
 - 캐릭터 출처, 버전, 개인 로컬 테스트에 사용할 수 있는 조건. 사용 조건을 별도로 수락해야 하는 경우 사용자가 직접 확인한다.
 
-기존 파일을 제공하거나, 공식 SDK와 선택한 공식 샘플 모델을 개인 로컬 검증에 사용하도록 지정할 수 있다. 확인된 자산은 비공개 로컬 경로에서 읽고 임의로 공개 저장소에 재배포하지 않는다. `.gitignore`는 SDK/모델 로컬 디렉터리를 제외한다.
+기존 파일을 제공하거나, 공식 SDK와 선택한 공식 샘플 모델을 개인 로컬 검증에 사용하도록 지정할 수 있다. **공개 HTTPS Gateway에서는 `/avatar-local/` 요청을 차단하고 `ASSISTANT_AVATAR_DIR` 동시 설정을 거부한다. 로컬 PC에서 클라우드 LLM API를 선택하는 기능은 계속 사용할 수 있다.** 확인된 자산은 비공개 로컬 경로에서 읽고 임의로 공개 저장소에 재배포하지 않는다. `.gitignore`는 SDK/모델 로컬 디렉터리를 제외한다.
 
 ## 확보한 뒤 진행할 작업
 
@@ -19,8 +19,8 @@
 ## 로컬 모델 JSON 사전 검사 (새 기능, 렌더링 아님)
 
 1. 공식 SDK/Core 및 사용할 캐릭터의 이용 조건을 확인한다. Core·모델을 공개 Git 저장소에 커밋하지 않는다.
-2. 내보낸 캐릭터 전체 폴더를 `apps/web/public/avatar-local/Haru/`처럼 사용자 PC에 둔다. 이 경로는 `.gitignore` 대상이다.
-3. `cd apps/web; npm ci; npm run build`로 정적 자산을 포함해 빌드하고 로컬 Gateway를 시작한다.
+2. 내보낸 캐릭터 전체 폴더는 웹 빌드 밖의 비공개 디렉터리(예: `C:\\private-avatar-assets\\Haru\\`)에 둔다. `apps/web/public/avatar-local/`은 Vite 빌드시 `dist/`에 복사될 수 있어 사용하지 않는다.
+3. `cd apps/web; npm ci; npm run build`로 React를 빌드한 뒤, `ASSISTANT_AVATAR_DIR=C:\\private-avatar-assets` 같은 로컬 환경 변수를 설정하고 **loopback Gateway**를 시작한다. 모델·SDK 파일 자체는 `dist/`에 복사하지 않는다.
 4. React 화면의 **모델 JSON 검사**에 `/avatar-local/Haru/Haru.model3.json`처럼 실제 파일명을 입력한다.
 
 **모델 JSON 검사**는 model3 메타데이터의 Moc·Textures·Expressions·Motions 및 모션의 선택적 `Sound`·LipSync 그룹을 읽고 안전한 상대 경로만 허용한다. 모션 `Sound`가 지정되어 있으면 해당 음성 파일도 HEAD 검사 대상이 된다. 빈 `Sound`는 허용하되 누락 파일·경로 탈출은 문제로 보고한다. 음성 자산의 접근 확인이 실제 모션 오디오 재생이나 SDK 호환성을 증명하지는 않는다. 이후 **참조 파일 접근 검사**를 누르면 모든 고유 참조 파일에 동일 출처 `HEAD` 요청을 보내 서버의 접근 가능성을 확인한다. 파일이 없으면 HTTP 오류, SPA의 HTML fallback, 비어 있는 파일을 문제로 표시한다. `HEAD` 미지원 서버도 실패로 보고된다. **이 검사는 실제 파일 내용·MOC3 무결성, SDK/모델 버전 호환성, 사용권 충족, 실제 캔버스 렌더링, 표정·모션·립싱크 구동을 검사하지 않는다.** 두 검사 모두 통과하더라도 앱 완성으로 표시하지 않는다.
@@ -47,7 +47,7 @@ React의 **모델 JSON 검사**는 이제 이 매핑에 필요한 표정 이름�
 
 ## 2026-11-03: 비공개 Cubism 어댑터 연결 진입점
 
-`apps/web/src/licensed-avatar.ts`에서 별도 설치한 ES 모듈 `/avatar-local/runtime/adapter.js`의 `createAvatarAdapter(canvas)`를 **사용자 버튼 클릭 시에만** 가져오는 진입점을 제공한다. 디스크 경로는 `apps/web/public/avatar-local/runtime/adapter.js`이며 `.gitignore`에 의해 Git 커밋에서 제외된다. React의 **참조 파일 접근 검사**에서 모든 참조 자산이 접근 가능해야 **로컬 Cubism 어댑터 연결** 버튼이 활성화된다. 모델 JSON·HEAD 검사 자체는 이 모듈을 실행하지 않는다.
+`apps/web/src/licensed-avatar.ts`에서 별도 설치한 ES 모듈 `/avatar-local/runtime/adapter.js`의 `createAvatarAdapter(canvas)`를 **사용자 버튼 클릭 시에만** 가져오는 진입점을 제공한다. 디스크 경로는 `ASSISTANT_AVATAR_DIR` 아래 `runtime/adapter.js`이고 웹 `dist/`에는 넣지 않는다. 해당 경로는 `127.0.0.1` 로컬 Gateway에서만 제공한다. React의 **참조 파일 접근 검사**에서 모든 참조 자산이 접근 가능해야 **로컬 Cubism 어댑터 연결** 버튼이 활성화된다. 모델 JSON·HEAD 검사 자체는 이 모듈을 실행하지 않는다.
 
 모듈은 공식 Cubism Web SDK/Core에 맞춰 사용자가 별도로 제작해야 한다. `createAvatarAdapter(canvas)`가 반환하는 객체에는 `load(modelUrl): Promise<void>`, `setExpression(name): void`, `setMotion(group): void`, `setLipSync(level): void`, `dispose(): void`가 필요하다. `setLipSync` 입력은 0~1이고 실제 파라미터 ID는 모델의 LipSync 그룹에 맞춰야 한다. 표정/모션도 실제 모델 export에 있는 이름에만 매핑한다. UI 언로드/모드 전환 시 브리지를 해제하여 `dispose()`를 호출한다.
 
