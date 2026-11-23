@@ -3,7 +3,7 @@
 import os
 import sys
 from pathlib import Path
-from typing import Literal
+from typing import Literal, NamedTuple
 
 # Both workers can run directly in their own virtual environment.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -14,8 +14,18 @@ class VoiceInput(TextInput):
     voice: Literal["hana", "seorin", "isol"] = "seorin"
 
 
-# The distributed bank packs F1–F5 first. Rates match the portraits' recorded intros.
-VOICE_PROFILES = {"hana": (1, 0.86), "seorin": (0, 0.95), "isol": (4, 0.95)}
+class VoiceProfile(NamedTuple):
+    speaker: int
+    speech_rate: float  # Native syllable timing, applied by Supertonic.
+    register: float  # Change resonance and pitch by this ratio after synthesis.
+
+
+# The gallery and live turns use the same Korean stock speakers and direction.
+VOICE_PROFILES = {
+    "hana": VoiceProfile(speaker=3, speech_rate=0.82, register=1.20),
+    "seorin": VoiceProfile(speaker=0, speech_rate=0.95, register=1.0),
+    "isol": VoiceProfile(speaker=1, speech_rate=0.99, register=1.0),
+}
 MODEL_FILES = {
     "duration_predictor": "duration_predictor.int8.onnx",
     "text_encoder": "text_encoder.int8.onnx",
@@ -39,7 +49,9 @@ def load_synthesizer(directory: Path):
         if not Path(path).is_file():
             raise ValueError(f"Missing Supertonic 2 model file: {path}")
 
+    import numpy as np
     import sherpa_onnx
+    import soxr
 
     model = sherpa_onnx.OfflineTts(
         sherpa_onnx.OfflineTtsConfig(
@@ -55,11 +67,21 @@ def load_synthesizer(directory: Path):
 
     def synthesize(text, voice):
         config = sherpa_onnx.GenerationConfig()
-        config.sid, config.speed = VOICE_PROFILES[voice]
+        profile = VOICE_PROFILES[voice]
+        config.sid = profile.speaker
+        config.speed = profile.speech_rate
         config.num_steps = 24
         config.extra = {"lang": "ko"}
         audio = model.generate(text, config)
-        return pcm16_wav(audio.samples, audio.sample_rate)
+        samples = audio.samples
+        if profile.register != 1.0:
+            samples = soxr.resample(
+                np.asarray(samples, dtype=np.float32),
+                audio.sample_rate * profile.register,
+                audio.sample_rate,
+                quality="HQ",
+            )
+        return pcm16_wav(samples, audio.sample_rate)
 
     return synthesize
 

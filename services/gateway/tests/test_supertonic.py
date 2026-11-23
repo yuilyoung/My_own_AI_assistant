@@ -65,11 +65,16 @@ def test_selected_turn_voice_reaches_worker_and_returns_session_audio(tmp_path):
         assert len(sent) == 4
 
 
-def test_supertonic_worker_contract_and_readiness(tmp_path):
+@pytest.fixture
+def worker():
     path = Path(__file__).resolve().parents[3] / "workers/tts-supertonic/server.py"
     spec = importlib.util.spec_from_file_location("supertonic_worker", path)
     worker = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(worker)
+    return worker
+
+
+def test_supertonic_worker_contract_and_readiness(tmp_path, worker):
     received = []
 
     def synthesize(text, voice):
@@ -170,3 +175,50 @@ def test_voice_switch_prefers_configured_character_worker(monkeypatch, saved, to
     monkeypatch.setattr(readiness_cli, "inspect_local_readiness", inspect)
     assert readiness_cli.main(["--voice", "--json"]) == 0
     assert selected == [expected]
+
+
+def test_live_synthesis_uses_the_cast_recording_profile_on_new_text(tmp_path, monkeypatch, worker):
+    """Exercise the actual worker entry's model and output path without installing ML in the gateway."""
+    import sys
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    for name in worker.MODEL_FILES.values():
+        (tmp_path / name).touch()
+    raw, adjusted = [0.1, -0.1, 0.0], [0.14, -0.08]
+    model = Mock(num_speakers=10)
+    model.generate.return_value = SimpleNamespace(samples=raw, sample_rate=44100)
+    sherpa = SimpleNamespace(
+        OfflineTts=Mock(return_value=model),
+        OfflineTtsConfig=SimpleNamespace,
+        OfflineTtsModelConfig=SimpleNamespace,
+        OfflineTtsSupertonicModelConfig=SimpleNamespace,
+        GenerationConfig=SimpleNamespace,
+    )
+    resample = Mock(return_value=adjusted)
+    monkeypatch.setitem(sys.modules, "sherpa_onnx", sherpa)
+    monkeypatch.setitem(
+        sys.modules, "numpy", SimpleNamespace(asarray=lambda samples, dtype: samples, float32=float)
+    )
+    monkeypatch.setitem(sys.modules, "soxr", SimpleNamespace(resample=resample))
+    monkeypatch.setattr(worker, "pcm16_wav", lambda samples, rate: (samples, rate))
+    synthesize = worker.load_synthesizer(tmp_path)
+    for name, speaker, speed in [("hana", 3, 0.82), ("isol", 1, 0.99), ("seorin", 0, 0.95)]:
+        resample.reset_mock()
+        text = f"지금 {name} 목소리로 처음 읽는 한 문장이에요."
+        samples, rate = synthesize(text, name)
+        spoken, config = model.generate.call_args.args
+        assert (spoken, config.sid, config.num_steps, config.extra) == (
+            text,
+            speaker,
+            24,
+            {"lang": "ko"},
+        )
+        assert config.speed == speed
+        assert rate == 44100
+        if name != "hana":
+            assert samples is raw
+            resample.assert_not_called()
+        else:
+            assert samples is adjusted
+            resample.assert_called_once_with(raw, rate * 1.20, rate, quality="HQ")

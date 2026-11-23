@@ -35,6 +35,27 @@ describe("narrator motion", () => {
     expect(sample(model, 0.1, sound).accent).toBeGreaterThan(0.2);
   });
 
+  it("gives Seorin one gentle brow lift per phrase through repeated syllables", () => {
+    const model = createNarrationMotion("seorin");
+    const lifts: number[] = [];
+    const accents: number[] = [];
+    for (let frame = 0; frame < 180; frame++) {
+      const syllable = frame % 18 < 11 ? 0.8 : 0;
+      const pose = model.advance(1 / 60, { ...idle, level: syllable });
+      lifts.push(pose.browLift);
+      accents.push(pose.accent);
+    }
+    expect(lifts[0]).toBeLessThan(0.1);
+    expect(Math.max(...lifts.slice(4, 20))).toBeGreaterThan(0.8);
+    expect(Math.max(...accents.slice(60))).toBeGreaterThan(0.6);
+    expect(Math.max(...lifts.slice(60))).toBe(0);
+    expect(sample(model, 0.8, { ...idle, level: 0.008 }).browLift).toBe(0);
+    expect(
+      sample(model, 0.16, { ...idle, level: 0.8 }).browLift,
+    ).toBeGreaterThan(0.8);
+    expect(sample(model, 1, { ...idle, level: 0.8 }).browLift).toBe(0);
+  });
+
   it("moves the eyes before the head and torso, with counter-rotation in the loose hair", () => {
     const model = createNarrationMotion("isol", 31);
     const focus = { ...idle, emotion: "curious" as const, cueToken: {} };

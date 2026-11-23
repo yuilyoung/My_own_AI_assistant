@@ -21,6 +21,10 @@ type PaintedEye = {
     travel: Point;
   };
   brow: Registration;
+  /** Anatomical hinge in the original painting; a crop may include a long, fading brow tail. */
+  browPivot?: Point;
+  /** Visible forehead contour where a fringe passes in front of the brow. */
+  browClip?: string;
   closed: Registration;
   center: Point;
   blinkY: number;
@@ -111,8 +115,19 @@ const Eye = memo(function Eye({
     eye.brow.x + eye.brow.width / 2,
     eye.brow.y + eye.brow.height / 2,
   ];
-  const rise = (asymmetric ? -0.02 : pose.brow) * eye.open.height * strength;
-  const slope = (asymmetric ? 2 : pose.slope) * (right ? -1 : 1) * strength;
+  const browPivot = eye.browPivot ?? browCenter;
+  const seorin = character === "seorin";
+  // The inked space between Seorin's eye and brow sets the travel in her own
+  // drawing. Padding around a lash crop should never magnify the expression.
+  const browRange = seorin
+    ? Math.max(0, eye.center[1] - browCenter[1])
+    : eye.open.height;
+  const rise = (asymmetric ? -0.02 : pose.brow) * browRange * strength;
+  const slope =
+    (asymmetric ? 2 : pose.slope) *
+    (right ? -1 : 1) *
+    strength *
+    (seorin ? 0.74 : 1);
   const gaze = eye.gaze;
   const { x, y, width, height } = eye.open;
   // Start safely above the painted crease. The upper lid sweeps down over a stationary iris.
@@ -125,14 +140,19 @@ const Eye = memo(function Eye({
   const aperture = `M${left} ${top - drop} Q${x + width / 2} ${top + bow * 2} ${rightEdge} ${top + drop} V${y + height * 2} H${left}Z`;
   const variables = {
     "--lid-travel": `${eye.blinkY - (top + bow)}px`,
-    "--brow-range": `${-height * 0.092 * strength}px`,
-    "--brow-tilt": `${(right ? -0.75 : 1) * strength * 2.2}deg`,
+    "--brow-range": `${seorin ? -browRange * (right ? 0.042 : 0.064) : -height * 0.092 * strength}px`,
+    "--brow-tilt": `${seorin ? 0 : (right ? -0.75 : 1) * strength * 2.2}deg`,
     "--travel-x": `${gaze.travel[0]}px`,
     "--travel-y": `${gaze.travel[1]}px`,
   } as CSSProperties;
   return (
     <g className="painted-face__eye" style={variables}>
       <defs>
+        {eye.browClip && (
+          <clipPath id={id + "-forehead"}>
+            <path d={eye.browClip} />
+          </clipPath>
+        )}
         <clipPath id={id + "-lid"}>
           <path className="painted-face__lid-aperture" d={aperture} />
         </clipPath>
@@ -157,16 +177,15 @@ const Eye = memo(function Eye({
         </g>
         <Texture area={eye.closed} className="painted-face__closed" />
       </g>
-      <g
-        className="painted-face__brow-pose"
-        style={{ transformOrigin: `${browCenter[0]}px ${browCenter[1]}px` }}
-        transform={rest ? undefined : `translate(0 ${rise}) rotate(${slope})`}
-      >
+      <g clipPath={eye.browClip ? `url(#${id}-forehead)` : undefined}>
         <g
-          className="seorin__speech-brows"
-          style={{ transformOrigin: `${browCenter[0]}px ${browCenter[1]}px` }}
+          className="painted-face__brow-pose"
+          style={{ transformOrigin: `${browPivot[0]}px ${browPivot[1]}px` }}
+          transform={rest ? undefined : `translate(0 ${rise}) rotate(${slope})`}
         >
-          <Texture area={eye.brow} className="painted-face__brow" />
+          <g className="painted-face__brow-emphasis">
+            <Texture area={eye.brow} className="painted-face__brow" />
+          </g>
         </g>
       </g>
     </g>

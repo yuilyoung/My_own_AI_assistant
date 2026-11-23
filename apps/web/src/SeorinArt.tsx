@@ -17,11 +17,10 @@ import socketRight from "./portraits/seorin/socket-right.webp";
 import irisRight from "./portraits/seorin/iris-right.webp";
 import lashesRight from "./portraits/seorin/lashes-right.webp";
 import closedR from "./portraits/seorin/closed-r.webp";
-import frontSweep from "./portraits/seorin/front-sweep.webp";
-import earring from "./portraits/seorin/earring.webp";
 import headBase from "./portraits/seorin/head-base.webp";
-import restSleeve from "./portraits/seorin/rest-sleeve.webp";
+import frontSweep from "./portraits/seorin/front-sweep.webp";
 import jacket from "./portraits/seorin/jacket.webp";
+import restSleeve from "./portraits/seorin/rest-sleeve.webp";
 import raisedJacket from "./portraits/seorin/raised-jacket.webp";
 import waveForearm from "./portraits/seorin/wave-forearm.webp";
 import wave from "./portraits/seorin/wave.webp";
@@ -30,7 +29,7 @@ import point from "./portraits/seorin/point.webp";
 
 type ArmPose = Extract<MotionCue, "greeting" | "point">;
 
-// All crops use the coordinates of the 1024 × 1536 portfolio portrait.
+// All crops use the coordinates of the 1024 × 1536 district-office portrait.
 const scale = 354 / 1536;
 const placement = `translate(62 6) scale(${scale})`;
 function stagePoint(x: number, y: number) {
@@ -41,45 +40,50 @@ const faceRig = {
   transform: placement,
   eyes: [
     {
-      open: { src: eyeL, x: 392, y: 276, width: 98, height: 36 },
+      open: { src: eyeL, x: 400, y: 237, width: 89, height: 52 },
       gaze: {
-        socket: { src: socketLeft, x: 413, y: 286, width: 72, height: 21 },
-        iris: { src: irisLeft, x: 438, y: 277, width: 33, height: 32 },
-        lid: { src: lashesLeft, x: 392, y: 276, width: 98, height: 36 },
+        socket: { src: socketLeft, x: 418, y: 248, width: 63, height: 38 },
+        iris: { src: irisLeft, x: 436, y: 247, width: 37, height: 40 },
+        lid: { src: lashesLeft, x: 400, y: 237, width: 89, height: 52 },
         contour:
-          "M414 298.4 Q421 293 437 290 Q456 285.4 468 288.5 Q478 289.6 483.4 294.6 Q462 300.4 452 302.1 Q436 306.7 427 305.3 Q421 304.2 414 298.4Z",
+          "M419.6 268.3Q425.4 257.2 437.6 253.4Q448.1 248.8 458.1 249.7Q470.7 251.7 479.8 263.6Q480.6 272.5 474.6 279.6Q463.8 284.4 445 284Q430.3 285.2 423.6 279.1Q419.5 274.4 419.6 268.3Z",
         travel: [5.2, 1.7],
       },
-      brow: { src: browL, x: 394, y: 255, width: 96, height: 21 },
-      closed: { src: closedL, x: 401, y: 295, width: 83, height: 17 },
-      center: [453.7, 292.6],
-      blinkY: 305,
+      brow: { src: browL, x: 434, y: 199, width: 63, height: 32 },
+      browPivot: [454, 214],
+      browClip: "M471 174H512V253H412Q424 241 436.3 224.4Q454.1 201 471 174Z",
+      closed: { src: closedL, x: 403, y: 268, width: 77, height: 24 },
+      center: [454.3, 266.6],
+      blinkY: 285,
     },
     {
-      open: { src: eyeR, x: 532, y: 250, width: 100, height: 45 },
+      open: { src: eyeR, x: 545, y: 230, width: 79, height: 52 },
       gaze: {
-        socket: { src: socketRight, x: 540, y: 267, width: 68, height: 25 },
-        iris: { src: irisRight, x: 558, y: 263, width: 33, height: 33 },
-        lid: { src: lashesRight, x: 532, y: 250, width: 100, height: 45 },
+        socket: { src: socketRight, x: 551, y: 241, width: 63, height: 38 },
+        iris: { src: irisRight, x: 561, y: 236, width: 37, height: 43 },
+        lid: { src: lashesRight, x: 545, y: 230, width: 79, height: 52 },
         contour:
-          "M541.5 287.8 Q550 277.6 563.6 275 Q577.5 270 595.6 270.7 L606.2 268.3 Q602.5 279.5 592.6 284.2 Q575.7 289.4 556.1 290.4 L541.5 290.5Z",
+          "M552.6 257.8Q558.6 248.4 567.5 245.6Q577.4 241.7 585.6 243.3Q601.5 246 612.5 254.6Q611.7 265.6 603.3 272.9Q592.9 278.4 578.9 276.8Q564.1 277.8 555.9 273.5Q552.3 266.3 552.6 257.8Z",
         travel: [5.2, 1.7],
       },
-      brow: { src: browR, x: 518, y: 232, width: 99, height: 35 },
-      closed: { src: closedR, x: 540, y: 264, width: 80, height: 30 },
-      center: [574.3, 278.8],
-      blinkY: 290,
+      brow: { src: browR, x: 531, y: 193, width: 86, height: 35 },
+      browPivot: [596, 207],
+      browClip:
+        "M512 174H606.5Q611.3 191.3 613.1 205.9Q616.2 224.5 621.4 249.6H512Z",
+      closed: { src: closedR, x: 551, y: 260, width: 75, height: 25 },
+      center: [578.9, 257.1],
+      blinkY: 278,
     },
   ],
   mouth: {
-    rest: { src: lip, x: 494, y: 376, width: 82, height: 38 },
-    upper: { src: upperLip, x: 494, y: 376, width: 81, height: 23 },
-    lower: { src: lowerLip, x: 494, y: 381, width: 82, height: 33 },
-    center: [534, 394.5],
-    width: 72,
-    height: 29,
-    angle: -10.4,
-    cornerRise: 4.7,
+    rest: { src: lip, x: 484, y: 348, width: 83, height: 27 },
+    upper: { src: upperLip, x: 484, y: 348, width: 83, height: 17 },
+    lower: { src: lowerLip, x: 484, y: 352, width: 83, height: 23 },
+    center: [526, 362],
+    width: 75,
+    height: 27,
+    angle: -3.6,
+    cornerRise: 4.0,
     color: "#713d42",
     tongue: "#c87878",
     teeth: "#f7e6d5",
@@ -102,15 +106,15 @@ const Wardrobe = memo(function SeorinWardrobe({
   return (
     <g data-art="seorin-office-tailoring">
       <g transform={placement}>
-        <image href={jacket} x="96" y="419" width="730" height="1117" />{" "}
+        <image href={jacket} x="0" y="393" width="925" height="1143" />{" "}
         {greeting ? null : (
           <image
             className="seorin__resting-sleeve"
             href={restSleeve}
-            x="692"
-            y="574"
-            width="255"
-            height="962"
+            x="689"
+            y="526"
+            width="240"
+            height="1010"
           />
         )}
       </g>
@@ -119,10 +123,10 @@ const Wardrobe = memo(function SeorinWardrobe({
           <g transform={placement}>
             <image
               href={raisedJacket}
-              x="759"
-              y="574"
-              width="174"
-              height="483"
+              x="724"
+              y="529"
+              width="155"
+              height="502"
             />
           </g>
         </g>
@@ -134,9 +138,9 @@ const Hand = memo(function SeorinHand({ gesture }: { gesture: ArmPose }) {
   return (
     <g transform={placement}>
       {gesture === "point" ? (
-        <image href={point} x="772" y="431" width="151" height="253" />
+        <image href={point} x="723" y="419" width="140" height="287" />
       ) : (
-        <image href={wave} x="754" y="393" width="177" height="276" />
+        <image href={wave} x="721" y="416" width="195" height="287" />
       )}
     </g>
   );
@@ -145,9 +149,9 @@ const Forearm = memo(function SeorinForearm({ gesture }: { gesture: ArmPose }) {
   return (
     <g transform={placement}>
       {gesture === "point" ? (
-        <image href={pointForearm} x="759" y="661" width="205" height="399" />
+        <image href={pointForearm} x="740" y="664" width="165" height="380" />
       ) : (
-        <image href={waveForearm} x="759" y="646" width="204" height="411" />
+        <image href={waveForearm} x="727" y="663" width="175" height="379" />
       )}
     </g>
   );
@@ -155,21 +159,14 @@ const Forearm = memo(function SeorinForearm({ gesture }: { gesture: ArmPose }) {
 const HairBehind = memo(function SeorinHead() {
   return (
     <g transform={placement}>
-      <image href={headBase} x="122" y="2" width="863" height="968" />
+      <image href={headBase} x="64" y="0" width="935" height="495" />
     </g>
   );
 });
-const Accessory = memo(function SeorinGoldDrop() {
+const Fringe = memo(function SeorinPonytail() {
   return (
     <g transform={placement}>
-      <image href={earring} x="630" y="322" width="19" height="57" />
-    </g>
-  );
-});
-const Fringe = memo(function SeorinLooseLock() {
-  return (
-    <g transform={placement}>
-      <image href={frontSweep} x="228" y="710" width="162" height="253" />
+      <image href={frontSweep} x="304" y="354" width="140" height="140" />
     </g>
   );
 });
@@ -178,17 +175,15 @@ export const seorinArt = {
   Wardrobe,
   HairBehind,
   Fringe,
-  Accessory,
   Forearm,
   Hand,
   faceRig,
-  shoulderPivot: stagePoint(820, 578),
-  elbowPivot: stagePoint(831, 1020),
-  handPivot: stagePoint(829, 657),
-  neckPivot: stagePoint(541, 516),
-  fringePivot: stagePoint(294, 745),
-  accessoryPivot: stagePoint(639, 329),
-  baseImages: [office, jacket, restSleeve, headBase, frontSweep, earring],
+  shoulderPivot: stagePoint(757, 573),
+  elbowPivot: stagePoint(816.81, 1008.13),
+  handPivot: stagePoint(796.38, 689.14),
+  neckPivot: stagePoint(526, 465),
+  fringePivot: stagePoint(367, 368),
+  baseImages: [office, jacket, restSleeve, headBase, frontSweep],
   poseImages: {
     greeting: [raisedJacket, waveForearm, wave],
     point: [raisedJacket, pointForearm, point],

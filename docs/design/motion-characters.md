@@ -7,19 +7,21 @@
 | 캐릭터 | 인물 디자인 |
 |---|---|
 | 하나 · 17세 고등학생 | 햇빛이 드는 교실에서 추리 소설을 즐겨 읽는다. 밝은 복숭앗빛 피부와 짙은 자줏빛 긴 머리, 남색 블레이저와 흰 셔츠, 자주색 리본과 체크 치마를 그렸다. [하나 원화](hana-original.png) |
-| 서린 · 28세 직장인 | 퇴근 무렵의 사무실. 짙은 자줏빛 긴 머리와 길게 올린 눈꼬리, 금빛 귀걸이, 아이보리 블라우스와 짙은색 재킷으로 자신감 있는 인상을 잡았다. [서린 원화](seorin-original.webp) |
+| 서린 · 28세 직장인 | 햇빛이 드는 사무실에서 팀 일정을 맡고 있다. 검은 머리를 낮게 묶고, 연보라색 셔츠에 회녹색 조끼와 이름표를 달았다. 한 손에는 회의 서류철을 든다. [서린 원화](seorin-original.webp) · [눈썹 움직임 비교](seorin-brow-motion.mp4) |
 | 이솔 · 22세 대학생 | 볕이 드는 캠퍼스 길. 밤색 단발을 한쪽 귀 뒤로 넘긴 이솔은 흰 티셔츠 위에 하늘색 셔츠를 걸치고, 캔버스 가방을 어깨에 멘 채 노트를 들고 있다. [이솔 원화](isol-original.png) |
+
+하나와 이솔의 목소리 비교에서는 두 사람이 각각 “안녕하세요! 오늘 날씨 참 좋네요. 우리 같이 걸을까요?”를 두 번 읽는다. 앞은 이전 목소리, 0.8초 쉰 뒤 들리는 쪽은 현재 목소리다. [하나의 목소리 비교](hana-voice-comparison.mp3) · [이솔의 목소리 비교](isol-voice-comparison.mp3)
 
 ## 움직임 보기
 
 | 캐릭터 음성 | 인사말 | 자기소개 |
 |---|---|---|
-| 하나 · F2 | [오늘 있었던 일 묻기](hana-greeting.mp4) | [추리 소설 이야기](hana-intro.mp4) |
+| 하나 · F4 | [오늘 있었던 일 묻기](hana-greeting.mp4) | [추리 소설 이야기](hana-intro.mp4) |
 | 서린 · F1 | [먼저 하고 싶은 일 묻기](seorin-greeting.mp4) | [프로젝트 일정 이야기](seorin-intro.mp4) |
-| 이솔 · F5 | [그늘에 함께 앉자고 하기](isol-greeting.mp4) | [캠퍼스에서 그리는 노트](isol-intro.mp4) |
+| 이솔 · F2 | [그늘에서 함께 쉬자고 하기](isol-greeting.mp4) | [캠퍼스에서 그리는 노트](isol-intro.mp4) |
 
 - 앱의 **표정·동작 미리보기**를 열고 **인사말 듣기** 또는 **내레이션 미리듣기**를 누르면 영상과 같은 한국어 음원을 들을 수 있다. 마이크를 켜거나 새 답변이 시작되거나 캐릭터를 바꾸면 샘플 재생을 멈춘다.
-- 문장의 첫소리와 억양이 강해지는 순간에 눈썹과 고개가 작게 반응한다. 음량과 음색은 입의 높이·폭을 정한다. 문장 사이에 쉬면 입은 닫히고, 고개와 어깨의 움직임은 서로 다른 속도로 가라앉는다.
+- 서린은 말을 꺼낼 때 눈썹을 살짝 들었다 내리고, 같은 구절의 다음 강세는 고개와 입으로 표현한다. 음량과 음색은 입의 높이·폭을 정한다. 문장 사이에 쉬면 입은 닫히고, 고개와 어깨의 움직임은 서로 다른 속도로 가라앉는다.
 - 캐릭터 안에서 마우스 포인터를 좌우로 옮기면 홍채가 먼저 따라간다. 고개와 몸통은 조금 늦게 움직이고, 하나의 앞머리와 양옆의 긴 머리카락은 뿌리를 중심으로 흔들리다 멈춘다.
 - **인사하기**와 **가리켜 설명하기**로 어깨에서 팔을 들어 손목까지 이어지는 동작을 볼 수 있다. 운영체제의 **동작 줄이기**에서는 표정과 손 모양, 음성에 맞춘 입술 움직임으로 말하는 상태를 확인할 수 있다.
 
@@ -27,7 +29,7 @@
 
 - Live2D가 공개한 모모세 히요리 영상과 버튜버 에밀리아나가 소개한 VSeeFace 표정 추적 튜토리얼은 제작사·제작자가 연결한 YouTube 자료다. [히요리 공식 소개와 영상](https://www.live2d.com/learn/sample/momose-hiyori-video/) · [에밀리아나의 표정 추적 튜토리얼](https://www.youtube.com/watch?v=-Y2JyGLxuyo)
 - 실제 움직임의 타이밍은 Project AIRI 제작팀이 공개한 음성 대화 시연에서 확인했다. 1분 1초대에는 입이 짧게 여러 차례 열리는 사이 고개는 한 번에 천천히 기울기를 푼다. 1분 3.72초부터 약 1초간 소리가 쉴 때는 입이 작게 다물린 채 눈이 한 번 깜박인다. 앱에서도 발음, 시선, 자세를 각각 다른 시간 간격으로 처리했다. [AIRI 제작팀의 시연 영상](https://github.com/moeru-ai/airi-docs/blob/6317834c5491589e7afc094878e911fee8636727/content/en/blog/DevLog-2025.03.20/assets/airi-demo.mp4)
-- 인사말과 자기소개 대본은 캐릭터마다 새로 썼고, Supertonic 2의 한국어 음성 세 종류로 합성했다. 각 영상은 11초(30fps, 330프레임)다. 원본 WAV 여섯 개와 완성된 MP4 여섯 편의 AAC 음성을 각각 Whisper small로 받아썼고, 공백과 문장부호를 제외한 한글 음절이 모두 해당 대본과 일치했다. 실제 대화에서도 Supertonic 2 워커를 연결하면 선택한 캐릭터와 같은 음성으로 새 답변을 읽는다. [목소리와 사용 조건](sources-and-licenses.md#캐릭터-원화와-한국어-음성) · [워커 설정](../../workers/tts-supertonic/README.md)
+- 하나는 추리 이야기를 꺼낼 때 가볍고 빠르게 말하고, 이솔은 캠퍼스 이야기를 부드러운 대화 속도로 들려준다. 두 목소리 모두 Supertonic 2의 한국어 화자를 캐릭터에 맞춰 조율했다. 각 영상은 11초(30fps, 330프레임)다. 원본 WAV 여섯 개와 완성된 MP4 여섯 편의 AAC 음성을 각각 Whisper small로 받아썼고, 공백과 문장부호를 제외한 한글 음절이 모두 해당 대본과 일치했다. 실제 대화에서도 Supertonic 2 워커를 연결하면 선택한 캐릭터와 같은 음성으로 새 답변을 읽는다. [목소리와 사용 조건](sources-and-licenses.md#캐릭터-원화와-한국어-음성) · [워커 설정](../../workers/tts-supertonic/README.md)
 
 ## 작화 참고
 
@@ -36,7 +38,7 @@
 - 한국 교복 자료에서 블레이저의 접힌 깃과 흰 셔츠 칼라, 목에 맨 리본의 위치를 참고했다. 하나의 블레이저 테두리와 단추, 체크 치마, 소맷단은 캐릭터 원화와 두 손동작에 맞춰 새로 그렸다. [한국 교복 참고 사진](https://github.com/uUZINN/gogyobok-blogSite/blob/a21640d0ffb017322668a5d0658dbe08f81c135c/assets/img/main_slide06.jpg)
 - 《빙과》의 치탄다 에루는 입 높이 아래에서 볼 선이 둥글게 모이고 윗눈꺼풀이 홍채 위쪽을 덮는다. 표정이 바뀔 때 코끝과 턱의 간격은 유지된다. 하나의 눈을 깜박일 때도 원화의 위·아래 눈꺼풀이 만나는 위치를 기준으로 삼았다. [치탄다의 정면 표정](https://github.com/r-anime/comment-face-assets/blob/9151e5e4373413e4c82ddd3533c4ae5c2f3efbd0/preview/active/curious.gif) · [눈꺼풀과 입이 달라지는 장면](https://github.com/r-anime/comment-face-assets/blob/9151e5e4373413e4c82ddd3533c4ae5c2f3efbd0/preview/active/wow-really.png)
 - 《플라잉 위치》의 코와타 마코토가 눈을 감고 웃는 장면에서는 짧고 굵기가 달라지는 두 곡선만으로 눈이 감겼음을 보여 준다. 턱은 둥근 U자에 가깝고, 이 크기에서는 코의 선이 생략되어 두 톤으로 벌어진 입이 먼저 읽힌다. 하나의 깜박임도 자기 눈매에서 따온 닫힌 눈꺼풀 선으로 마무리한다. [마코토가 눈을 감고 웃는 장면](https://github.com/r-anime/comment-face-assets/blob/9151e5e4373413e4c82ddd3533c4ae5c2f3efbd0/source/static/comfy/original/comfy.png)
-- 공무원이 주인공인 《서번트×서비스》의 야마가미 루시는 옆 볼에서 입가를 지나 턱까지 한 곡선이 이어진다. 고개를 기울이면 벌어진 입도 같은 각도를 따른다. 서린은 한쪽이 살짝 올라간 원래 입술 선을 기준으로 입이 열리도록 했다. [루시와 동료들의 작품 그림](https://github.com/BengaluruAnimeClub/bac-website-2.0/blob/e22222fcd11894c0eaf5e110056fb559f7bc9c65/public/images/blog/anime-spotlight-may25/servant-service.webp)
+- 《서번트×서비스》의 단체 그림에서는 셔츠 칼라, 사원증, 손에 든 서류만으로 일터가 드러난다. 야마가미 루시의 놀란 얼굴에서는 짧은 눈썹과 윗눈꺼풀 사이에 여백이 있다. 서린도 눈썹 아래 여백을 살리고, 조끼의 이름표와 크림색 서류철로 일하는 모습을 표현했다. [루시와 동료들의 작품 그림](https://github.com/BengaluruAnimeClub/bac-website-2.0/blob/e22222fcd11894c0eaf5e110056fb559f7bc9c65/public/images/blog/anime-spotlight-may25/servant-service.webp)
 - 이솔의 인상을 잡을 때는 대학생 두 사람의 눈과 옆얼굴을 살펴봤다. 《손끝과 연연》의 이토세 유키가 고개를 들면 어깨에 닿는 머리카락 사이로 짧은 코끝과 턱선이 드러난다. 《여친, 빌리겠습니다》의 미즈하라 치즈루는 갈색 홍채 위에 선명한 윗속눈썹을 두고 아랫눈꺼풀은 짧은 선 몇 개로 표현했다. 이솔은 단발 아래 한쪽 귀와 볼선을 드러내고, 갈색 눈 위로 가늘게 모이는 속눈썹을 그렸다. [유키의 옆얼굴](https://github.com/alifaputrinasrulloh-cell/yubisaki-to-renren/blob/4cef6ee594ed12f367601855106cf8d2f7857b40/scene2.jpeg) · [왼쪽 위 치즈루의 눈매](https://github.com/gunnery34/Anime__Kanojo_Okarishimasu_v1/blob/379bf3b967b60e766cd7abd9508a2bec80fd2d97/assets/img/image/uwp32651.jpg)
 
 기본 캐릭터는 브라우저의 SVG에서 원화와 표정·제스처 레이어를 합성한다. 개인 Cubism 모델을 사용할 때는 해당 모델의 표정과 모션을 대화 신호에 연결할 수 있다. [Live2D 모델 연결 안내](../live2d-asset-handoff.md)
