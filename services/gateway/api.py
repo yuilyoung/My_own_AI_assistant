@@ -43,7 +43,15 @@ class LocalGuard:
         host = headers.get(b"host", b"").decode("latin1")
         origin = headers.get(b"origin", b"").decode("latin1")
         code = None
-        if host not in allowed_hosts:
+        # Public builds may accidentally contain files copied from Vite's
+        # public/avatar-local directory. Do not let the unauthenticated static
+        # route redistribute a user's proprietary SDK or model exports.
+        if self.s.public_origin and (
+            scope["path"] == "/avatar-local"
+            or scope["path"].startswith("/avatar-local/")
+        ):
+            code = 404
+        elif host not in allowed_hosts:
             code = 400
         elif self.s.public_origin and host in loopback_hosts and not _is_loopback_peer(scope):
             # A public socket may receive arbitrary Host headers over plain HTTP.
