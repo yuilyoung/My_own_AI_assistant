@@ -1,6 +1,7 @@
 import { memo, type CSSProperties } from "react";
 import type { AvatarCharacter } from "./avatar-cast";
 import type { ExpressionCue } from "./avatar-motion";
+import "./painted-face.css";
 
 type Registration = {
   src: string;
@@ -12,6 +13,13 @@ type Registration = {
 type Point = readonly [number, number];
 type PaintedEye = {
   open: Registration;
+  gaze: {
+    socket: Registration;
+    iris: Registration;
+    lid: Registration;
+    contour: string;
+    travel: Point;
+  };
   brow: Registration;
   closed: Registration;
   center: Point;
@@ -40,7 +48,14 @@ export type PaintedFaceRig = {
 
 export function paintedFeatureImages(rig: PaintedFaceRig): string[] {
   const pieces = [
-    ...rig.eyes.flatMap((eye) => [eye.open, eye.brow, eye.closed]),
+    ...rig.eyes.flatMap(({ open, brow, closed, gaze }) => [
+      open,
+      brow,
+      closed,
+      gaze.socket,
+      gaze.iris,
+      gaze.lid,
+    ]),
     rig.mouth.rest,
     rig.mouth.upper,
     rig.mouth.lower,
@@ -77,12 +92,16 @@ function anchored([x, y]: Point, height: number, angle: number, lift = 0) {
 }
 
 const Eye = memo(function Eye({
+  id,
   eye,
+  slopeY,
   emotion,
   character,
   right,
 }: {
+  id: string;
   eye: PaintedEye;
+  slopeY: number;
   emotion: ExpressionCue;
   character: AvatarCharacter;
   right: boolean;
@@ -98,19 +117,48 @@ const Eye = memo(function Eye({
   ];
   const rise = (asymmetric ? -0.02 : pose.brow) * eye.open.height * strength;
   const slope = (asymmetric ? 2 : pose.slope) * (right ? -1 : 1) * strength;
+  const gaze = eye.gaze;
+  const { x, y, width, height } = eye.open;
+  // Start safely above the painted crease. The upper lid sweeps down over a stationary iris.
+  const margin = (width * Math.abs(slopeY)) / 2 + 2;
+  const bow = eye.closed.height * 0.18;
+  const top = y - margin - bow;
+  const left = x - 2;
+  const rightEdge = x + width + 2;
+  const drop = (width * slopeY) / 2;
+  const aperture = `M${left} ${top - drop} Q${x + width / 2} ${top + bow * 2} ${rightEdge} ${top + drop} V${y + height * 2} H${left}Z`;
+  const variables = {
+    "--lid-travel": `${eye.blinkY - (top + bow)}px`,
+    "--brow-range": `${-height * 0.092 * strength}px`,
+    "--brow-tilt": `${(right ? -0.75 : 1) * strength * 2.2}deg`,
+    "--travel-x": `${gaze.travel[0]}px`,
+    "--travel-y": `${gaze.travel[1]}px`,
+  } as CSSProperties;
   return (
-    <>
+    <g className="painted-face__eye" style={variables}>
+      <defs>
+        <clipPath id={id + "-lid"}>
+          <path className="painted-face__lid-aperture" d={aperture} />
+        </clipPath>
+        <clipPath id={id + "-opening"}>
+          <path d={gaze.contour} />
+        </clipPath>
+      </defs>
       <g
         className="painted-face__eye-pose"
         transform={
           rest ? undefined : anchored([eye.center[0], eye.blinkY], eyeHeight, 0)
         }
       >
-        <g
-          className="painted-face__blink"
-          style={{ transformOrigin: `${eye.center[0]}px ${eye.blinkY}px` }}
-        >
+        <g className="painted-face__blink" clipPath={`url(#${id}-lid)`}>
           <Texture area={eye.open} className="painted-face__eye-open" />
+          <Texture area={gaze.socket} className="painted-face__eye-socket" />
+          <g clipPath={`url(#${id}-opening)`}>
+            <g className="painted-face__gaze-iris">
+              <Texture area={gaze.iris} />
+            </g>
+          </g>
+          <Texture area={gaze.lid} className="painted-face__lash" />
         </g>
         <Texture area={eye.closed} className="painted-face__closed" />
       </g>
@@ -120,14 +168,12 @@ const Eye = memo(function Eye({
       >
         <g
           className="seorin__speech-brows"
-          style={{
-            transform: `translateY(calc(var(--voice-level) * ${-eye.open.height * 0.045 * strength}px))`,
-          }}
+          style={{ transformOrigin: `${browCenter[0]}px ${browCenter[1]}px` }}
         >
           <Texture area={eye.brow} className="painted-face__brow" />
         </g>
       </g>
-    </>
+    </g>
   );
 });
 
@@ -251,11 +297,14 @@ function Mouth({
   emotion: ExpressionCue;
 }) {
   const [cx, cy] = mouth.center;
-  const speaking = level > 0;
-  const spread = 1 + level * (0.54 * brightness - 0.25);
+  // Keep the seam closed through floor noise. The first voiced samples ease the lips apart.
+  const onset = Math.max(0, (level - 0.014) / 0.986);
+  const voiced = onset * Math.min(1, onset / 0.065);
+  const speaking = voiced > 0;
+  const spread = 1 + voiced * (0.54 * brightness - 0.25);
   const half = (mouth.width * spread) / 2;
   const opening =
-    level * mouth.height * aperture[emotion] * (1.16 - 0.44 * brightness);
+    voiced * mouth.height * aperture[emotion] * (1.16 - 0.44 * brightness);
   const upper = -0.28 * opening;
   const lower = 0.72 * opening;
   const corner = -(mouth.cornerRise ?? 0);
@@ -285,7 +334,7 @@ function Mouth({
           <path
             d={`M${-half * 0.76} ${upper} Q0 ${upper + opening * 0.25} ${half * 0.68} ${upper} V${upper - opening} H${-half * 0.76}Z`}
             fill={mouth.teeth}
-            opacity={Math.min(0.85, level * brightness)}
+            opacity={Math.min(0.85, voiced * brightness)}
           />
           <ellipse
             cx={half * 0.06}
@@ -328,15 +377,17 @@ export function PaintedFace({
   level: number;
   brightness: number;
 }) {
+  const [left, right] = rig.eyes;
+  const eyeSlope =
+    (right.center[1] - left.center[1]) /
+    Math.max(1, right.center[0] - left.center[0]);
   return (
-    <g
-      data-testid="avatar-features"
-      transform={rig.transform}
-      style={{ "--voice-level": level } as CSSProperties}
-    >
+    <g data-testid="avatar-features" transform={rig.transform}>
       {rig.eyes.map((eye, i) => (
         <Eye
           key={i}
+          id={id + "-eye-" + i}
+          slopeY={eyeSlope}
           eye={eye}
           character={character}
           emotion={emotion}

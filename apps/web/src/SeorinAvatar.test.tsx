@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { AvatarPanel } from "./AvatarPanel";
 import { AvatarMotionBridge } from "./avatar-motion";
 import { MotionAvatar } from "./MotionAvatar";
+import { motionClock } from "./motion-clock.test-support";
 
 const { poseReady, portraitReady } = vi.hoisted(() => ({
   poseReady: vi.fn(() => true),
@@ -15,9 +16,15 @@ afterEach(() => {
   cleanup();
   poseReady.mockReturnValue(true);
   portraitReady.mockReturnValue("ready");
+  vi.unstubAllGlobals();
 });
 
-it("keeps the idle sleeve while artwork loads, then starts the requested gesture at full duration", () => {
+function stageValue(svg: SVGSVGElement, name: string) {
+  return parseFloat(svg.style.getPropertyValue(name));
+}
+
+it("keeps the idle sleeve while assets load, then lifts the arm over several frames", () => {
+  const clock = motionClock();
   poseReady.mockReturnValue(false);
   const cue = { gesture: "greeting" as const };
   const frame = (level: number) => (
@@ -30,48 +37,79 @@ it("keeps the idle sleeve while artwork loads, then starts the requested gesture
     />
   );
   const { container, rerender } = render(frame(0.4));
-  const wrist = container.querySelector<SVGGElement>(".avatar-panel__hand")!;
+  const svg = container.querySelector("svg")!;
   const mouth = screen.getByTestId("avatar-mouth");
-  expect(wrist.querySelector("image")).toBeNull();
-  expect(container.querySelector(".seorin__resting-sleeve")).toBeTruthy();
-  const restart = vi.spyOn(wrist, "getBoundingClientRect");
-  rerender(frame(0.65));
-  expect(restart).not.toHaveBeenCalled();
+  clock.step(2500);
+  expect(container.querySelector("[data-pose] image")).toBeNull();
+  expect(stageValue(svg, "--arm-lift")).toBe(0);
   poseReady.mockReturnValue(true);
   rerender(frame(0.65));
-  expect(restart).toHaveBeenCalledOnce();
-  expect(wrist.querySelector('[data-pose="greeting"] image')).toBeTruthy();
+  clock.step(110);
+  const lift = stageValue(svg, "--arm-lift");
+  expect(lift).toBeGreaterThan(0);
+  expect(lift).toBeLessThan(1);
+  clock.step(65);
+  expect(stageValue(svg, "--arm-opacity")).toBe(1);
+  expect(stageValue(svg, "--elbow-angle")).toBeLessThan(-35);
+  expect(
+    container.querySelector(
+      ".narration__arm > .narration__forearm > .avatar-panel__hand",
+    ),
+  ).toBeTruthy();
+  const hand = container.querySelector(
+    '.narration__arm .avatar-panel__hand [data-pose="greeting"] image',
+  );
+  expect(hand).toBeTruthy();
+  clock.step(320);
+  expect(stageValue(svg, "--arm-lift")).toBeGreaterThan(lift);
   expect(screen.getByTestId("avatar-mouth")).toBe(mouth);
 });
 
 it.each(["hana", "seorin", "isol"] as const)(
-  "matches %s's waving and pointing hands to the painted sleeve",
+  "holds %s's painted gesture for an active reduced-motion cue without starting a frame loop",
   (character) => {
+    const clock = motionClock(true);
     const frame = (gesture: "idle" | "greeting" | "point") => (
       <MotionAvatar
         character={character}
-        emotion="neutral"
+        emotion="happy"
         gesture={gesture}
-        level={0}
+        level={0.4}
       />
     );
     const { container, rerender } = render(frame("idle"));
-    const wrist = container.querySelector<SVGGElement>(".avatar-panel__hand")!;
-    expect(wrist.querySelector("image")).toBeNull();
+    const wrist = container.querySelector(".avatar-panel__hand")!;
     rerender(frame("greeting"));
-    const palm = wrist
+    const wave = wrist
       .querySelector('[data-pose="greeting"] image')
       ?.getAttribute("href");
-    expect(palm).toBeTruthy();
-    expect(wrist.style.transformOrigin).toBeTruthy();
+    expect(wave).toBeTruthy();
+    const head = container.querySelector(".avatar-panel__head")!;
+    expect(
+      head.compareDocumentPosition(wrist) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    const sleeve = container.querySelector(
+      ".narration__raised-outfit .narration__upper-arm image",
+    );
+    expect(sleeve).toBeTruthy();
+    // An independently drawn sleeve can pivot around the shoulder while the
+    // hand turns at the cuff without distorting the torso.
+    expect(
+      container
+        .querySelector("svg")!
+        .style.getPropertyValue("--shoulder-pivot"),
+    ).not.toBe((wrist as SVGGElement).style.transformOrigin);
     rerender(frame("point"));
-    const indexFinger = wrist
+    const index = wrist
       .querySelector('[data-pose="point"] image')
       ?.getAttribute("href");
-    expect(indexFinger).toBeTruthy();
-    expect(indexFinger).not.toBe(palm);
+    expect(index).toBeTruthy();
+    expect(index).not.toBe(wave);
+    expect(clock.pending()).toBe(0);
+    expect(stageValue(container.querySelector("svg")!, "--blink")).toBe(0);
     rerender(frame("idle"));
-    expect(wrist.querySelector("image")).toBeNull();
+    expect(wrist.querySelector("[data-pose]")).toBeNull();
   },
 );
 
@@ -180,114 +218,102 @@ it("reveals the cavity between painted lips only during audio, then restores the
   expect(original.getAttribute("opacity")).toBe("1");
 });
 
-it("shows an index finger, rests at the end, and replays without interrupting speech", () => {
+it("lowers a completed gesture and replays only for a fresh cue, keeping the same speaking mouth", () => {
+  const clock = motionClock();
   const cue = { gesture: "point" as const };
-  const frame = (current: typeof cue) => (
+  const frame = (current: typeof cue, level = 0.65) => (
     <MotionAvatar
       character="seorin"
-      emotion="happy"
+      emotion="thoughtful"
       gesture={current.gesture}
       cue={current}
-      level={0.65}
+      level={level}
     />
   );
   const { container, rerender } = render(frame(cue));
-  const hand = container.querySelector(".avatar-panel__hand")!;
   const mouth = screen.getByTestId("avatar-mouth");
-  const finger = () => hand.querySelector('[data-pose="point"] image');
-  expect(finger()).toBeTruthy();
-  expect(hand.querySelector('[data-pose="greeting"]')).toBeNull();
-  const finish = (animationName: string) =>
-    fireEvent(
-      hand,
-      Object.assign(new Event("animationend", { bubbles: true }), {
-        animationName,
-      }),
-    );
-  finish("seorin-wave");
-  expect(finger()).toBeTruthy();
-  finish("avatar-point");
-  expect(finger()).toBeNull();
-  rerender(frame(cue));
-  expect(finger()).toBeNull();
-  rerender(frame({ ...cue }));
-  expect(finger()).toBeTruthy();
+  const hand = () => container.querySelector('[data-pose="point"] image');
+  clock.step(460);
+  expect(hand()).toBeTruthy();
+  clock.step(3800);
+  expect(hand()).toBeNull();
+  rerender(frame(cue, 0.85));
+  clock.step(200);
+  expect(hand()).toBeNull();
+  rerender(frame({ ...cue }, 0.85));
+  clock.step(440);
+  expect(hand()).toBeTruthy();
   expect(screen.getByTestId("avatar-mouth")).toBe(mouth);
 });
 
-it("discards the previous character's animation end while the new speaker uses its own pose", () => {
-  const cue = { gesture: "greeting" as const };
-  const frame = (character: "hana" | "isol") => (
+it("moves the neck, shoulders and hair through distinct angles without rerendering the mouth", () => {
+  const clock = motionClock();
+  const { container, unmount } = render(
     <MotionAvatar
-      character={character}
-      emotion="happy"
-      gesture="greeting"
-      cue={cue}
-      level={0.65}
-    />
+      character="seorin"
+      emotion="curious"
+      gesture="tilt"
+      level={0.8}
+    />,
   );
-  const { container, rerender } = render(frame("hana"));
-  const oldHand = container.querySelector(".avatar-panel__hand")!;
-  rerender(frame("isol"));
-  fireEvent(
-    oldHand,
-    Object.assign(new Event("animationend", { bubbles: true }), {
-      animationName: "seorin-wave",
-    }),
-  );
-  const hand = container.querySelector(".avatar-panel__hand")!;
-  expect(hand.querySelector("[data-pose] image")).toBeTruthy();
-  expect(screen.getByRole("img", { name: /이솔/ })).toBeTruthy();
-  expect(
-    container
-      .querySelector(".painted-face__mouth-rest")
-      ?.getAttribute("opacity"),
-  ).toBe("0");
-});
-
-it("uses a relaxed sleeve for idle and nod cues", () => {
-  const bridge = new AvatarMotionBridge();
-  const frame = (gesture: string) => (
-    <AvatarPanel bridge={bridge} level={0} cue={{ gesture }} />
-  );
-  const { container, rerender } = render(frame("idle"));
-  const palm = () =>
-    container.querySelector(".avatar-panel__hand [data-pose] image");
-  expect(palm()).toBeNull();
-  rerender(frame("greeting"));
-  expect(palm()).toBeTruthy();
-  rerender(frame("nod"));
-  expect(palm()).toBeNull();
-  expect(container.querySelector(".seorin__resting-sleeve")).toBeTruthy();
-});
-
-it("rests after the wave ends and raises the arm again for the next greeting during speech", () => {
-  const bridge = new AvatarMotionBridge();
-  const cue = { gesture: "greeting" };
-  const frame = (current: typeof cue, level: number) => (
-    <AvatarPanel bridge={bridge} level={level} cue={current} />
-  );
-  const { container, rerender } = render(frame(cue, 0.6));
-  const hand = container.querySelector(".avatar-panel__hand")!;
+  const svg = container.querySelector("svg")!;
   const mouth = screen.getByTestId("avatar-mouth");
-  expect(hand.querySelector("[data-pose] image")).toBeTruthy();
-  const end = Object.assign(new Event("animationend", { bubbles: true }), {
-    animationName: "seorin-wave",
-  });
-  fireEvent(hand, end);
-  expect(hand.querySelector("[data-pose] image")).toBeNull();
-  expect(container.querySelector(".seorin__resting-sleeve")).toBeTruthy();
-  rerender(frame(cue, 0.8));
-  expect(hand.querySelector("[data-pose] image")).toBeNull();
-  const speaking = mouth.getAttribute("d");
-  rerender(frame({ ...cue }, 0.8));
-  expect(hand.querySelector("[data-pose] image")).toBeTruthy();
-  expect(container.querySelector(".seorin__resting-sleeve")).toBeNull();
+  clock.step(290);
+  const angles = ["--head-angle", "--torso-angle", "--fringe-angle"].map(
+    (name) => stageValue(svg, name),
+  );
+  expect(angles.every(Number.isFinite)).toBe(true);
+  expect(new Set(angles).size).toBe(3);
+  expect(
+    container.querySelector(
+      ".narration__torso .avatar-panel__head .narration__fringe image",
+    ),
+  ).toBeTruthy();
   expect(screen.getByTestId("avatar-mouth")).toBe(mouth);
-  expect(mouth.getAttribute("d")).toBe(speaking);
+  expect(clock.pending()).toBe(1);
+  unmount();
+  expect(clock.pending()).toBe(0);
 });
 
-it("keeps both eyes anchored to their own painted lid during a blink", () => {
+it("pauses hidden pages and resumes from the last pose with one active clock", () => {
+  const clock = motionClock();
+  const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(false);
+  try {
+    const { container } = render(
+      <MotionAvatar
+        character="hana"
+        emotion="happy"
+        gesture="greeting"
+        level={0.4}
+      />,
+    );
+    clock.step(350);
+    const svg = container.querySelector("svg")!;
+    const lifted = stageValue(svg, "--arm-lift");
+    expect(lifted).toBeGreaterThan(0);
+    act(() => {
+      hidden.mockReturnValue(true);
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    expect(clock.pending()).toBe(0);
+    clock.step(9000);
+    expect(stageValue(svg, "--arm-lift")).toBe(lifted);
+    act(() => {
+      hidden.mockReturnValue(false);
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    clock.step(16);
+    expect(clock.pending()).toBe(1);
+    expect(
+      container.querySelector('[data-pose="greeting"] image'),
+    ).toBeTruthy();
+    expect(Math.abs(stageValue(svg, "--arm-lift") - lifted)).toBeLessThan(0.1);
+  } finally {
+    hidden.mockRestore();
+  }
+});
+
+it("uses separately registered moving lid masks for the two painted eyes", () => {
   const { container } = render(
     <MotionAvatar
       character="isol"
@@ -296,26 +322,80 @@ it("keeps both eyes anchored to their own painted lid during a blink", () => {
       level={0}
     />,
   );
-  const eyes = Array.from(
-    container.querySelectorAll<SVGGElement>(".painted-face__blink"),
+  const eyes = Array.from(container.querySelectorAll(".painted-face__blink"));
+  const masks = eyes.map((eye) => {
+    const mask = eye.getAttribute("clip-path")!.slice(5, -1);
+    return document
+      .getElementById(mask)
+      ?.querySelector("path")
+      ?.getAttribute("d");
+  });
+  expect(masks).toHaveLength(2);
+  expect(masks.every(Boolean)).toBe(true);
+  expect(masks[0]).not.toBe(masks[1]);
+});
+
+it("follows a pointer over the portrait, ignores touch and releases focus on exit", () => {
+  const clock = motionClock();
+  const { container } = render(
+    <MotionAvatar
+      character="seorin"
+      emotion="neutral"
+      gesture="idle"
+      level={0}
+    />,
   );
-  expect(eyes).toHaveLength(2);
-  for (const eye of eyes) {
-    const image = eye.querySelector("image")!;
-    const [cx, cy] = eye.style.transformOrigin.split(" ").map(parseFloat);
-    expect(cx).toBeGreaterThan(Number(image.getAttribute("x")));
-    expect(cx).toBeLessThan(
-      Number(image.getAttribute("x")) + Number(image.getAttribute("width")),
+  const svg = container.querySelector("svg")!;
+  vi.spyOn(svg, "getBoundingClientRect").mockReturnValue(
+    new DOMRect(40, 10, 360, 360),
+  );
+  function move(x: number, type: string) {
+    const event = Object.assign(
+      new MouseEvent("pointermove", { clientX: x, clientY: 180 }),
+      { pointerType: type },
     );
-    expect(cy).toBeGreaterThan(Number(image.getAttribute("y")));
-    expect(cy).toBeLessThan(
-      Number(image.getAttribute("y")) + Number(image.getAttribute("height")),
-    );
+    svg.dispatchEvent(event);
   }
-  expect(eyes[0].style.transformOrigin).not.toBe(eyes[1].style.transformOrigin);
+  move(382, "mouse");
+  clock.step(160);
+  expect(stageValue(svg, "--gaze-x")).toBeGreaterThan(0.5);
+  move(48, "touch");
+  clock.step(60);
+  expect(stageValue(svg, "--gaze-x")).toBeGreaterThan(0.5);
+  move(48, "mouse");
+  clock.step(160);
+  expect(stageValue(svg, "--gaze-x")).toBeLessThan(-0.5);
+  svg.dispatchEvent(new MouseEvent("pointerleave"));
+  clock.step(170);
+  expect(Math.abs(stageValue(svg, "--gaze-x"))).toBeLessThan(0.2);
+});
+
+it("lowers an interrupted wave before exchanging it for a pointing hand", () => {
+  const clock = motionClock();
+  const pose = (gesture: "greeting" | "point") => (
+    <MotionAvatar
+      character="hana"
+      emotion="happy"
+      gesture={gesture}
+      level={0.68}
+    />
+  );
+  const { container, rerender } = render(pose("greeting"));
+  const svg = container.querySelector("svg")!;
+  clock.step(450);
+  const raised = stageValue(svg, "--arm-lift");
+  rerender(pose("point"));
+  clock.step(110);
+  expect(container.querySelector('[data-pose="greeting"] image')).toBeTruthy();
+  const release = stageValue(svg, "--arm-lift");
+  expect(release).toBeLessThan(raised);
+  expect(release).toBeGreaterThan(0);
+  clock.step(380);
+  expect(container.querySelector('[data-pose="point"] image')).toBeTruthy();
 });
 
 it("shows the whole portrait together after its original face and costume decode", () => {
+  const clock = motionClock();
   portraitReady.mockReturnValue("loading");
   const frame = () => (
     <MotionAvatar
@@ -335,6 +415,7 @@ it("shows the whole portrait together after its original face and costume decode
   portraitReady.mockReturnValue("ready");
   rerender(frame());
   expect(container.querySelector("image.painted-face__eye-open")).toBeTruthy();
+  clock.step(120);
   expect(container.querySelector('[data-pose="point"] image')).toBeTruthy();
   expect(screen.queryByRole("status")).toBeNull();
 });
@@ -370,28 +451,4 @@ it("changes the resting painted mouth with emotion, and returns it to its origin
   expect(poses.size).toBe(3);
   rerender(frame("neutral"));
   expect(pose()).toBeNull();
-});
-
-it("accents speech in the brow and head without replaying a semantic cue", () => {
-  const bridge = new AvatarMotionBridge();
-  const frame = (level: number) => (
-    <AvatarPanel bridge={bridge} level={level} />
-  );
-  const { rerender } = render(frame(0));
-  const face = screen.getByTestId("avatar-character");
-  const head = face.querySelector(".seorin__speech-head")!;
-  const brows = face.querySelector(".seorin__speech-brows")!;
-  expect(brows.getAttribute("style")).toContain("var(--voice-level)");
-  const features = screen.getByTestId("avatar-features");
-  const pose = () => [
-    head.getAttribute("style"),
-    features.style.getPropertyValue("--voice-level"),
-  ];
-  const rest = pose();
-  rerender(frame(0.8));
-  const speaking = pose();
-  expect(speaking[0]).not.toBe(rest[0]);
-  expect(speaking[1]).not.toBe(rest[1]);
-  rerender(frame(0));
-  expect(pose()).toEqual(rest);
 });

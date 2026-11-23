@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from "react";
 import { AvatarInspector } from "./AvatarInspector";
 import { MotionAvatar } from "./MotionAvatar";
 import { avatarNames, type AvatarCharacter } from "./avatar-cast";
+import { useNarrationPreview } from "./useNarrationPreview";
 import { normalizedLipSync } from "./avatar";
 import {
   isExpressionCue,
@@ -19,11 +20,14 @@ export type AvatarPanelProps = {
   brightness?: number;
   cue?: Pick<Segment, "emotion" | "gesture">;
   busy?: boolean;
+  voiceActive?: boolean;
   mode?: Mode;
   defaultCharacter?: AvatarCharacter;
   onCharacterChange?: (character: AvatarCharacter) => void;
 };
 
+const narrationCue = { emotion: "curious", gesture: "point" } as const;
+const narrationReady = { emotion: "curious", gesture: "idle" } as const;
 const previews = [
   { label: "인사하기", emotion: "happy", gesture: "greeting" },
   { label: "갸웃하기", emotion: "curious", gesture: "tilt" },
@@ -41,6 +45,7 @@ export function AvatarPanel({
   brightness,
   cue,
   busy = false,
+  voiceActive = false,
   mode = "assistant",
   defaultCharacter = "seorin",
   onCharacterChange,
@@ -57,20 +62,33 @@ export function AvatarPanel({
   const id = useId();
   const audioLevel = normalizedLipSync(level, 1);
   const canPreview = !busy && audioLevel === 0;
+  const canPlayNarration = canPreview && !voiceActive;
+  const narration = useNarrationPreview(
+    canPlayNarration && kind !== "live2d",
+    kind,
+    cue,
+  );
+  const playback = canPlayNarration ? narration.signal : null;
+  const visibleLevel = playback?.level ?? audioLevel;
   const currentPreview = preview?.source === cue ? preview : null;
   const sample = canPreview ? currentPreview?.sample : null;
   if (preview && !currentPreview) setPreview(null);
   else if (currentPreview?.sample && !canPreview)
     setPreview({ source: cue, sample: null });
-  const visibleCue = sample ?? cue;
+  const visibleCue = playback
+    ? playback.started
+      ? narrationCue
+      : narrationReady
+    : (sample ?? cue);
   const emotion = isExpressionCue(visibleCue?.emotion)
     ? visibleCue.emotion
     : "neutral";
   // Closing a preview restores the face. Only a new reply replays its gesture.
-  const motion = currentPreview && !sample ? "idle" : visibleCue?.gesture;
+  const motion =
+    !playback && currentPreview && !sample ? "idle" : visibleCue?.gesture;
   const gesture = isMotionCue(motion) ? motion : "idle";
   const status =
-    audioLevel > 0 ? "말하는 중" : busy ? "답변 준비 중" : "대화 준비 완료";
+    visibleLevel > 0 ? "말하는 중" : busy ? "답변 준비 중" : "대화 준비 완료";
 
   useEffect(() => {
     bridge.detach();
@@ -93,6 +111,7 @@ export function AvatarPanel({
             value === "hana" || value === "isol" || value === "live2d"
               ? value
               : "seorin";
+          narration.stop();
           bridge.detach();
           setPreview(null);
           setPreferred(next);
@@ -111,8 +130,8 @@ export function AvatarPanel({
           <div className="avatar-panel__stage">
             <MotionAvatar
               character={kind}
-              level={audioLevel}
-              brightness={brightness}
+              level={visibleLevel}
+              brightness={playback?.brightness ?? brightness}
               emotion={emotion}
               gesture={gesture}
               cue={visibleCue}
@@ -127,7 +146,7 @@ export function AvatarPanel({
             aria-label="음성 레벨"
             min="0"
             max="1"
-            value={audioLevel}
+            value={visibleLevel}
           />
           <p className="avatar-panel__note">
             TTS가 켜진 대화에서 {avatarNames[kind]}의 입 모양이 답변 음성을 따라
@@ -136,10 +155,12 @@ export function AvatarPanel({
           <details
             className="avatar-panel__preview"
             onToggle={(event) => {
-              if (!event.currentTarget.open)
+              if (!event.currentTarget.open) {
+                narration.stop();
                 setPreview((last) =>
                   last?.sample ? { source: last.source, sample: null } : last,
                 );
+              }
             }}
           >
             <summary>표정·동작 미리보기</summary>
@@ -149,14 +170,34 @@ export function AvatarPanel({
                   key={gesture}
                   type="button"
                   disabled={!canPreview}
-                  onClick={() =>
-                    setPreview({ source: cue, sample: { emotion, gesture } })
-                  }
+                  onClick={() => {
+                    narration.stop();
+                    setPreview({ source: cue, sample: { emotion, gesture } });
+                  }}
                 >
                   {label}
                 </button>
               ))}
+              <button
+                type="button"
+                className="avatar-panel__narration"
+                disabled={!canPlayNarration}
+                onClick={() => {
+                  if (playback) narration.stop();
+                  else {
+                    setPreview({ source: cue, sample: null });
+                    void narration.start();
+                  }
+                }}
+              >
+                {playback ? "미리듣기 중지" : "내레이션 미리듣기"}
+              </button>
             </div>
+            {narration.failed && (
+              <p role="alert">
+                미리듣기를 재생할 수 없습니다. 다시 시도해 주세요.
+              </p>
+            )}
           </details>
         </>
       ) : (

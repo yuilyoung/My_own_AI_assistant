@@ -1,9 +1,8 @@
 import {
   useId,
-  useLayoutEffect,
   useMemo,
   useRef,
-  useState,
+  type CSSProperties,
   type ComponentType,
 } from "react";
 import { normalizedLipSync } from "./avatar";
@@ -19,6 +18,7 @@ import { hanaArt } from "./HanaArt";
 import { isolArt } from "./IsolArt";
 import type { Segment } from "./gateway";
 import { PaintedFace, type PaintedFaceRig } from "./PaintedFace";
+import { useNarrationMotion } from "./useNarrationMotion";
 import { usePortraitReady } from "./usePortraitReady";
 import { usePortraitPose } from "./usePortraitPose";
 import "./seorin-avatar.css";
@@ -35,7 +35,15 @@ export type MotionAvatarProps = {
 
 type ArmPose = "greeting" | "point";
 type Art = Record<"Backdrop" | "HairBehind", ComponentType<{ id: string }>> & {
+  RearHair?: ComponentType<{ id: string }>;
   Fringe?: ComponentType<{ id: string }>;
+  Accessory?: ComponentType<{ id: string }>;
+  shoulderPivot?: string;
+  elbowPivot?: string;
+  neckPivot?: string;
+  rearHairPivot?: string;
+  fringePivot?: string;
+  accessoryPivot?: string;
   baseImages: readonly string[];
   faceRig: PaintedFaceRig;
   ArmForeground?: ComponentType<{ id: string }>;
@@ -44,6 +52,7 @@ type Art = Record<"Backdrop" | "HairBehind", ComponentType<{ id: string }>> & {
     greeting: boolean;
     gesture: MotionCue;
   }>;
+  Forearm: ComponentType<{ id: string; gesture: ArmPose }>;
   Hand: ComponentType<{ id: string; gesture: ArmPose }>;
   handPivot: string;
   poseImages: Record<ArmPose, readonly string[]>;
@@ -53,8 +62,6 @@ const artwork: Record<AvatarCharacter, Art> = {
   hana: hanaArt,
   isol: isolArt,
 };
-const speechAccent = { seorin: 0.77, hana: 1.1, isol: 0.68 };
-
 export function MotionAvatar(props: MotionAvatarProps) {
   // Each character owns its animation listeners and SVG definitions. Audio
   // frames and new semantic cues keep the same mouth and head mounted.
@@ -73,8 +80,17 @@ function Portrait({
     Backdrop,
     Wardrobe,
     HairBehind,
+    RearHair,
+    Accessory,
+    shoulderPivot,
+    elbowPivot,
+    neckPivot,
+    rearHairPivot,
+    fringePivot,
+    accessoryPivot,
     ArmForeground,
     Fringe,
+    Forearm,
     Hand,
     faceRig,
     baseImages,
@@ -83,47 +99,47 @@ function Portrait({
   } = artwork[character];
   const status = usePortraitReady(baseImages, faceRig);
   const id = useId();
-  const head = useRef<SVGGElement>(null);
-  const hand = useRef<SVGGElement>(null);
-  const gestureRun = useMemo(() => ({ cue, gesture }), [cue, gesture]);
-  const [finishedArm, setFinishedArm] = useState<typeof gestureRun | null>(
-    null,
-  );
+  const stage = useRef<SVGSVGElement>(null);
   const arm =
-    gesture === "greeting" || gesture === "point" ? gesture : undefined;
-  const requested =
-    status === "ready" && arm !== undefined && finishedArm !== gestureRun;
-  const ready = usePortraitPose(
+    gesture === "point" || gesture === "greeting" ? gesture : undefined;
+  const armReady = usePortraitPose(
     arm ? poseImages[arm] : undefined,
-    requested,
-    gestureRun,
+    status === "ready" && arm !== undefined,
+    cue,
   );
-  const activeArm = requested && ready ? arm : undefined;
-  useLayoutEffect(() => {
-    const motion = gestureRun.gesture;
-    if (status !== "ready" || motion === "idle") return;
-    const isArm = motion === "greeting" || motion === "point";
-    if (isArm && !activeArm) return;
-    const target = isArm ? hand.current : head.current;
-    if (!target) return;
-    target.style.animation = "none";
-    target.getBoundingClientRect();
-    target.style.removeProperty("animation");
-    if (!isArm) return;
-    const animation = motion === "point" ? "avatar-point" : "seorin-wave";
-    const restArm = (event: AnimationEvent) => {
-      if (event.target === target && event.animationName === animation)
-        setFinishedArm(gestureRun);
-    };
-    target.addEventListener("animationend", restArm);
-    return () => target.removeEventListener("animationend", restArm);
-  }, [gestureRun, activeArm, status]);
-
   const amplitude = normalizedLipSync(level, 1);
   const tone = normalizedLipSync(brightness, 1);
+  const input = useMemo(
+    () => ({
+      level: amplitude,
+      brightness: tone,
+      emotion,
+      gesture,
+      cueToken: cue,
+      armReady,
+    }),
+    [amplitude, tone, emotion, gesture, cue, armReady],
+  );
+  const activeArm = useNarrationMotion(
+    stage,
+    character,
+    status === "ready",
+    input,
+  );
   return (
     <svg
+      ref={stage}
       className="avatar-panel__svg seorin"
+      style={
+        {
+          "--shoulder-pivot": shoulderPivot,
+          "--elbow-pivot": elbowPivot,
+          "--neck-pivot": neckPivot,
+          "--rear-hair-pivot": rearHairPivot,
+          "--fringe-pivot": fringePivot,
+          "--accessory-pivot": accessoryPivot,
+        } as CSSProperties
+      }
       data-character={character}
       viewBox="0 0 360 360"
       role="img"
@@ -168,41 +184,67 @@ function Portrait({
             data-gesture={gesture}
             data-arm-pose={activeArm}
           >
-            <Wardrobe
-              id={id}
-              greeting={activeArm !== undefined}
-              gesture={activeArm ?? "idle"}
-            />
-            <g
-              className="avatar-panel__hand"
-              ref={hand}
-              style={{ transformOrigin: handPivot }}
-            >
-              {activeArm && (
-                <g data-pose={activeArm}>
-                  <Hand id={id} gesture={activeArm} />
+            <g className="narration__torso">
+              {RearHair && (
+                <g className="narration__hair-anchor">
+                  <g className="narration__rear-hair">
+                    <RearHair id={id} />
+                  </g>
                 </g>
               )}
-            </g>
-            {activeArm && ArmForeground && <ArmForeground id={id} />}
-            <g className="avatar-panel__head" ref={head}>
-              <g className="anime__listening-head">
-                <g
-                  className="seorin__speech-head"
-                  style={{
-                    transform: `translateY(${-1.25 * amplitude * speechAccent[character]}px) rotate(${-1.05 * amplitude * speechAccent[character]}deg)`,
-                  }}
-                >
-                  <HairBehind id={id} />
-                  <PaintedFace
-                    id={id}
-                    rig={faceRig}
-                    character={character}
-                    level={amplitude}
-                    brightness={tone}
-                    emotion={emotion}
-                  />
-                  {Fringe && <Fringe id={id} />}
+              <g className="narration__costume">
+                <g className="narration__rest-outfit">
+                  <Wardrobe id={id + "-rest"} greeting={false} gesture="idle" />
+                </g>
+                {activeArm && (
+                  <g className="narration__raised-outfit">
+                    <Wardrobe
+                      id={id + "-raised"}
+                      greeting
+                      gesture={activeArm}
+                    />
+                  </g>
+                )}
+              </g>
+              {activeArm && ArmForeground && (
+                <g className="narration__arm-foreground">
+                  <ArmForeground id={id} />
+                </g>
+              )}
+              <g className="avatar-panel__head">
+                <HairBehind id={id} />
+                <PaintedFace
+                  id={id}
+                  rig={faceRig}
+                  character={character}
+                  level={amplitude}
+                  brightness={tone}
+                  emotion={emotion}
+                />
+                {Fringe && (
+                  <g className="narration__fringe">
+                    <Fringe id={id} />
+                  </g>
+                )}
+                {Accessory && (
+                  <g className="narration__accessory">
+                    <Accessory id={id} />
+                  </g>
+                )}
+              </g>
+              <g className="narration__arm">
+                <g className="narration__forearm">
+                  {activeArm && <Forearm id={id} gesture={activeArm} />}
+                  <g
+                    className="avatar-panel__hand"
+                    style={{ transformOrigin: handPivot }}
+                  >
+                    {activeArm && (
+                      <g data-pose={activeArm}>
+                        <Hand id={id} gesture={activeArm} />
+                      </g>
+                    )}
+                  </g>
                 </g>
               </g>
             </g>

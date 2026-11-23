@@ -1,13 +1,8 @@
 // @vitest-environment jsdom
 import { StrictMode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  within,
-} from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
+import { motionClock } from "./motion-clock.test-support";
 import userEvent from "@testing-library/user-event";
 import { AvatarPanel } from "./AvatarPanel";
 import { AvatarMotionBridge } from "./avatar-motion";
@@ -15,7 +10,10 @@ import { AvatarMotionBridge } from "./avatar-motion";
 vi.mock("./usePortraitReady", () => ({ usePortraitReady: () => "ready" }));
 vi.mock("./usePortraitPose", () => ({ usePortraitPose: () => true }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 it("switches built-in characters while preserving a live reply and its audio level", async () => {
   const user = userEvent.setup();
@@ -66,6 +64,7 @@ it("previews a new gesture in silence and yields to the next reply", async () =>
 it.each(["close the preview", "start a turn"])(
   "keeps a completed reply gesture at rest when I %s",
   async (action) => {
+    const clock = motionClock();
     const bridge = new AvatarMotionBridge();
     const user = userEvent.setup();
     const greeting = { emotion: "happy", gesture: "greeting" };
@@ -73,23 +72,23 @@ it.each(["close the preview", "start a turn"])(
       <AvatarPanel bridge={bridge} level={0} cue={cue} busy={busy} />
     );
     const { rerender } = render(panel(greeting));
-    const hand = screen.getByRole("img").querySelector(".avatar-panel__hand")!;
-    fireEvent(
-      hand,
-      Object.assign(new Event("animationend", { bubbles: true }), {
-        animationName: "seorin-wave",
-      }),
-    );
-    expect(hand.querySelector('[data-pose="greeting"]')).toBeNull();
+    const avatar = screen.getByRole("img");
+    const raised = () => avatar.querySelector('[data-pose="greeting"]');
+    clock.step(450);
+    expect(raised()).toBeTruthy();
+    clock.step(3000);
+    expect(raised()).toBeNull();
     const summary = screen.getByText("표정·동작 미리보기");
     await user.click(summary);
     await user.click(screen.getByRole("button", { name: "갸웃하기" }));
     if (action === "close the preview") await user.click(summary);
     else rerender(panel(greeting, true));
     await screen.findByRole("img", { name: /기쁨.*대기/ });
-    expect(hand.querySelector('[data-pose="greeting"]')).toBeNull();
+    clock.step(350);
+    expect(raised()).toBeNull();
     rerender(panel({ ...greeting }));
-    expect(hand.querySelector('[data-pose="greeting"]')).toBeTruthy();
+    clock.step(450);
+    expect(raised()).toBeTruthy();
   },
 );
 
@@ -347,37 +346,30 @@ it("shows busy feedback while preserving the usable selector", async () => {
   expect(screen.getByLabelText("로컬 모델 export 경로 점검")).toBeTruthy();
 });
 
-it.each([
-  ["nod", ".avatar-panel__head"],
-  ["greeting", ".avatar-panel__hand"],
-])(
-  "replays %s for a new cue object while preserving mouth playback",
-  (gesture, selector) => {
-    const bridge = new AvatarMotionBridge();
-    const cue = { emotion: "happy", gesture };
-    const { rerender } = render(
-      <AvatarPanel bridge={bridge} level={0.2} cue={cue} />,
-    );
-    const avatar = screen.getByRole("img", { name: /기본 아바타/ });
-    const target = avatar.querySelector<SVGGElement>(selector)!;
-    // jsdom does not run CSS animations. Observe the layout flush that restarts
-    // only the gesture's animated SVG group; Chromium verifies actual replay.
-    const restart = vi.spyOn(target, "getBoundingClientRect");
-    const mouth = screen.getByTestId("avatar-mouth");
-
-    rerender(<AvatarPanel bridge={bridge} level={0.8} cue={cue} />);
-    expect(restart).not.toHaveBeenCalled();
-    expect(screen.getByTestId("avatar-mouth")).toBe(mouth);
-    const speaking = mouth.getAttribute("d");
-
-    rerender(<AvatarPanel bridge={bridge} level={0.8} cue={{ ...cue }} />);
-    expect(restart).toHaveBeenCalledOnce();
-    expect(screen.getByRole("img", { name: /기본 아바타/ })).toBe(avatar);
-    expect(screen.getByTestId("avatar-mouth")).toBe(mouth);
-    expect(mouth.getAttribute("d")).toBe(speaking);
-    expect(target.style.animation).toBe("");
-  },
-);
+it("keeps a completed wave at rest across audio frames and replays it for a fresh reply", () => {
+  const clock = motionClock();
+  const bridge = new AvatarMotionBridge();
+  const greeting = { emotion: "happy", gesture: "greeting" };
+  const panel = (cue: typeof greeting, level: number) => (
+    <AvatarPanel bridge={bridge} cue={cue} level={level} />
+  );
+  const { rerender } = render(panel(greeting, 0.2));
+  const stage = screen.getByRole("img");
+  const mouth = screen.getByTestId("avatar-mouth");
+  const raised = () => stage.querySelector('[data-pose="greeting"]');
+  clock.step(600);
+  expect(raised()).toBeTruthy();
+  clock.step(3000);
+  expect(raised()).toBeNull();
+  rerender(panel(greeting, 0.75));
+  clock.step(250);
+  expect(raised()).toBeNull();
+  rerender(panel({ ...greeting }, 0.75));
+  clock.step(500);
+  expect(raised()).toBeTruthy();
+  expect(screen.getByTestId("avatar-mouth")).toBe(mouth);
+  expect((screen.getByRole("meter") as HTMLMeterElement).value).toBe(0.75);
+});
 
 it("resets selection and licensed form state when the parent's service/mode key changes", async () => {
   const user = userEvent.setup();
