@@ -47,8 +47,7 @@ class LocalGuard:
         # public/avatar-local directory. Do not let the unauthenticated static
         # route redistribute a user's proprietary SDK or model exports.
         if self.s.public_origin and (
-            scope["path"] == "/avatar-local"
-            or scope["path"].startswith("/avatar-local/")
+            scope["path"] == "/avatar-local" or scope["path"].startswith("/avatar-local/")
         ):
             code = 404
         elif host not in allowed_hosts:
