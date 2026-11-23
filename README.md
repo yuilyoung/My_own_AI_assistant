@@ -117,7 +117,7 @@ Gateway를 시작하기 전 현재 PC의 준비 상태를 확인할 수 있습�
 
 ### 로컬 Cubism 어댑터 연결 (실제 SDK 별도 필요)
 
-참조 자산 HEAD 검사가 모두 통과한 경우에만 **로컬 Cubism 어댑터 연결** 버튼이 활성화됩니다. 해당 버튼은 저장소에 포함되지 않은 사용자 설치 모듈 `/avatar-local/runtime/adapter.js`를 명시적으로 불러와 `createAvatarAdapter(canvas)`로 어댑터를 만들고 오디오 RMS 브리지에 부착합니다. 모듈의 `load(modelUrl)`, `setExpression(name)`, `setMotion(group)`, `setLipSync(level)`, `dispose()`가 필요합니다. 설치 모듈을 제공하지 않으면 명확한 오류를 표시하며 가짜 렌더러로 대체하지 않습니다. 자산 경로는 `apps/web/public/avatar-local/runtime/`로 두고 다시 빌드합니다. 이 디렉터리는 Git에서 제외됩니다.
+참조 자산 HEAD 검사가 모두 통과한 경우에만 **로컬 Cubism 어댑터 연결** 버튼이 활성화됩니다. 해당 버튼은 저장소에 포함되지 않은 사용자 설치 모듈 `/avatar-local/runtime/adapter.js`를 명시적으로 불러와 `createAvatarAdapter(canvas)`로 어댑터를 만들고 오디오 RMS 브리지에 부착합니다. 모듈의 `load(modelUrl)`, `setExpression(name)`, `setMotion(group)`, `setLipSync(level)`, `dispose()`가 필요합니다. 설치 모듈을 제공하지 않으면 명확한 오류를 표시하며 가짜 렌더러로 대체하지 않습니다. 자산 경로는 `ASSISTANT_AVATAR_DIR` 폴더 아래 `runtime/`에 둡니다. 저장소 `public/`이나 빌드 `dist/`에 파일을 복사할 필요가 없으며, 배포 산출물에 포함해서는 안 됩니다.
 
 실제 로컬 어댑터가 연결되고 해당 모델에 LipSync 파라미터가 있을 때만 **수동 입모양 테스트 강도** 슬라이더가 나타납니다. 강도를 조절하면 0~1 수치가 어댑터에 전달되며, 포인터·키 조작 종료, 포커스 이동, **입모양 닫기**, 패널 해제 시 0으로 되돌립니다. 입모양이 실제 움직였는지는 직접 화면에서 확인해야 하며 음성 재생 중에는 수동 시험하지 않습니다. **비서/소개팅 모드 전환 시 아바타 패널을 새로 만들고 기존 렌더러를 해제**하므로 새 모드에서는 모델 검사 및 연결을 다시 수행해야 합니다.
 
