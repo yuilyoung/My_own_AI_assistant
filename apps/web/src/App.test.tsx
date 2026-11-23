@@ -361,7 +361,8 @@ it("connects, labels demo, sends reviewed text and clears it on mode change", as
       "",
     ),
   );
-  expect(screen.getByRole("img", { name: /하나/ })).toBeTruthy();
+  expect(screen.getByRole("img", { name: /서린/ })).toBeTruthy();
+  expect(screen.queryByRole("option", { name: /하나/ })).toBeNull();
   await user.selectOptions(screen.getByLabelText("아바타 종류"), "live2d");
   expect(
     (screen.getByLabelText("로컬 모델 export 경로 점검") as HTMLInputElement)
@@ -369,6 +370,8 @@ it("connects, labels demo, sends reviewed text and clears it on mode change", as
   ).toBe("");
   expect(screen.queryByText("테스트 답변")).toBeNull();
   expect(screen.queryByLabelText("비서 메모")).toBeNull();
+  await user.click(screen.getByRole("button", { name: "개인 비서" }));
+  expect(await screen.findByRole("img", { name: /하나/ })).toBeTruthy();
 });
 
 it("shows local and cloud choices, clears prior messages, and labels cloud transmission", async () => {

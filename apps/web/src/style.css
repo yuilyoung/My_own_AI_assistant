@@ -96,7 +96,7 @@ label {
 }
 .workspace {
   display: grid;
-  grid-template-columns: 290px minmax(0, 1fr);
+  grid-template-columns: clamp(290px, 34%, 366px) minmax(0, 1fr);
   gap: 20px;
 }
 .avatar-panel,

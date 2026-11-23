@@ -43,7 +43,7 @@ React/Vite 화면과 개발용 진단 화면을 제공합니다. 두 화면은 �
 
 데모, 같은 서버의 Ollama, 설정한 클라우드 API를 웹 화면의 **LLM 서비스**에서 전환할 수 있습니다. 전환 시 새 대화를 시작하고 서비스별 기억·메모를 분리합니다. 클라우드 키와 모델은 서버에 설정하며, 키가 없으면 해당 옵션을 사용할 수 없습니다. Render의 로컬 옵션은 사용자 PC의 Ollama를 자동 연결하지 않습니다.
 
-**아바타 종류**에서 비서 서린, 도예가 하나, 천문학자 이솔을 선택할 수 있습니다. **표정·동작 미리보기**를 열면 음성이 없는 데모에서도 인사, 갸웃하기, 가리키기를 바로 볼 수 있습니다. TTS가 켜져 있으면 캐릭터의 입이 재생 음량과 음색을 따라 움직입니다. **Live2D**에서는 사용권을 확보한 모델과 SDK 어댑터를 연결할 수 있습니다. [캐릭터와 모션 가이드](docs/design/motion-characters.md) · [서비스 설정 안내](docs/local-cloud-services.md)
+**개인 비서 → 아바타 종류**에서 고등학생 하나, 직장인 서린, 대학생 이솔을 선택할 수 있습니다. 성인 캐릭터와 대화하는 **가상 소개팅**에서는 서린과 이솔을 선택할 수 있습니다. **표정·동작 미리보기**를 열면 음성이 없는 데모에서도 인사, 갸웃하기, 가리키기를 바로 볼 수 있습니다. TTS가 켜져 있으면 캐릭터의 입이 재생 음량과 음색을 따라 움직입니다. **Live2D**에서는 사용권을 확보한 모델과 SDK 어댑터를 연결할 수 있습니다. [캐릭터와 모션 가이드](docs/design/motion-characters.md) · [서비스 설정 안내](docs/local-cloud-services.md)
 
 ## Windows에서 실행
 
@@ -176,7 +176,7 @@ node --test apps/diagnostics/tests/*.test.mjs
 - Windows 운영 smoke: GitHub Actions의 Windows 실행기에서 Gateway를 별도 프로세스로 시작해 빌드된 React·AudioWorklet MIME·로컬 API 인증·demo 응답·모드별 기억 격리를 검사합니다. **사용자 PC에서 실제 모델을 검증한 것은 아닙니다.**
 - 내장 SVG 아바타 브라우저 E2E (2026-11-19, [PR #23](https://github.com/yuilyoung/My_own_AI_assistant/pull/23)): Linux/Windows Chromium의 합성 음성 재생 중 실제 React SVG의 기쁨·인사 신호와 입모양 크기 변화, 재생 종료 후 입 닫힘을 DOM에서 검사합니다. 이는 내장 SVG 출력 검증이며 **공식 Live2D Cubism Core·모델 WebGL 렌더링, 실제 음성 장치 또는 Windows 사용자 PC 동작 검증은 아닙니다.**
 - Windows Chromium 합성 음성 E2E: Windows GitHub Actions 실행기에서도 `scripts/react_smoke.py`로 React의 합성 마이크 입력 → AudioWorklet → WAV 전사 → 사용자 검토·전송 → 합성 TTS/RMS 재생을 시험합니다. 충돌을 줄이기 위해 일회성 loopback 포트를 사용하며, 검증에 성공하면 `windows-synthetic-voice-report` JSON 산출물을 게시합니다. **실제 마이크·스피커나 Ollama/whisper.cpp/MeloTTS의 성능 검증이 아니며, Windows 실기기 검증도 아닙니다.**
-- Actions 산출물: `web-dist`, `gateway-wheel`. 캐릭터·모델 가중치·로컬 데이터는 포함하지 않습니다. wheel에는 UI와 외부 모델이 포함되지 않으므로 소스 실행 안내를 함께 사용하세요.
+- Actions의 `web-dist`에는 대화 UI와 기본 캐릭터 그림이 포함됩니다. `gateway-wheel`은 서버 패키지입니다. 개인 Cubism 모델·음성/언어 모델 가중치·로컬 데이터는 별도로 관리합니다.
 
 브라우저 검증은 실제 whisper/Ollama/MeloTTS 모델의 인식률·자연스러움·지연을 측정하지 않습니다. 현재 검증 결과와 실행 링크는 [구현 상태](docs/implementation-status.md)에 기록합니다.
 

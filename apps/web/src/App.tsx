@@ -169,6 +169,7 @@ function Workspace({
           <AvatarPanel
             key={`${state.mode}:${state.service}`}
             bridge={bridge}
+            mode={state.mode}
             defaultCharacter={character}
             onCharacterChange={setCharacter}
             level={level}

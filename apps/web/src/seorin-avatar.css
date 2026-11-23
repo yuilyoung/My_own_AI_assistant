@@ -11,16 +11,35 @@
   animation: seorin-breathe var(--breath-period, 5.2s) ease-in-out infinite;
 }
 
-.seorin__eyes {
-  transform-origin: 164px 146px;
-  animation: seorin-blink var(--blink-period, 6.4s) infinite;
+.painted-face__eye-pose,
+.painted-face__brow-pose,
+.painted-face__mouth-pose {
+  transition: transform 170ms ease-out;
 }
 
+.painted-face__blink {
+  animation: seorin-blink var(--blink-period, 6.4s) linear infinite;
+}
+
+.painted-face__closed {
+  opacity: 0;
+  animation: portrait-closed-lid var(--blink-period, 6.4s) linear infinite;
+}
+
+.anime__listening-head {
+  transform-origin: 164px 214px;
+  animation: portrait-listening var(--listen-period, 9s) ease-in-out infinite;
+}
+.anime__hair-tip {
+  animation: portrait-hair 6.6s ease-in-out infinite;
+}
 .seorin[data-character="hana"] {
   --breath-period: 4.6s;
   --blink-period: 5.6s;
   --tilt-angle: -8deg;
   --point-angle: -11deg;
+  --listen-period: 7.4s;
+  --head-angle: -1.2deg;
 }
 
 .seorin[data-character="isol"] {
@@ -28,6 +47,8 @@
   --blink-period: 7.1s;
   --tilt-angle: 5.5deg;
   --point-angle: -6deg;
+  --listen-period: 10.8s;
+  --head-angle: 0.75deg;
 }
 
 .seorin__speech-head {
@@ -43,15 +64,11 @@
   transform-origin: 163px 215px;
 }
 
-.seorin .avatar-panel__hand {
-  transform-origin: 296px 233px;
-}
-
 .seorin [data-gesture="nod"] .avatar-panel__head {
   animation: seorin-nod 760ms ease-in-out 2;
 }
 
-.seorin [data-gesture="greeting"] .avatar-panel__hand {
+.seorin [data-arm-pose="greeting"] .avatar-panel__hand {
   animation: seorin-wave 620ms ease-in-out 3;
 }
 
@@ -59,7 +76,7 @@
   animation: avatar-tilt 1.6s ease-in-out;
 }
 
-.seorin [data-gesture="point"] .avatar-panel__hand {
+.seorin [data-arm-pose="point"] .avatar-panel__hand {
   animation: avatar-point 1.65s ease-in-out;
 }
 
@@ -73,6 +90,36 @@
   }
 }
 
+@keyframes portrait-listening {
+  0%,
+  18%,
+  70%,
+  100% {
+    transform: rotate(0);
+  }
+  43%,
+  49% {
+    transform: rotate(var(--head-angle, -0.8deg)) translateY(-0.2px);
+  }
+  87% {
+    transform: rotate(0.28deg);
+  }
+}
+
+@keyframes portrait-hair {
+  0%,
+  18%,
+  100% {
+    transform: rotate(0);
+  }
+  54% {
+    transform: rotate(0.7deg);
+  }
+  82% {
+    transform: rotate(-0.22deg);
+  }
+}
+
 @keyframes seorin-blink {
   0%,
   44%,
@@ -81,10 +128,33 @@
   82%,
   100% {
     transform: scaleY(1);
+    opacity: 1;
+  }
+  44.8%,
+  80% {
+    opacity: 1;
   }
   45.3%,
   80.3% {
-    transform: scaleY(0.055);
+    transform: scaleY(0.025);
+    opacity: 0;
+  }
+}
+
+@keyframes portrait-closed-lid {
+  0%,
+  44.6%,
+  46.5%,
+  79.6%,
+  81.5%,
+  100% {
+    opacity: 0;
+  }
+  45.3%,
+  45.6%,
+  80.3%,
+  80.6% {
+    opacity: 1;
   }
 }
 
@@ -93,8 +163,11 @@
   100% {
     transform: translateY(0) rotate(0) scaleY(1);
   }
-  47% {
-    transform: translateY(3px) rotate(2deg) scaleY(0.965);
+  35% {
+    transform: translateY(3.4px) rotate(2deg) scaleY(0.962);
+  }
+  51% {
+    transform: translateY(3.1px) rotate(1.85deg) scaleY(0.966);
   }
   78% {
     transform: translateY(-0.8px) rotate(-0.5deg) scaleY(1);
@@ -107,10 +180,10 @@
     transform: rotate(0deg);
   }
   27% {
-    transform: rotate(-11deg);
+    transform: rotate(-12.5deg);
   }
   70% {
-    transform: rotate(12deg);
+    transform: rotate(10.5deg);
   }
 }
 
@@ -141,10 +214,19 @@
 
 @media (prefers-reduced-motion: reduce) {
   .seorin .seorin__character,
-  .seorin .seorin__eyes,
+  .seorin .painted-face__blink,
+  .seorin .painted-face__closed,
+  .seorin .anime__listening-head,
+  .seorin .anime__hair-tip,
   .seorin [data-gesture] .avatar-panel__head,
   .seorin [data-gesture] .avatar-panel__hand {
     animation: none;
+  }
+
+  .seorin .painted-face__eye-pose,
+  .seorin .painted-face__brow-pose,
+  .seorin .painted-face__mouth-pose {
+    transition: none;
   }
 
   .seorin .seorin__speech-head,
