@@ -196,6 +196,9 @@ def test_live_synthesis_uses_the_cast_recording_profile_on_new_text(tmp_path, mo
         GenerationConfig=SimpleNamespace,
     )
     resample = Mock(return_value=adjusted)
+    compressed = [0.13]
+    tempo = Mock(return_value=compressed)
+    monkeypatch.setattr(worker, "speed_up_cast_speech", tempo)
     monkeypatch.setitem(sys.modules, "sherpa_onnx", sherpa)
     monkeypatch.setitem(
         sys.modules, "numpy", SimpleNamespace(asarray=lambda samples, dtype: samples, float32=float)
@@ -205,6 +208,7 @@ def test_live_synthesis_uses_the_cast_recording_profile_on_new_text(tmp_path, mo
     synthesize = worker.load_synthesizer(tmp_path)
     for name, speaker, speed in [("hana", 3, 0.82), ("isol", 1, 0.99), ("seorin", 0, 0.95)]:
         resample.reset_mock()
+        tempo.reset_mock()
         text = f"지금 {name} 목소리로 처음 읽는 한 문장이에요."
         samples, rate = synthesize(text, name)
         spoken, config = model.generate.call_args.args
@@ -216,9 +220,10 @@ def test_live_synthesis_uses_the_cast_recording_profile_on_new_text(tmp_path, mo
         )
         assert config.speed == speed
         assert rate == 44100
+        assert samples is compressed
         if name != "hana":
-            assert samples is raw
+            tempo.assert_called_once_with(raw, rate)
             resample.assert_not_called()
         else:
-            assert samples is adjusted
+            tempo.assert_called_once_with(adjusted, rate)
             resample.assert_called_once_with(raw, rate * 1.20, rate, quality="HQ")

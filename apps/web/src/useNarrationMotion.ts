@@ -9,7 +9,7 @@ import {
 const restingArmAngle = { hana: 5, seorin: 6, isol: 4 };
 // At rest the forearm folds across the waist. Its elbow stays attached as the
 // hand travels into the painted wave, including for a cue interrupted mid-reach.
-const foldedElbow = { hana: -98, seorin: -190, isol: -112 };
+const foldedElbow = { hana: -98, seorin: -193.28, isol: -112 };
 const heldTilt = { hana: -5, seorin: -3.5, isol: 4 };
 type Arm = Exclude<NarrationPose["armPose"], "idle">;
 

@@ -564,6 +564,78 @@ def check_news_reading(page, *, reduced):
     return profile
 
 
+def check_cast_previews(page, avatars):
+    """Play both shipped recordings through each character's normal preview buttons."""
+    from playwright.sync_api import expect
+
+    preview = page.locator("details.avatar-panel__preview")
+    if preview.get_attribute("open") is None:
+        preview.locator("summary").click()
+    # Observe the native node without replacing its playback or the player's clock.
+    probe = page.evaluate_handle("""() => {
+        const proto = AudioBufferSourceNode.prototype, start = proto.start;
+        const probe = {restore: () => { proto.start = start; }};
+        proto.start = function(...args) {
+            const result = start.apply(this, args);
+            const started = this.context.currentTime;
+            const played = {buffer: this.buffer, rate: this.playbackRate.value};
+            this.addEventListener('ended', () => { played.elapsed = this.context.currentTime - started; },
+                                  {once: true});
+            probe.played = played;
+            return result;
+        };
+        return probe;
+    }""")
+    durations = {}
+    try:
+        for character, option in [("hana", "hana"), ("isol", "isol"), ("seorin", "builtin")]:
+            avatars.select_option(option)
+            portrait = page.locator(f'svg[data-character="{character}"]')
+            expect(portrait.get_by_test_id("avatar-features")).to_be_visible()
+            for kind, label in [("greeting", "인사말 듣기"), ("intro", "내레이션 미리듣기")]:
+                key = f"{character}-{kind}"
+                probe.evaluate("p => { p.played = null; }")
+                with page.expect_response(re.compile(r"\.mp3$")) as fetched:
+                    preview.get_by_role("button", name=label, exact=True).click()
+                response = fetched.value
+                assert response.ok and re.search(rf"/{key}-[\w-]+\.mp3$", response.url), (
+                    response.url
+                )
+                stop = preview.get_by_role("button", name="미리듣기 중지", exact=True)
+                expect(stop).to_be_visible()
+                mouth_box(portrait, speaking=True)
+                duration = probe.evaluate(
+                    """async (p, url) => {
+                    if (!p.played?.buffer || p.played.rate !== 1) throw Error('Unexpected preview playback');
+                    const buffer = p.played.buffer;
+                    const decoder = new OfflineAudioContext(1, 1, buffer.sampleRate);
+                    const expected = await decoder.decodeAudioData(await (await fetch(url)).arrayBuffer());
+                    const played = buffer.getChannelData(0), wanted = expected.getChannelData(0);
+                    if (played.length !== wanted.length) throw Error('Wrong preview length');
+                    for (let i = 0; i < played.length; i += 1021)
+                        if (Math.abs(played[i] - wanted[i]) > 0.00001) throw Error('Wrong preview audio');
+                    return buffer.duration;
+                }""",
+                    response.url,
+                )
+                # The six 1.2× speech edits span 6.84–7.72 seconds.
+                assert 6.6 < duration < 8.0, (key, duration)
+                durations[key] = round(duration, 3)
+                if kind == "intro":
+                    stop.click()
+                expect(stop).to_have_count(0, timeout=12_000)
+                if kind == "greeting":
+                    elapsed = probe.evaluate("p => p.played.elapsed")
+                    assert elapsed is not None and elapsed >= duration - 0.10, (key, elapsed)
+                expect(page.get_by_role("meter")).to_have_attribute("value", "0")
+                mouth_box(portrait, speaking=False)
+    finally:
+        probe.evaluate("p => p.restore()")
+        probe.dispose()
+    preview.locator("summary").click()
+    return durations
+
+
 def check_preview_and_microphone(page, portrait):
     """A real recording interrupts the offline narration, and playback can resume afterward."""
     from playwright.sync_api import expect
@@ -779,6 +851,7 @@ def main():
                     page.get_by_label("비서 메모", exact=True).fill("검증 메모")
                     page.get_by_role("button", name="메모 저장").click()
                     expect(page.get_by_text("검증 메모", exact=True)).to_be_visible()
+                    preview_durations = check_cast_previews(page, avatars)
                     check_preview_and_microphone(page, portrait)
                     try:
                         expect(page.get_by_label("메시지", exact=True)).to_have_value(
@@ -926,6 +999,7 @@ def main():
                             "2600_hz": high_mouth,
                         },
                         "narration": news,
+                        "cast_preview_seconds": preview_durations,
                         "checks": [
                             "pairing",
                             "invalid_token_reentry",
@@ -947,6 +1021,7 @@ def main():
                             "cold_wave_starts_after_matched_layers_decode",
                             "repeated_greeting_replays_and_relaxes",
                             "bundled_korean_preview_plays_and_stops",
+                            "six_bundled_korean_previews_decode_play_and_settle",
                             "microphone_interrupts_preview_until_recording_finishes",
                             "character_specific_painted_eyes_and_acting",
                             "cast_breathing_preserves_anatomical_scale",

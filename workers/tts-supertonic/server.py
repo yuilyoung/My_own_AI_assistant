@@ -7,6 +7,7 @@ from typing import Literal, NamedTuple
 
 # Both workers can run directly in their own virtual environment.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from cast_tempo import speed_up_cast_speech  # noqa: E402
 from tts_http import TextInput, create_worker_app, pcm16_wav  # noqa: E402
 
 
@@ -81,7 +82,7 @@ def load_synthesizer(directory: Path):
                 audio.sample_rate,
                 quality="HQ",
             )
-        return pcm16_wav(samples, audio.sample_rate)
+        return pcm16_wav(speed_up_cast_speech(samples, audio.sample_rate), audio.sample_rate)
 
     return synthesize
 
