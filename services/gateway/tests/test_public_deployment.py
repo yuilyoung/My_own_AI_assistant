@@ -86,8 +86,21 @@ def test_public_origin_rejects_unprotected_local_avatar_mount(tmp_path):
     """A token on /api is not authentication for /avatar-local static files."""
     models = tmp_path / "private-cubism-export"
     models.mkdir()
-    # Local-only use remains available; it does not publish model files.
-    assert Settings(avatar_dir=models).avatar_dir == models
+    # Local-only use still serves explicitly installed model files.
+    (models / "owned.model3.json").write_text('{"Version": 3}', encoding="utf-8")
+    local_settings = Settings(
+        data_dir=tmp_path / "data",
+        token="b" * 64,
+        avatar_dir=models,
+    )
+    with TestClient(
+        create_app(local_settings),
+        base_url="http://127.0.0.1:8765",
+        client=("127.0.0.1", 50000),
+    ) as local:
+        model = local.get("/avatar-local/owned.model3.json")
+        assert model.status_code == 200
+        assert model.json() == {"Version": 3}
 
     with pytest.raises(ValueError, match="Public avatar assets"):
         Settings(
