@@ -34,9 +34,9 @@ const Wardrobe = memo(function IsolOvershirt({
   return (
     <g>
       {!greeting && (
-        <image href={restingSleeve} x="251" y="222" width="67" height="138" />
+        <image href={restingSleeve} x="251" y="222" width="67" height="150" />
       )}
-      <image className="isol__portrait" href={torso} width="360" height="360" />
+      <image className="isol__portrait" href={torso} width="360" height="372" />
       {greeting && (
         <g className="narration__upper-arm">
           <image {...sleeve} />
