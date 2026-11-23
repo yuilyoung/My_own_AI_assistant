@@ -96,3 +96,24 @@ def test_public_origin_rejects_unprotected_local_avatar_mount(tmp_path):
             public_origin="https://assistant.example",
             avatar_dir=models,
         )
+
+
+def test_public_origin_never_serves_private_avatar_bytes_from_web_build(tmp_path):
+    """Vite can copy public/avatar-local into dist even without avatar_dir."""
+    web = tmp_path / "dist"
+    asset = web / "avatar-local"
+    asset.mkdir(parents=True)
+    (web / "index.html").write_text("app", encoding="utf-8")
+    (asset / "private.moc3").write_bytes(b"private-model-placeholder")
+
+    settings = Settings(
+        token="a" * 64,
+        host="0.0.0.0",
+        public_origin="https://assistant.example",
+        web_dir=web,
+        data_dir=tmp_path / "data",
+    )
+    with TestClient(create_app(settings), base_url=settings.public_origin) as client:
+        assert client.get("/").status_code == 200
+        assert client.get("/avatar-local/private.moc3").status_code == 404
+        assert client.get("/avatar-local").status_code == 404
