@@ -87,10 +87,6 @@ const eyePoses = {
 };
 const expressionStrength = { hana: 1.06, isol: 0.86, seorin: 0.76 };
 
-function anchored([x, y]: Point, height: number, angle: number, lift = 0) {
-  return `translate(${x} ${y + lift}) rotate(${angle}) scale(1 ${height}) translate(${-x} ${-y})`;
-}
-
 const Eye = memo(function Eye({
   id,
   eye,
@@ -146,9 +142,8 @@ const Eye = memo(function Eye({
       </defs>
       <g
         className="painted-face__eye-pose"
-        transform={
-          rest ? undefined : anchored([eye.center[0], eye.blinkY], eyeHeight, 0)
-        }
+        style={{ transformOrigin: `${eye.center[0]}px ${eye.blinkY}px` }}
+        transform={rest ? undefined : `scale(1 ${eyeHeight})`}
       >
         <g className="painted-face__blink" clipPath={`url(#${id}-lid)`}>
           <Texture area={eye.open} className="painted-face__eye-open" />
@@ -164,7 +159,8 @@ const Eye = memo(function Eye({
       </g>
       <g
         className="painted-face__brow-pose"
-        transform={rest ? undefined : anchored(browCenter, 1, slope, rise)}
+        style={{ transformOrigin: `${browCenter[0]}px ${browCenter[1]}px` }}
+        transform={rest ? undefined : `translate(0 ${rise}) rotate(${slope})`}
       >
         <g
           className="seorin__speech-brows"
@@ -317,9 +313,13 @@ function Mouth({
   const expressionPose =
     emotion === "neutral"
       ? undefined
-      : `translate(${cx} ${cy}) rotate(${angle + rest.angle}) scale(${rest.width} ${rest.height}) rotate(${-angle}) translate(${-cx} ${-cy})`;
+      : `rotate(${angle + rest.angle}) scale(${rest.width} ${rest.height}) rotate(${-angle})`;
   return (
-    <g className="painted-face__mouth-pose" transform={expressionPose}>
+    <g
+      className="painted-face__mouth-pose"
+      style={{ transformOrigin: `${cx}px ${cy}px` }}
+      transform={expressionPose}
+    >
       <g
         transform={`translate(${cx} ${cy}) rotate(${mouth.angle ?? 0})`}
         opacity={speaking ? 1 : 0}

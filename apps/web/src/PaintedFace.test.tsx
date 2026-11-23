@@ -57,3 +57,40 @@ it("keeps the original closed lips through floor noise and restores them during 
   rerender(<svg>{portrait(0)}</svg>);
   expect(lips.getAttribute("opacity")).toBe("1");
 });
+
+it("keeps each feature's rotation and scale centered on the drawing as an expression begins", () => {
+  const rig = isolArt.faceRig;
+  const { container, rerender } = render(<svg>{portrait(0)}</svg>);
+  const origins = (selector: string) =>
+    Array.from(
+      container.querySelectorAll<SVGGElement>(selector),
+      (e) => e.style.transformOrigin,
+    );
+  const mouth = [rig.mouth.center.map((v) => v + "px").join(" ")];
+  const eyelids = rig.eyes.map(
+    (eye) => eye.center[0] + "px " + eye.blinkY + "px",
+  );
+  const brows = rig.eyes.map(
+    ({ brow }) =>
+      brow.x + brow.width / 2 + "px " + (brow.y + brow.height / 2) + "px",
+  );
+  function checkPivots() {
+    expect(origins(".painted-face__mouth-pose")).toEqual(mouth);
+    expect(origins(".painted-face__eye-pose")).toEqual(eyelids);
+    expect(origins(".painted-face__brow-pose")).toEqual(brows);
+  }
+  checkPivots();
+  rerender(
+    <svg>
+      <PaintedFace
+        id="isol-test"
+        rig={rig}
+        character="isol"
+        emotion="surprised"
+        level={0}
+        brightness={0.5}
+      />
+    </svg>,
+  );
+  checkPivots();
+});
