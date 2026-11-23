@@ -10,7 +10,7 @@ import {
   type ExpressionCue,
   type MotionCue,
 } from "./avatar-motion";
-import type { Segment } from "./gateway";
+import type { Mode, Segment } from "./gateway";
 import "./avatar-panel.css";
 
 export type AvatarPanelProps = {
@@ -19,6 +19,7 @@ export type AvatarPanelProps = {
   brightness?: number;
   cue?: Pick<Segment, "emotion" | "gesture">;
   busy?: boolean;
+  mode?: Mode;
   defaultCharacter?: AvatarCharacter;
   onCharacterChange?: (character: AvatarCharacter) => void;
 };
@@ -40,12 +41,15 @@ export function AvatarPanel({
   brightness,
   cue,
   busy = false,
+  mode = "assistant",
   defaultCharacter = "seorin",
   onCharacterChange,
 }: AvatarPanelProps) {
-  const [kind, setKind] = useState<AvatarCharacter | "live2d">(
+  const [preferred, setPreferred] = useState<AvatarCharacter | "live2d">(
     defaultCharacter,
   );
+  const kind =
+    preferred === "hana" && mode === "companion" ? "seorin" : preferred;
   const [preview, setPreview] = useState<{
     source: AvatarPanelProps["cue"];
     sample: Pick<(typeof previews)[number], "emotion" | "gesture"> | null;
@@ -91,13 +95,15 @@ export function AvatarPanel({
               : "seorin";
           bridge.detach();
           setPreview(null);
-          setKind(next);
+          setPreferred(next);
           if (next !== "live2d") onCharacterChange?.(next);
         }}
       >
-        <option value="builtin">{avatarNames.seorin} · 비서</option>
-        <option value="hana">{avatarNames.hana} · 도예가</option>
-        <option value="isol">{avatarNames.isol} · 천문학자</option>
+        <option value="builtin">{avatarNames.seorin} · 28세 직장인</option>
+        {mode === "assistant" && (
+          <option value="hana">{avatarNames.hana} · 17세 고등학생</option>
+        )}
+        <option value="isol">{avatarNames.isol} · 22세 대학생</option>
         <option value="live2d">Live2D (사용권 필요)</option>
       </select>
       {kind !== "live2d" ? (

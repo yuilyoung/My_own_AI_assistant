@@ -12,6 +12,9 @@ import userEvent from "@testing-library/user-event";
 import { AvatarPanel } from "./AvatarPanel";
 import { AvatarMotionBridge } from "./avatar-motion";
 
+vi.mock("./usePortraitReady", () => ({ usePortraitReady: () => "ready" }));
+vi.mock("./usePortraitPose", () => ({ usePortraitPose: () => true }));
+
 afterEach(cleanup);
 
 it("switches built-in characters while preserving a live reply and its audio level", async () => {
@@ -20,6 +23,13 @@ it("switches built-in characters while preserving a live reply and its audio lev
   const cue = { emotion: "happy", gesture: "greeting" };
   render(<AvatarPanel bridge={bridge} cue={cue} level={0.6} busy />);
   const selector = screen.getByLabelText("아바타 종류");
+  for (const label of [
+    "하나 · 17세 고등학생",
+    "서린 · 28세 직장인",
+    "이솔 · 22세 대학생",
+  ]) {
+    expect(within(selector).getByRole("option", { name: label })).toBeTruthy();
+  }
   for (const [value, name] of [
     ["hana", "하나"],
     ["isol", "이솔"],
@@ -70,16 +80,16 @@ it.each(["close the preview", "start a turn"])(
         animationName: "seorin-wave",
       }),
     );
-    expect(hand.querySelector("path")).toBeNull();
+    expect(hand.querySelector('[data-pose="greeting"]')).toBeNull();
     const summary = screen.getByText("표정·동작 미리보기");
     await user.click(summary);
     await user.click(screen.getByRole("button", { name: "갸웃하기" }));
     if (action === "close the preview") await user.click(summary);
     else rerender(panel(greeting, true));
     await screen.findByRole("img", { name: /기쁨.*대기/ });
-    expect(hand.querySelector("path")).toBeNull();
+    expect(hand.querySelector('[data-pose="greeting"]')).toBeNull();
     rerender(panel({ ...greeting }));
-    expect(hand.querySelector("path")).toBeTruthy();
+    expect(hand.querySelector('[data-pose="greeting"]')).toBeTruthy();
   },
 );
 
@@ -233,17 +243,18 @@ it.each([
 ])(
   "keeps mouth geometry and the level meter finite for input %s",
   (level, expected) => {
-    render(<AvatarPanel bridge={new AvatarMotionBridge()} level={level} />);
+    const bridge = new AvatarMotionBridge();
+    const { rerender } = render(<AvatarPanel bridge={bridge} level={level} />);
 
     expect(
       (screen.getByRole("meter", { name: "음성 레벨" }) as HTMLMeterElement)
         .value,
     ).toBe(expected);
     const mouth = screen.getByTestId("avatar-mouth");
-    const radius = Number(mouth.getAttribute("ry"));
-    expect(Number.isFinite(radius)).toBe(true);
-    expect(radius).toBeGreaterThan(0);
-    expect(radius).toBeLessThanOrEqual(18);
+    const drawing = mouth.getAttribute("d");
+    expect(drawing).toMatch(/^M/);
+    rerender(<AvatarPanel bridge={bridge} level={expected} />);
+    expect(mouth.getAttribute("d")).toBe(drawing);
     expect(
       screen.getByRole("img", { name: /기본 아바타/ }).outerHTML,
     ).not.toMatch(/NaN|Infinity/);
@@ -253,18 +264,16 @@ it.each([
 it("moves the visible SVG mouth with audio and closes it when playback stops", () => {
   const bridge = new AvatarMotionBridge();
   const { rerender } = render(<AvatarPanel bridge={bridge} level={0} />);
-  const closed = Number(screen.getByTestId("avatar-mouth").getAttribute("ry"));
+  const mouth = screen.getByTestId("avatar-mouth");
+  const closed = mouth.getAttribute("d");
+  expect(closed).toMatch(/^M/);
 
   rerender(<AvatarPanel bridge={bridge} level={0.8} />);
-  expect(
-    Number(screen.getByTestId("avatar-mouth").getAttribute("ry")),
-  ).toBeGreaterThan(closed);
+  expect(mouth.getAttribute("d")).not.toBe(closed);
   expect(screen.getByRole("status").textContent).toContain("말하는 중");
 
   rerender(<AvatarPanel bridge={bridge} level={0} />);
-  expect(Number(screen.getByTestId("avatar-mouth").getAttribute("ry"))).toBe(
-    closed,
-  );
+  expect(mouth.getAttribute("d")).toBe(closed);
   expect(screen.getByRole("status").textContent).toContain("대화 준비 완료");
 });
 
@@ -359,13 +368,13 @@ it.each([
     rerender(<AvatarPanel bridge={bridge} level={0.8} cue={cue} />);
     expect(restart).not.toHaveBeenCalled();
     expect(screen.getByTestId("avatar-mouth")).toBe(mouth);
-    const speaking = mouth.getAttribute("ry");
+    const speaking = mouth.getAttribute("d");
 
     rerender(<AvatarPanel bridge={bridge} level={0.8} cue={{ ...cue }} />);
     expect(restart).toHaveBeenCalledOnce();
     expect(screen.getByRole("img", { name: /기본 아바타/ })).toBe(avatar);
     expect(screen.getByTestId("avatar-mouth")).toBe(mouth);
-    expect(mouth.getAttribute("ry")).toBe(speaking);
+    expect(mouth.getAttribute("d")).toBe(speaking);
     expect(target.style.animation).toBe("");
   },
 );
@@ -411,9 +420,8 @@ it("uses unique accessible labels and SVG definitions across concurrent panels i
   expect(avatars[0].getAttribute("aria-labelledby")).not.toBe(
     avatars[1].getAttribute("aria-labelledby"),
   );
-  const gradientIds = avatars.map(
-    (avatar) => avatar.querySelector("linearGradient")?.id,
+  const ids = avatars.flatMap((avatar) =>
+    Array.from(avatar.querySelectorAll("[id]"), (element) => element.id),
   );
-  expect(gradientIds[0]).toBeTruthy();
-  expect(gradientIds[0]).not.toBe(gradientIds[1]);
+  expect(new Set(ids).size).toBe(ids.length);
 });
