@@ -140,11 +140,11 @@ it("opens the licensed inspector and warns public deployments about private asse
   expect(screen.getByLabelText("로컬 모델 export 경로 점검")).toBeTruthy();
   expect(screen.getByRole("img", { name: "Live2D 로컬 캔버스" })).toBeTruthy();
   expect(screen.getByText(/사용권이 확인된 모델/).textContent).toContain("SDK");
-  expect(screen.getByText(/로컬 PC의 Gateway에서만/).textContent).toContain(
+  expect(screen.getByText(/로컬 Gateway/).textContent).toContain(
     "/avatar-local/",
   );
-  expect(screen.getByText(/로컬 PC의 Gateway에서만/).textContent).toContain(
-    "공개 서버에서는 인증 없는 모델 자산 노출",
+  expect(screen.getByText(/공개 서버는/).textContent).toContain(
+    "비공개 모델 자산을 제공하지 않습니다.",
   );
   expect(
     (
