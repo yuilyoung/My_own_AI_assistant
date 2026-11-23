@@ -176,6 +176,7 @@ function Workspace({
             brightness={brightness}
             cue={state.latestCue ?? undefined}
             busy={state.busy}
+            voiceActive={state.voice !== "idle"}
           />
         </aside>
         <section className="chat-panel">

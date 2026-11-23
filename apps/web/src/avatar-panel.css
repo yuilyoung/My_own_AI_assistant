@@ -129,6 +129,10 @@
   font-size: 13px;
 }
 
+.avatar-panel__narration {
+  grid-column: 1 / -1;
+}
+
 .avatar-panel__licensed {
   display: grid;
   min-width: 0;
