@@ -8,7 +8,7 @@
 |---|---|
 | 하나 · 17세 고등학생 | 햇빛이 드는 교실. 회보랏빛 눈과 가슴 아래로 내려오는 짙은 자줏빛 긴 머리, 얇은 앞머리와 단정한 교복 리본으로 호기심 어린 인상을 냈다. |
 | 서린 · 28세 직장인 | 퇴근 무렵의 사무실. 짙은 자줏빛 긴 머리와 길게 올린 눈꼬리, 금빛 귀걸이, 아이보리 블라우스와 짙은색 재킷으로 자신감 있는 인상을 잡았다. |
-| 이솔 · 22세 대학생 | 부드러운 빛이 드는 서가. 느슨한 옆머리 땋기, 세이지색 옷과 아이보리 니트의 질감, 품에 안은 책으로 포근한 인상을 냈다. |
+| 이솔 · 22세 대학생 | 볕이 드는 캠퍼스 길. 밤색 단발을 한쪽 귀 뒤로 넘긴 이솔은 흰 티셔츠 위에 하늘색 셔츠를 걸치고, 캔버스 가방을 어깨에 멘 채 노트를 들고 있다. [앱에서 본 이솔](isol-campus.webp) · [투명 배경 원화](isol-original.png) |
 
 ## 움직임 보기
 
@@ -32,6 +32,6 @@
 - 《빙과》의 치탄다 에루는 입 높이 아래에서 볼 선이 둥글게 모이고 윗눈꺼풀이 홍채 위쪽을 덮는다. 표정이 바뀔 때 코끝과 턱의 간격은 유지된다. 하나의 눈을 깜박일 때도 원화의 위·아래 눈꺼풀이 만나는 위치를 기준으로 삼았다. [치탄다의 정면 표정](https://github.com/r-anime/comment-face-assets/blob/9151e5e4373413e4c82ddd3533c4ae5c2f3efbd0/preview/active/curious.gif) · [눈꺼풀과 입이 달라지는 장면](https://github.com/r-anime/comment-face-assets/blob/9151e5e4373413e4c82ddd3533c4ae5c2f3efbd0/preview/active/wow-really.png)
 - 《플라잉 위치》의 코와타 마코토가 눈을 감고 웃는 장면에서는 짧고 굵기가 달라지는 두 곡선만으로 눈이 감겼음을 보여 준다. 턱은 둥근 U자에 가깝고, 이 크기에서는 코의 선이 생략되어 두 톤으로 벌어진 입이 먼저 읽힌다. 하나의 깜박임도 자기 눈매에서 따온 닫힌 눈꺼풀 선으로 마무리한다. [마코토가 눈을 감고 웃는 장면](https://github.com/r-anime/comment-face-assets/blob/9151e5e4373413e4c82ddd3533c4ae5c2f3efbd0/source/static/comfy/original/comfy.png)
 - 공무원이 주인공인 《서번트×서비스》의 야마가미 루시는 옆 볼에서 입가를 지나 턱까지 한 곡선이 이어진다. 고개를 기울이면 벌어진 입도 같은 각도를 따른다. 서린은 한쪽이 살짝 올라간 원래 입술 선을 기준으로 입이 열리도록 했다. [루시와 동료들의 작품 그림](https://github.com/BengaluruAnimeClub/bac-website-2.0/blob/e22222fcd11894c0eaf5e110056fb559f7bc9c65/public/images/blog/anime-spotlight-may25/servant-service.webp)
-- 대학생의 표정은 《손끝과 연연》의 이토세 유키를 참고했다. 고개를 기울였을 때 가까운 볼에서 턱까지 선이 끊김 없이 좁아지고, 작은 코끝과 짧게 벌어진 입도 같은 방향을 따른다. 이솔의 눈과 입은 비스듬히 그린 원화에서 각각의 좌표와 각도를 측정했다. [유키의 표정 클로즈업](https://github.com/alifaputrinasrulloh-cell/yubisaki-to-renren/blob/4cef6ee594ed12f367601855106cf8d2f7857b40/scene1.jpeg)
+- 이솔의 인상을 잡을 때는 대학생 두 사람의 눈과 옆얼굴을 살펴봤다. 《손끝과 연연》의 이토세 유키가 고개를 들면 어깨에 닿는 머리카락 사이로 짧은 코끝과 턱선이 드러난다. 《여친, 빌리겠습니다》의 미즈하라 치즈루는 갈색 홍채 위에 선명한 윗속눈썹을 두고 아랫눈꺼풀은 짧은 선 몇 개로 표현했다. 이솔은 단발 아래 한쪽 귀와 볼선을 드러내고, 갈색 눈 위로 가늘게 모이는 속눈썹을 그렸다. [유키의 옆얼굴](https://github.com/alifaputrinasrulloh-cell/yubisaki-to-renren/blob/4cef6ee594ed12f367601855106cf8d2f7857b40/scene2.jpeg) · [왼쪽 위 치즈루의 눈매](https://github.com/gunnery34/Anime__Kanojo_Okarishimasu_v1/blob/379bf3b967b60e766cd7abd9508a2bec80fd2d97/assets/img/image/uwp32651.jpg)
 
 기본 캐릭터는 브라우저의 SVG에서 원화와 표정·제스처 레이어를 합성한다. 개인 Cubism 모델을 사용할 때는 해당 모델의 표정과 모션을 대화 신호에 연결할 수 있다. [Live2D 모델 연결 안내](../live2d-asset-handoff.md)

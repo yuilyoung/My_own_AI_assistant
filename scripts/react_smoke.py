@@ -84,6 +84,7 @@ def serve():
             emotion, gesture = {
                 "어떤 점이 궁금해?": ("curious", "tilt"),
                 "어디를 가리키는 거야?": ("thoughtful", "point"),
+                "클라우드 질문": ("surprised", "idle"),
                 NEWS_QUESTION: ("curious", "tilt"),
             }.get(question, ("happy", "greeting"))
             return Reply.model_validate(
@@ -233,6 +234,46 @@ def check_expression_profiles(page, selector):
     selector.select_option("builtin")
 
 
+def check_surprised_mouth(page, avatars):
+    """The painted lips narrow around their attachment throughout the transition."""
+    from playwright.sync_api import expect
+
+    avatars.select_option("isol")
+    portrait = page.get_by_role("img", name=re.compile("차분함.*이솔"))
+    mouth = portrait.locator(".painted-face__mouth-pose")
+    trace = mouth.evaluate_handle("""mouth => {
+        const samples = [];
+        mouth.addEventListener('transitionrun', event => {
+            if (event.target !== mouth || event.propertyName !== 'transform') return;
+            const animation = mouth.getAnimations().find(a => a.transitionProperty === 'transform');
+            const cavity = mouth.querySelector('[data-testid="avatar-mouth"]').parentElement;
+            const local = mouth.getScreenCTM().inverse().multiply(cavity.getScreenCTM());
+            const pivot = new DOMPoint().matrixTransform(local);
+            const toStage = mouth.ownerSVGElement.getScreenCTM().inverse();
+            const reference = pivot.matrixTransform(mouth.parentElement.getScreenCTM()).matrixTransform(toStage);
+            const before = animation.currentTime;
+            for (const fraction of [0, .25, .5, .75, .999]) {
+                animation.currentTime = fraction * animation.effect.getTiming().duration;
+                const rendered = pivot.matrixTransform(mouth.getScreenCTM()).matrixTransform(toStage);
+                const pose = mouth.parentElement.getScreenCTM().inverse().multiply(mouth.getScreenCTM());
+                samples.push([Math.hypot(rendered.x - reference.x, rendered.y - reference.y), pose.a]);
+            }
+            animation.currentTime = before;
+        }, {once:true});
+        return samples;
+    }""")
+    page.get_by_label("메시지", exact=True).fill("클라우드 질문")
+    page.get_by_role("button", name="전송", exact=True).click()
+    expect(page.get_by_role("img", name=re.compile("놀람.*이솔"))).to_be_visible()
+    page.wait_for_function("samples => samples.length === 5", arg=trace)
+    samples = trace.json_value()
+    trace.dispose()
+    assert samples[0][1] - samples[-1][1] > 0.1, ("Surprised lips never narrowed", samples)
+    drift = max(distance for distance, _width in samples)
+    assert drift <= 1, ("Mouth slipped off its attachment in stage units", drift)
+    return round(drift, 4)
+
+
 @contextmanager
 def hold_asset(page, resource):
     held = []
@@ -313,8 +354,17 @@ def check_cold_portrait(page, selector):
         portrait = page.get_by_role("img", name=re.compile("이솔"))
         expect(portrait.get_by_text("캐릭터 그림을 불러오는 중")).to_be_visible()
         expect(portrait.get_by_test_id("avatar-character")).to_have_count(0)
-        expect(portrait.locator(".isol__braid, image.painted-face__eye-open")).to_have_count(0)
+        expect(
+            portrait.locator("image.isol__portrait, image.painted-face__eye-open")
+        ).to_have_count(0)
     expect(portrait.get_by_test_id("avatar-character")).to_be_visible()
+    for artwork in (
+        ".isol__campus",
+        "image.isol__portrait",
+        "image.isol__head",
+        "image.isol__fringe",
+    ):
+        expect(portrait.locator(artwork)).to_be_visible()
     expect(portrait.locator("image.painted-face__eye-open")).to_have_count(2)
     decoded_layers(portrait)
     selector.select_option("builtin")
@@ -385,7 +435,7 @@ def check_avatar_cast(page, turns, portraits):
         (
             "isol",
             "이솔",
-            ".isol__braid",
+            "image.isol__portrait",
             "어디를 가리키는 거야?",
             "사색.*가리키기",
             "point",
@@ -821,10 +871,10 @@ def main():
                         page.get_by_role("listitem").filter(has_text="로컬 전용 기억")
                     ).to_have_count(0)
                     expect(page.get_by_text("local 모의 응답입니다.", exact=True)).to_have_count(0)
-                    page.get_by_label("메시지", exact=True).fill("클라우드 질문")
-                    page.get_by_role("button", name="전송", exact=True).click()
+                    mouth_drift = check_surprised_mouth(page, avatars)
                     expect(page.get_by_text("cloud 모의 응답입니다.", exact=True)).to_be_visible()
                     expect(page.get_by_text("대화 준비됨")).to_be_visible()
+                    avatars.select_option("builtin")
                     expect(
                         page.get_by_text("클라우드 제공자에게 전송", exact=False)
                     ).to_be_visible()
@@ -852,6 +902,7 @@ def main():
                         "windows_microphone_hardware": False,
                         "live2d_rendering": False,
                         "painted_mouth": {
+                            "expression_anchor_drift_stage_units": mouth_drift,
                             "rest": closed_mouth,
                             "220_hz": low_mouth,
                             "2600_hz": high_mouth,
@@ -880,6 +931,7 @@ def main():
                             "bundled_korean_preview_plays_and_stops",
                             "microphone_interrupts_preview_until_recording_finishes",
                             "character_specific_painted_eyes_and_acting",
+                            "surprised_mouth_keeps_its_anchor_during_transition",
                             "assistant_avatar_restored_after_adult_mode",
                             "hana_tilt_isol_point_and_speech",
                             "narrated_phrases_follow_audio_and_settle_in_pause",
