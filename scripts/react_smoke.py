@@ -200,11 +200,15 @@ def check_expression_profiles(page, selector):
         expect(portrait).to_have_accessible_name(re.compile("호기심"))
         expect(pose).not_to_have_css("transform", neutral)
         curious_poses.add(
-            pose.evaluate("eye => new DOMMatrixReadOnly(getComputedStyle(eye).transform).d")
+            pose.evaluate("""async eye => {
+                // Measure the final pose, after the 170 ms eyelid transition.
+                await Promise.all(eye.getAnimations().map(animation => animation.finished));
+                return new DOMMatrixReadOnly(getComputedStyle(eye).transform).d;
+            }""")
         )
         summary.click()
         expect(pose).to_have_css("transform", neutral)
-    assert len(eye_art) == 3 and len(curious_poses) == 3, "Cast shared eye artwork or acting"
+    assert len(eye_art) == 3 and len(curious_poses) == 3, (eye_art, curious_poses)
     selector.select_option("builtin")
 
 
