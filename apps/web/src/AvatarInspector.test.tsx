@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -565,4 +566,61 @@ it("shows an SDK callback failure instead of stale connected status", async () =
     "GPU callback failed",
   );
   expect(screen.queryByText(/로컬 어댑터 초기화 완료/)).toBeNull();
+});
+
+it("keeps the restored renderer when a cancelled model load finishes late", async () => {
+  vi.mocked(verifyLocalModelResources).mockResolvedValue(modelAudit(2));
+  let finish!: () => void;
+  const delayed = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const first = {
+    load: vi.fn((_url: string, _signal?: AbortSignal) => delayed),
+    setExpression: vi.fn(),
+    setMotion: vi.fn(),
+    setLipSync: vi.fn(),
+    dispose: vi.fn(),
+  };
+  const replacement = {
+    ...first,
+    load: vi.fn(async () => {}),
+    setLipSync: vi.fn(),
+    dispose: vi.fn(),
+  };
+  const loadAdapter = vi
+    .fn()
+    .mockResolvedValueOnce(first)
+    .mockResolvedValueOnce(replacement);
+  const bridge = new AvatarMotionBridge();
+  const user = userEvent.setup();
+  render(<AvatarInspector bridge={bridge} loadAdapter={loadAdapter} />);
+  await user.type(
+    screen.getByLabelText("로컬 모델 export 경로 점검"),
+    "/avatar-local/Haru/Haru.model3.json",
+  );
+  await user.click(screen.getByRole("button", { name: "참조 파일 접근 검사" }));
+  await screen.findByText(/참조 파일 HEAD 확인: 2\/2개/);
+  const connect = screen.getByRole("button", {
+    name: "로컬 Cubism 어댑터 연결",
+  });
+  await user.click(connect);
+  await waitFor(() => expect(first.load).toHaveBeenCalledOnce());
+  const canvas = screen.getByRole("img", {
+    name: "Live2D 로컬 캔버스",
+  });
+  fireEvent(canvas, new Event("webglcontextlost", { cancelable: true }));
+  expect(first.load.mock.calls[0][1]?.aborted).toBe(true);
+  expect(first.dispose).toHaveBeenCalledOnce();
+  fireEvent(canvas, new Event("webglcontextrestored"));
+  await user.click(connect);
+  await screen.findByText(/로컬 어댑터 초기화 완료/);
+  expect(bridge.ready).toBe(true);
+
+  await act(async () => finish());
+
+  expect(bridge.ready).toBe(true);
+  expect(first.dispose).toHaveBeenCalledOnce();
+  expect(replacement.dispose).not.toHaveBeenCalled();
+  bridge.onAudioLevel(0.6);
+  expect(replacement.setLipSync).toHaveBeenLastCalledWith(0.6);
 });

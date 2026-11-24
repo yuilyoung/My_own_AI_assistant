@@ -1,6 +1,13 @@
 # 구현·검증 상태 — React 음성·기억 통합
 
-최종 작업 확인일: 2026-11-23 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+최종 작업 확인일: 2026-11-24 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+
+## 2026-11-24 WebGL 복구 후 취소된 모델 로딩의 간섭 방지
+
+- 작업 전 main: [6e7492b](https://github.com/yuilyoung/My_own_AI_assistant/commit/6e7492b2dc15c759172e5b21cc8aaeda01dd7a5f), PR #39의 서린 원화 및 캐릭터별 한국어 음성 속도 개선 포함. 해당 SHA의 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/45199997881)와 [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/45199997669)는 성공했다. 이는 수정 전 검증이다.
+- WebGL 손실로 취소된 어댑터의 `load()`가 새 연결 이후 늦게 완료되면, 이전 React 호출이 공유 브리지를 해제할 수 있었다. 취소 시점의 해제 및 브리지의 연결 식별 검사에 맡겨 이전 호출이 새 연결을 건드리지 않게 수정했다.
+- 모의 SDK가 AbortSignal을 무시하고 늦게 완료되는 상황을 재현하여 복구된 연결과 RMS 전달을 검사하는 React 회귀 테스트를 추가했다. 실제 SDK/GPU 동작 검증은 아니다. 이 수정의 CI 결과는 해당 커밋의 Actions에서 확인한다.
+- 현재 기본 캐릭터는 WebP 원화 레이어를 합성하는 SVG이며, Supertonic 2의 캐릭터별 한국어 음성도 제공한다. 공식 Live2D Core·모델 렌더링과 사용자 Windows PC의 실제 모델·음성 장치·30분 안정성은 여전히 미검증이다.
 
 ## 2026-11-23 공개 서버의 Cubism 자산 유출 방지 (PR #33 병합 및 CI 통과)
 
