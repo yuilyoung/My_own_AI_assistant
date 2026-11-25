@@ -5,6 +5,7 @@ Set SMOKE_MOBILE=1 to run the same flow with a touch/mobile viewport.
 The fixture server is private to this script and never used by gateway.cli.
 """
 
+import base64
 import io
 import itertools
 import json
@@ -427,7 +428,7 @@ def send_with_voice(page, question, voice):
 
 
 def check_landing_cast(browser, profile, base, token):
-    """Preview a bundled model before pairing and use that model in the first turn."""
+    """Exercise the sample chat, voice and motion before sending a paired turn."""
     from playwright.sync_api import expect
 
     context = browser.new_context(**profile)
@@ -436,24 +437,68 @@ def check_landing_cast(browser, profile, base, token):
         api_requests = []
         page.on("request", lambda req: api_requests.append(req) if "/api/" in req.url else None)
         page.goto(base + "/")
-        selector = page.get_by_label("아바타 종류")
-        for option, voice in (("builtin", "seorin"), ("hana", "hana"), ("isol", "isol")):
-            selector.select_option(option)
-            expect(page.locator(f'svg[data-character="{voice}"]')).to_be_visible()
-        expect(selector.locator('option[value="live2d"]')).to_have_count(0)
-        page.get_by_text("표정·동작 미리보기", exact=True).click()
-        with page.expect_response(re.compile(r"/isol-greeting-[\w-]+\.mp3$")) as preview:
-            page.get_by_role("button", name="인사말 듣기", exact=True).click()
-        assert preview.value.ok
-        expect(page.get_by_role("meter")).not_to_have_attribute("value", "0")
-        assert not api_requests, "The landing page queried the Gateway before pairing"
+        demo = page.locator("#demo")
+        cast = demo.get_by_role("group", name="캐릭터 선택")
+        expect(cast.get_by_role("button")).to_have_count(3)
+        thread = demo.get_by_role("log", name="샘플 대화")
+        rows = thread.locator("article")
+        meter = demo.get_by_role("meter", name="음성 레벨")
+        stop = demo.get_by_role("button", name="재생 중지", exact=True)
+        for voice, name in (("isol", "이솔"), ("seorin", "서린"), ("hana", "하나")):
+            choice = cast.get_by_role("button", name=re.compile(name))
+            choice.click()
+            expect(choice).to_have_attribute("aria-pressed", "true")
+            portrait = demo.locator(f'svg[data-character="{voice}"]')
+            expect(portrait.get_by_test_id("avatar-features")).to_be_visible()
+            expect(rows.last.get_by_text(name, exact=True)).to_be_visible()
+            expect(meter).to_have_attribute("value", "0")
+            expect(stop).to_have_count(0)
+        expect(rows).to_have_count(2)
+        first_exchange = rows.all_text_contents()
+        with painted_motion(portrait) as trace:
+            demo.get_by_role("button", name="인사하기", exact=True).click()
+            page.wait_for_function(
+                "t => t.frames.some(f => f.gesture === 'greeting' && f.hand && f.lift > 0.5)",
+                arg=trace,
+                timeout=8000,
+            )
+        expect(meter).to_have_attribute("value", "0")
 
-        page.get_by_label("연결 토큰").fill(token)
-        page.get_by_role("button", name="연결", exact=True).click()
-        expect(page.get_by_text("대화 준비됨", exact=True)).to_be_visible()
-        expect(selector).to_have_value("isol")
+        with observe_playback(page) as probe:
+            with page.expect_response(re.compile(r"/hana-intro-[\w-]+\.mp3$")) as preview:
+                demo.get_by_role("button", name="자기소개 듣기", exact=True).click()
+            response = preview.value
+            assert response.ok, response.status
+            audio = response.body()
+            assert audio == (ROOT / "apps/web/src/audio/hana-intro.mp3").read_bytes()
+            expect(rows).to_have_count(2)
+            assert rows.all_text_contents() != first_exchange
+            expect(stop).to_be_visible()
+            expect(meter).not_to_have_attribute("value", "0")
+            mouth_box(portrait, speaking=True)
+            duration = played_mp3_duration(probe, audio)
+            expect(stop).to_have_count(0, timeout=12_000)
+            expect(meter).to_have_attribute("value", "0")
+            mouth_box(portrait, speaking=False)
+            elapsed = probe.evaluate("p => p.played.elapsed")
+            assert elapsed is not None and elapsed >= duration - 0.10, (elapsed, duration)
+
+            page.get_by_label("연결 토큰").fill(token)
+            probe.evaluate("p => { p.played = null; }")
+            with page.expect_response(re.compile(r"/hana-greeting-[\w-]+\.mp3$")) as greeting:
+                demo.get_by_role("button", name="인사말 듣기", exact=True).click()
+            assert greeting.value.ok
+            assert rows.all_text_contents() == first_exchange
+            expect(meter).not_to_have_attribute("value", "0")
+            assert not api_requests, "The landing page queried the Gateway before pairing"
+            page.get_by_role("button", name="연결", exact=True).click()
+            expect(page.get_by_text("대화 준비됨", exact=True)).to_be_visible()
+            page.wait_for_function("p => p.played?.context.state === 'closed'", arg=probe)
+        expect(thread).to_have_count(0)
+        expect(page.get_by_role("log", name="대화 내용").locator("article")).to_have_count(0)
+        expect(page.get_by_label("아바타 종류")).to_have_value("hana")
         expect(page.get_by_role("meter")).to_have_attribute("value", "0")
-        send_with_voice(page, "첫 인사", "isol")
+        send_with_voice(page, "첫 인사", "hana")
         expect(page.get_by_text("대화 준비됨", exact=True)).to_be_visible()
     finally:
         context.close()
@@ -623,6 +668,7 @@ def observe_playback(page):
             const started = this.context.currentTime;
             const played = {
                 buffer: this.buffer, rate: this.playbackRate.value,
+                context: this.context,
                 output: reachesOutput(this, this.context.destination),
             };
             this.addEventListener('ended', () => { played.elapsed = this.context.currentTime - started; },
@@ -637,6 +683,29 @@ def observe_playback(page):
     finally:
         probe.evaluate("p => p.restore()")
         probe.dispose()
+
+
+def played_mp3_duration(probe, body):
+    """Verify the live browser node decoded and routed the supplied MP3."""
+    return probe.evaluate(
+        """async (p, encoded) => {
+            if (!p.played?.buffer || p.played.rate !== 1 || !p.played.output)
+                throw Error('Unexpected preview playback');
+            const played = p.played.buffer;
+            const decoder = new OfflineAudioContext(1, 1, played.sampleRate);
+            const bytes = Uint8Array.from(atob(encoded), byte => byte.charCodeAt(0));
+            const expected = await decoder.decodeAudioData(bytes.buffer);
+            if (played.length !== expected.length || played.numberOfChannels !== expected.numberOfChannels)
+                throw Error('Wrong preview format');
+            for (let channel = 0; channel < played.numberOfChannels; channel++) {
+                const samples = played.getChannelData(channel), wanted = expected.getChannelData(channel);
+                for (let i = 0; i < samples.length; i++)
+                    if (Math.abs(samples[i] - wanted[i]) > 0.00001) throw Error('Wrong preview audio');
+            }
+            return played.duration;
+        }""",
+        base64.b64encode(body).decode("ascii"),
+    )
 
 
 def check_cast_previews(page, avatars):
@@ -664,20 +733,7 @@ def check_cast_previews(page, avatars):
                 stop = preview.get_by_role("button", name="미리듣기 중지", exact=True)
                 expect(stop).to_be_visible()
                 mouth_box(portrait, speaking=True)
-                duration = probe.evaluate(
-                    """async (p, url) => {
-                    if (!p.played?.buffer || p.played.rate !== 1) throw Error('Unexpected preview playback');
-                    const buffer = p.played.buffer;
-                    const decoder = new OfflineAudioContext(1, 1, buffer.sampleRate);
-                    const expected = await decoder.decodeAudioData(await (await fetch(url)).arrayBuffer());
-                    const played = buffer.getChannelData(0), wanted = expected.getChannelData(0);
-                    if (played.length !== wanted.length) throw Error('Wrong preview length');
-                    for (let i = 0; i < played.length; i += 1021)
-                        if (Math.abs(played[i] - wanted[i]) > 0.00001) throw Error('Wrong preview audio');
-                    return buffer.duration;
-                }""",
-                    response.url,
-                )
+                duration = played_mp3_duration(probe, response.body())
                 # The six 1.2× speech edits span 6.84–7.72 seconds.
                 assert 6.6 < duration < 8.0, (key, duration)
                 durations[key] = round(duration, 3)
@@ -1061,6 +1117,7 @@ def main():
                         "checks": [
                             "pairing",
                             "landing_cast_preview_and_first_turn_selection",
+                            "landing_scripted_chat_bundled_audio_and_manual_motion",
                             "invalid_token_reentry",
                             "same_tab_token_link",
                             "temporary_status_failure_retry",

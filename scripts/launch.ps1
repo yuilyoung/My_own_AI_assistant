@@ -12,26 +12,88 @@ function Find-Application([string]$Name) {
     if ($Command) { $Command.Source }
 }
 
-function Find-Python {
-    $VersionProbe = "import sys; print(sys.executable) if sys.version_info >= (3, 11) else sys.exit(1)"
-    $Executable = Find-Application "python.exe"
-    if ($Executable -and $Executable -notmatch '\\Microsoft\\WindowsApps\\python\.exe$') {
+function Test-PythonExecutable([string]$Executable) {
+    if (!$Executable -or $Executable -match '\\Microsoft\\WindowsApps\\python\.exe$' -or
+        !(Test-Path -LiteralPath $Executable -PathType Leaf)) { return $false }
+    $VersionProbe = "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)"
+    try {
         & $Executable -c $VersionProbe 2>$null | Out-Null
-        if ($LASTEXITCODE -eq 0) { return $Executable }
+        return ($LASTEXITCODE -eq 0)
+    } catch {
+        return $false
     }
-    $Launcher = Find-Application "py.exe"
-    if ($Launcher) {
-        $Executable = & $Launcher -3 -c $VersionProbe 2>$null
-        if ($LASTEXITCODE -eq 0 -and $Executable -and (Test-Path -LiteralPath $Executable -PathType Leaf)) {
-            return $Executable
+}
+
+function Find-Python {
+    $Commands = Get-Command -Name "python.exe" -CommandType Application -All -ErrorAction SilentlyContinue
+    foreach ($Command in $Commands) {
+        if (Test-PythonExecutable $Command.Source) { return $Command.Source }
+    }
+
+    $InstallRoots = @($env:ProgramFiles, ${env:ProgramFiles(x86)})
+    if ($env:LOCALAPPDATA) {
+        $InstallRoots += (Join-Path $env:LOCALAPPDATA "Programs/Python")
+    }
+    foreach ($InstallRoot in $InstallRoots) {
+        if ($InstallRoot -and (Test-Path -LiteralPath $InstallRoot -PathType Container)) {
+            $Directories = Get-ChildItem -LiteralPath $InstallRoot -Directory -Filter "Python3*" -ErrorAction SilentlyContinue
+            foreach ($Directory in $Directories) {
+                $Executable = Join-Path $Directory.FullName "python.exe"
+                if (Test-PythonExecutable $Executable) { return $Executable }
+            }
         }
     }
-    throw "Python 3.11 or later is required. Run 'winget install --exact --id Python.Python.3.12', then reopen PowerShell."
+
+    $Launcher = Find-Application "py.exe"
+    if ($Launcher) {
+        try {
+            # Listing installed runtimes avoids the install manager's automatic
+            # installation when no Python has been installed yet.
+            $Installed = & $Launcher -0p 2>$null
+            if ($LASTEXITCODE -eq 0) {
+                foreach ($Line in $Installed) {
+                    if ($Line -match '^\s*-\S+\s+\*?\s*((?:[A-Za-z]:\\|\\\\).+\.exe)\s*$') {
+                        $Executable = $Matches[1]
+                        if (Test-PythonExecutable $Executable) { return $Executable }
+                    }
+                }
+            }
+        } catch {
+            # Ignore an unavailable Python launcher and allow the install prompt.
+        }
+    }
 }
 
 function Invoke-Checked([string]$Command, [string[]]$Arguments, [string]$Failure) {
     & $Command @Arguments
     if ($LASTEXITCODE -ne 0) { throw "$Failure (exit code $LASTEXITCODE)." }
+}
+
+function Install-Python {
+    $ManualInstall = "Install Python 3.12 from https://www.python.org/downloads/windows/ and run Start.cmd again."
+    $WinGet = Find-Application "winget.exe"
+    if (!$WinGet -and $env:LOCALAPPDATA) {
+        $WinGetAlias = Join-Path $env:LOCALAPPDATA "Microsoft/WindowsApps/winget.exe"
+        if (Test-Path -LiteralPath $WinGetAlias -PathType Leaf) { $WinGet = $WinGetAlias }
+    }
+    if (!$WinGet) { throw "Python 3.11 or later is required and WinGet was not found. $ManualInstall" }
+    $InteractiveInstall = "Python is required. Run Start.cmd in an interactive terminal to approve installation. $ManualInstall"
+    if ([Console]::IsInputRedirected) { throw $InteractiveInstall }
+    try {
+        $Consent = Read-Host "Python 3.11 or later was not found. Install official Python 3.12 for this account using WinGet? [y/N]"
+    } catch {
+        throw $InteractiveInstall
+    }
+    if (([string]$Consent).Trim() -notin @("y", "yes")) { throw "Python was not installed. $ManualInstall" }
+    $InstallerOptions = @(
+        "install", "--exact", "--id", "Python.Python.3.12", "--source", "winget",
+        "--scope", "user", "--interactive", "--override", "InstallAllUsers=0 InstallLauncherAllUsers=0 PrependPath=0"
+    )
+    try {
+        Invoke-Checked $WinGet $InstallerOptions "WinGet returned an error"
+    } catch {
+        throw "WinGet did not finish installing Python. $ManualInstall $_"
+    }
 }
 
 function Test-ClaudeSubscription([string]$Executable) {
@@ -96,11 +158,28 @@ if (!(Test-Path -LiteralPath $Archive -PathType Leaf)) {
 }
 $VenvPython = Join-Path $Root ".venv/Scripts/python.exe"
 $Dist = $null
+$OriginalPath = $env:PATH
+$RefreshedPath = $false
 
 Push-Location $Root
 try {
     if (!(Test-Path -LiteralPath $VenvPython -PathType Leaf)) {
         $Python = Find-Python
+        if (!$Python) {
+            Install-Python
+            $Python = Find-Python
+            if (!$Python) {
+                $RefreshedPath = $true
+                $MachinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+                $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
+                $env:PATH = (@($OriginalPath, $MachinePath, $UserPath) |
+                    Where-Object { $_ }) -join [System.IO.Path]::PathSeparator
+                $Python = Find-Python
+            }
+            if (!$Python) {
+                throw "WinGet finished but Python is still unavailable. Open a new PowerShell window and run Start.cmd again."
+            }
+        }
         Invoke-Checked $Python @("-m", "venv", ".venv") "Could not create the virtual environment"
     }
     Invoke-Checked $VenvPython @("-m", "pip", "install", "--disable-pip-version-check", "-r", "requirements.txt") "Could not install Gateway dependencies"
@@ -146,5 +225,6 @@ try {
     if ($Dist -and (Test-Path -LiteralPath $Dist -PathType Container)) {
         Remove-Item -LiteralPath $Dist -Recurse -Force -ErrorAction SilentlyContinue
     }
+    if ($RefreshedPath) { $env:PATH = $OriginalPath }
     Pop-Location
 }

@@ -424,7 +424,15 @@ it("shows local and cloud choices, clears prior messages, and labels cloud trans
   );
   const user = userEvent.setup();
   render(<App />);
-  expect(screen.getByText(/연결한 서버에 저장/)).toBeTruthy();
+  expect(
+    screen.getByText(/대화 기록, 저장한 기억, AI 요청을 보호/),
+  ).toBeTruthy();
+  expect(
+    screen.getByRole("heading", { name: /Windows.*Claude 구독/ }),
+  ).toBeTruthy();
+  expect(
+    screen.getByRole("heading", { name: /공개 사이트.*서버 API/ }),
+  ).toBeTruthy();
   await user.type(screen.getByLabelText("연결 토큰"), "a".repeat(32));
   await user.click(screen.getByRole("button", { name: "연결" }));
   expect(await screen.findByLabelText("LLM 서비스")).toBeTruthy();
@@ -444,10 +452,11 @@ it("shows local and cloud choices, clears prior messages, and labels cloud trans
   );
   expect(screen.getByText(/CLOUD · configured-model/)).toBeTruthy();
   expect(screen.getByText(/클라우드 제공자에게 전송/)).toBeTruthy();
+  expect(screen.getByText(/연결한 서버에 저장/)).toBeTruthy();
   expect(screen.getByRole("img", { name: /기본 아바타/ })).toBeTruthy();
 });
 
-it("applies a character selected before pairing to the first conversation turn", async () => {
+it("previews the full cast without API access and keeps the chosen voice when pairing", async () => {
   const turns: unknown[] = [];
   const fetchApi = vi.fn(async (url: string, options: RequestInit = {}) => {
     if (url === "/api/status")
@@ -470,18 +479,26 @@ it("applies a character selected before pairing to the first conversation turn",
   const user = userEvent.setup();
   render(<App />);
 
-  const selector = within(screen.getByLabelText("아바타 종류"));
-  expect(selector.getByRole("option", { name: /서린/ })).toBeTruthy();
-  expect(selector.getByRole("option", { name: /하나/ })).toBeTruthy();
-  expect(selector.getByRole("option", { name: /이솔/ })).toBeTruthy();
-  expect(selector.queryByRole("option", { name: /Live2D/ })).toBeNull();
-  await user.selectOptions(screen.getByLabelText("아바타 종류"), "hana");
-  expect(screen.getByRole("img", { name: /하나/ })).toBeTruthy();
+  const cast = within(screen.getByRole("group", { name: "캐릭터 선택" }));
+  expect(cast.getAllByRole("button")).toHaveLength(3);
+  for (const name of ["이솔", "서린", "하나"]) {
+    const member = cast.getByRole("button", { name: new RegExp(name) });
+    await user.click(member);
+    expect(member.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("img", { name: new RegExp(name) })).toBeTruthy();
+  }
+  expect(screen.getByRole("log", { name: "샘플 대화" })).toBeTruthy();
   expect(fetchApi).not.toHaveBeenCalled();
 
   await user.type(screen.getByLabelText("연결 토큰"), "test-token");
   await user.click(screen.getByRole("button", { name: "연결" }));
   await screen.findByText("대화 준비됨");
+  expect(screen.queryByRole("log", { name: "샘플 대화" })).toBeNull();
+  expect(
+    within(screen.getByRole("log", { name: "대화 내용" })).queryAllByRole(
+      "article",
+    ),
+  ).toHaveLength(0);
   expect(
     (screen.getByLabelText("아바타 종류") as HTMLSelectElement).value,
   ).toBe("hana");

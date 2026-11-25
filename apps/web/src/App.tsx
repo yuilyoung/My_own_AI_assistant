@@ -2,12 +2,14 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { FormEvent } from "react";
 import { GatewayClient, type ServiceId } from "./gateway";
 import { AvatarPanel } from "./AvatarPanel";
+import { DemoStudio } from "./DemoStudio";
 import { characterForMode, type AvatarCharacter } from "./avatar-cast";
 import { AvatarMotionBridge } from "./avatar-motion";
 import { dispatchAvatarCues } from "./avatar-cues";
 import { Conversation } from "./conversation";
 import { Player } from "../../diagnostics/player.mjs";
 import { MicrophoneRecorder } from "../../diagnostics/recorder.mjs";
+import "./site.css";
 
 const serviceLabels: Record<ServiceId, string> = {
   demo: "DEMO",
@@ -382,7 +384,9 @@ export function App() {
   useEffect(() => {
     const readFragment = () => {
       if (!location.hash) return;
-      const incoming = new URLSearchParams(location.hash.slice(1)).get("token");
+      const fragment = new URLSearchParams(location.hash.slice(1));
+      if (!fragment.has("token")) return;
+      const incoming = fragment.get("token");
       history.replaceState(
         history.state,
         "",
@@ -424,64 +428,115 @@ export function App() {
     setToken("");
     void next.connect();
   };
+  if (app && avatarBridge.current) {
+    return (
+      <main>
+        <header>
+          <p className="eyebrow">MY COMPANION</p>
+          <h1>My own AI assistant</h1>
+          <p>나를 돕는 비서, 이야기를 나누는 친구</p>
+        </header>
+        <Workspace
+          app={app}
+          character={character}
+          onCharacterChange={setCharacter}
+          level={level}
+          brightness={brightness}
+          bridge={avatarBridge.current}
+        />
+        <button
+          className="disconnect"
+          onClick={() => {
+            app.dispose();
+            setApp(null);
+          }}
+        >
+          연결 해제 / 토큰 다시 입력
+        </button>
+        <footer>
+          대화는 연결한 서버에 저장됩니다. 로컬 실행은 해당 PC, 클라우드 실행은
+          배포 서버의 저장소를 사용합니다. 소개팅 모드에는 비서 도구가 제공되지
+          않습니다.
+        </footer>
+      </main>
+    );
+  }
+
   return (
-    <main>
-      <header>
-        <p className="eyebrow">MY COMPANION</p>
-        <h1>My own AI assistant</h1>
-        <p>나를 돕는 비서, 이야기를 나누는 친구</p>
+    <main id="top" className="site-shell">
+      <header className="site-header">
+        <a className="site-brand" href="#top">
+          <span className="site-mark" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+          <span>My Companion</span>
+        </a>
+        <nav className="site-nav" aria-label="둘러보기">
+          <a href="#characters">캐릭터 데모</a>
+          <a href="#connection">연결 안내</a>
+        </nav>
+        <a className="site-header-action" href="#connection">
+          내 AI 연결 <span aria-hidden="true">↗</span>
+        </a>
       </header>
-      {app && avatarBridge.current ? (
-        <>
-          <Workspace
-            app={app}
-            character={character}
-            onCharacterChange={setCharacter}
-            level={level}
-            brightness={brightness}
-            bridge={avatarBridge.current}
-          />
-          <button
-            className="disconnect"
-            onClick={() => {
-              app.dispose();
-              setApp(null);
-            }}
-          >
-            연결 해제 / 토큰 다시 입력
-          </button>
-        </>
-      ) : (
-        <div className="workspace">
-          <AvatarPanel
-            level={0}
-            defaultCharacter={character}
-            onCharacterChange={setCharacter}
-          />
-          <form className="pairing" onSubmit={connect}>
-            <h2>비서 서버 연결</h2>
-            <p>
-              이 서버에 설정한 연결 토큰을 입력하세요. 로컬 실행은 실행 콘솔,
-              클라우드는 서버 환경 설정에서 확인할 수 있습니다.
-            </p>
-            <label htmlFor="token">연결 토큰</label>
-            <input
-              id="token"
-              type="password"
-              autoComplete="off"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              required
-            />
-            <button className="primary">연결</button>
-          </form>
+      <section className="site-hero" aria-labelledby="demo-title">
+        <h1 id="demo-title">캐릭터와 대화</h1>
+        <p>
+          캐릭터의 목소리와 움직임을 샘플 대화로 만나보세요.
+          <span>토큰 없이 체험할 수 있어요.</span>
+        </p>
+      </section>
+      <DemoStudio character={character} onCharacterChange={setCharacter} />
+      <section
+        id="connection"
+        className="site-connection"
+        aria-labelledby="connection-title"
+      >
+        <div className="site-connection-info">
+          <h2 id="connection-title">내 AI 연결</h2>
+          <p>
+            연결 토큰은 이 앱 서버의 대화 기록, 저장한 기억, AI 요청을 보호하는
+            접근 키입니다.
+          </p>
+          <div className="site-connection-modes">
+            <div>
+              <h3>Windows · Claude 구독</h3>
+              <p>
+                Windows 설치본에서 공식 Claude Code에 본인 구독 계정으로
+                로그인하면 이 PC의 로컬 앱에서 대화할 수 있습니다.
+              </p>
+            </div>
+            <div>
+              <h3>공개 사이트 · 서버 API</h3>
+              <p>
+                공개 사이트의 실제 대화에는 운영자가 서버에 설정한 OpenAI 호환
+                API가 필요합니다. Claude 구독은 Windows 로컬 연결에서
+                사용합니다.
+              </p>
+            </div>
+          </div>
         </div>
-      )}
-      <footer>
-        대화는 연결한 서버에 저장됩니다. 로컬 실행은 해당 PC, 클라우드 실행은
-        배포 서버의 저장소를 사용합니다. 소개팅 모드에는 비서 도구가 제공되지
-        않습니다.
-      </footer>
+        <form className="pairing site-pairing" onSubmit={connect}>
+          <h3>비서 서버 연결</h3>
+          <p id="site-token-help">
+            Windows 실행 창에 나온 연결 주소를 열면 토큰이 자동으로 입력됩니다.
+            공개 사이트의 토큰은 운영자에게 받으세요.
+          </p>
+          <label htmlFor="token">연결 토큰</label>
+          <input
+            id="token"
+            type="password"
+            autoComplete="off"
+            aria-describedby="site-token-help"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            required
+          />
+          <button className="primary">연결</button>
+        </form>
+      </section>
     </main>
   );
 }

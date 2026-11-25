@@ -1,6 +1,6 @@
 # Render에서 외부 브라우저로 접속
 
-기본 배포는 demo 고정 응답과 하나·서린·이솔을 제공합니다. 첫 화면에서 세 캐릭터를 고르고 내장 인사와 자기소개를 들을 수 있습니다. Docker 빌드가 웹 앱과 캐릭터 자산을 함께 설치합니다. 공개 사이트에서 AI 대화를 사용하려면 아래 클라우드 설정을 추가합니다. Claude 구독 연결은 Windows 설치본에서 로컬 Claude Code로 사용합니다. [Windows 설치](../README.md#바로-설치하고-실행하기)
+첫 화면에서는 토큰 없이 이솔·서린·하나의 샘플 대화와 음성을 재생하고 개별 모션을 실행할 수 있습니다. 샘플은 브라우저에서 실행되며 Docker 빌드가 캐릭터 자산을 웹 앱과 함께 설치합니다. 실제 대화와 기억은 연결 토큰으로 보호합니다. 공개 사이트의 AI 대화에는 아래에 설명한 서버 측 OpenAI 호환 API 설정이 필요합니다. Claude 구독 연결은 Windows 설치본에서 로컬 Claude Code로 사용합니다. [Windows 설치](../README.md#바로-설치하고-실행하기)
 
 1. 이 변경 사항을 GitHub에 반영하고 Render에서 해당 브랜치를 선택합니다.
 2. Web Service의 Language/Runtime은 Docker, Root Directory는 비워 두고 Dockerfile Path는 `./Dockerfile`로 지정합니다. 빌드·시작 명령은 Dockerfile을 사용합니다.

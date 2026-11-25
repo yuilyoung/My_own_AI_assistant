@@ -64,7 +64,7 @@ cd My_own_AI_assistant
 .\Start.cmd
 ```
 
-설치기는 Python 3.11 이상으로 Gateway를 준비하고 설치 브랜치에 포함된 웹 빌드를 실행합니다. Windows용 공식 Claude Code 2.1.248 이상이 필요합니다. 프로그램이 없다면 다음 명령으로 설치한 뒤 새 PowerShell에서 `Start.cmd`를 실행하세요. [공식 Claude Code 설치](https://github.com/anthropics/claude-code#get-started)
+설치기는 Python 3.11 이상으로 Gateway를 준비하고 설치 브랜치에 포함된 웹 빌드를 실행합니다. Python을 찾지 못하고 WinGet을 사용할 수 있으면 Python 3.12 설치 여부를 묻습니다. Windows용 공식 Claude Code 2.1.248 이상이 필요합니다. 프로그램이 없다면 다음 명령으로 설치한 뒤 새 PowerShell에서 `Start.cmd`를 실행하세요. [공식 Claude Code 설치](https://github.com/anthropics/claude-code#get-started)
 
 ```powershell
 winget install --exact --id Anthropic.ClaudeCode
@@ -72,7 +72,7 @@ winget install --exact --id Anthropic.ClaudeCode
 
 첫 실행의 기본 서비스는 **Claude 구독**입니다. 로그인 안내가 나오면 Anthropic 브라우저 페이지에서 자신의 구독 계정으로 로그인하세요. 앱은 내 PC의 공식 Claude Code에 답변을 요청하며, Claude Code가 해당 계정의 구독 한도를 사용합니다. Claude는 대화 요청에 포함된 메시지와 관련 기억을 처리합니다. [Claude 구독 사용 안내](https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan) · [Anthropic 인증 조건](https://code.claude.com/docs/en/legal-and-compliance#authentication-and-credential-use)
 
-열린 로컬 브라우저에서 하나·서린·이솔을 고르고 인사와 자기소개를 들을 수 있습니다. 콘솔에 표시된 연결 주소를 사용하거나 화면에 **이 앱의 연결 토큰**을 입력해 대화를 시작합니다. 선택한 캐릭터가 첫 대화에 적용됩니다. 답변 낭독은 Supertonic 2 워커를 연결해 켤 수 있습니다. [캐릭터별 답변 낭독 설정](workers/tts-supertonic/README.md)
+첫 화면에서 토큰 없이 이솔·서린·하나를 골라 인사와 자기소개 샘플을 듣고 네 가지 모션을 실행해 볼 수 있습니다. 실제 대화를 시작하려면 콘솔에 표시된 로컬 연결 주소를 열거나 **이 앱의 연결 토큰**을 입력합니다. 토큰은 서버의 대화 기록, 저장한 기억과 AI 요청을 보호합니다. 데모에서 선택한 캐릭터가 첫 대화에 적용됩니다. 답변 낭독은 Supertonic 2 워커를 연결해 켤 수 있습니다. [캐릭터별 답변 낭독 설정](workers/tts-supertonic/README.md)
 
 Claude 로그인 없이 설치와 화면만 확인하려면 `.\Start.cmd -Provider demo`로 실행합니다. 데모의 대화에는 고정 응답이 표시됩니다.
 
