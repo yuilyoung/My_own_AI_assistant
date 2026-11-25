@@ -14,17 +14,17 @@ function Find-Application([string]$Name) {
 
 function Find-Python {
     $VersionProbe = "import sys; print(sys.executable) if sys.version_info >= (3, 11) else sys.exit(1)"
+    $Executable = Find-Application "python.exe"
+    if ($Executable -and $Executable -notmatch '\\Microsoft\\WindowsApps\\python\.exe$') {
+        & $Executable -c $VersionProbe 2>$null | Out-Null
+        if ($LASTEXITCODE -eq 0) { return $Executable }
+    }
     $Launcher = Find-Application "py.exe"
     if ($Launcher) {
         $Executable = & $Launcher -3 -c $VersionProbe 2>$null
         if ($LASTEXITCODE -eq 0 -and $Executable -and (Test-Path -LiteralPath $Executable -PathType Leaf)) {
             return $Executable
         }
-    }
-    $Executable = Find-Application "python.exe"
-    if ($Executable -and $Executable -notmatch '\\Microsoft\\WindowsApps\\python\.exe$') {
-        & $Executable -c $VersionProbe 2>$null | Out-Null
-        if ($LASTEXITCODE -eq 0) { return $Executable }
     }
     throw "Python 3.11 or later is required. Run 'winget install --exact --id Python.Python.3.12', then reopen PowerShell."
 }
@@ -35,9 +35,9 @@ function Invoke-Checked([string]$Command, [string[]]$Arguments, [string]$Failure
 }
 
 function Test-ClaudeSubscription([string]$Executable) {
-    $StatusJson = & $Executable auth status --json 2>$null
-    if ($LASTEXITCODE -ne 0 -or !$StatusJson) { return $false }
     try {
+        $StatusJson = & $Executable auth status --json 2>$null
+        if ($LASTEXITCODE -ne 0 -or !$StatusJson) { return $false }
         $Status = ($StatusJson -join "`n") | ConvertFrom-Json
         return ($Status.loggedIn -is [bool] -and $Status.loggedIn -and $Status.authMethod -ceq "claude.ai")
     } catch {
@@ -120,7 +120,13 @@ try {
 
     Push-Location $Web
     try {
-        $LockHash = (Get-FileHash -LiteralPath "package-lock.json" -Algorithm SHA256).Hash
+        $Hasher = [System.Security.Cryptography.SHA256]::Create()
+        try {
+            $LockBytes = [System.IO.File]::ReadAllBytes((Join-Path $Web "package-lock.json"))
+            $LockHash = [BitConverter]::ToString($Hasher.ComputeHash($LockBytes)).Replace("-", "")
+        } finally {
+            $Hasher.Dispose()
+        }
         $InstalledLock = "node_modules/.assistant-package-lock.sha256"
         if (!(Test-Path -LiteralPath $InstalledLock -PathType Leaf) -or
             (Get-Content -LiteralPath $InstalledLock -Raw -Force).Trim() -ne $LockHash) {

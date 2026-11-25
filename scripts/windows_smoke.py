@@ -105,6 +105,7 @@ def main():
         )
         command = [sys.executable, "-m", "gateway.cli"]
         if args.launcher:
+            env.pop("PSMODULEPATH", None)
             command = [
                 "powershell.exe",
                 "-NoProfile",
