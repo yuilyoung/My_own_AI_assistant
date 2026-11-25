@@ -1,6 +1,12 @@
 # 구현·검증 상태 — React 음성·기억 통합
 
-최종 작업 확인일: 2026-11-24 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+최종 작업 확인일: 2026-11-25 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+
+## 2026-11-25 모델 JSON 검사 취소 및 PR #40 병합
+
+- PR #40은 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/45295159495)와 [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/45295159260) 모두 성공한 뒤 [39c64ba](https://github.com/yuilyoung/My_own_AI_assistant/commit/39c64baf9fa04f216cd229c4118b1a637c1c7c70)로 병합했다. PR SHA 기준 Vitest 179개(19파일), Python 198개(경고 1건), Windows/Linux 합성 음성 브라우저, Docker 스모크 및 4개 OS/Python 인수 시험 잡이 통과했다. web-dist 2,872,524 B, gateway-wheel 23,383 B, Windows 합성 음성 보고서 2,673 B 및 인수 시험 보고서 4개 생성을 확인했다.
+- 모델 JSON 검사도 AbortController를 사용한다. WebGL 손실/패널 해제에서 요청을 취소하고, 취소된 결과가 새 모델의 HEAD 검사 진행 상태를 변경하지 않게 했다. 늦은 응답을 재현하는 React 회귀 테스트를 추가했다. 이번 변경 CI는 별도 확인 대상이다.
+- 공식 Cubism SDK/Core 및 사용권 확인 모델의 실제 렌더링, 사용자 Windows PC의 실제 LLM/STT/TTS·음성 장치 및 30분 안정성은 여전히 미검증이다.
 
 ## 2026-11-24 WebGL 복구 후 취소된 모델 로딩의 간섭 방지
 
