@@ -51,6 +51,7 @@ it("inspects local model metadata without claiming that Cubism is loaded", async
   expect(inspectLocalModel3).toHaveBeenCalledWith(
     "/avatar-local/Haru/Haru.model3.json",
     window.location.origin,
+    expect.any(Function),
   );
 });
 
@@ -623,4 +624,44 @@ it("keeps the restored renderer when a cancelled model load finishes late", asyn
   expect(replacement.dispose).not.toHaveBeenCalled();
   bridge.onAudioLevel(0.6);
   expect(replacement.setLipSync).toHaveBeenLastCalledWith(0.6);
+});
+
+it("ignores a cancelled JSON inspection after WebGL loss and a new asset check", async () => {
+  const audit = modelAudit(2);
+  let finishJson!: (manifest: typeof audit.manifest) => void;
+  let finishAudit!: (value: typeof audit) => void;
+  vi.mocked(inspectLocalModel3).mockReturnValue(
+    new Promise((resolve) => {
+      finishJson = resolve;
+    }),
+  );
+  vi.mocked(verifyLocalModelResources).mockReturnValue(
+    new Promise((resolve) => {
+      finishAudit = resolve;
+    }),
+  );
+  const user = userEvent.setup();
+  render(<AvatarInspector bridge={new AvatarMotionBridge()} />);
+  const path = screen.getByLabelText("로컬 모델 export 경로 점검");
+  await user.type(path, "/avatar-local/Old/Old.model3.json");
+  await user.click(screen.getByRole("button", { name: "모델 JSON 검사" }));
+  expect(inspectLocalModel3).toHaveBeenCalledOnce();
+
+  const canvas = screen.getByRole("img", {
+    name: "Live2D 로컬 캔버스",
+  });
+  fireEvent(canvas, new Event("webglcontextlost", { cancelable: true }));
+  fireEvent(canvas, new Event("webglcontextrestored"));
+  await user.clear(path);
+  await user.type(path, "/avatar-local/Haru/Haru.model3.json");
+  await user.click(screen.getByRole("button", { name: "참조 파일 접근 검사" }));
+  expect(verifyLocalModelResources).toHaveBeenCalledOnce();
+
+  await act(async () => finishJson(audit.manifest));
+
+  expect(screen.queryByText(/JSON 검사 완료/)).toBeNull();
+  expect((path as HTMLInputElement).disabled).toBe(true);
+  await act(async () => finishAudit(audit));
+  await screen.findByText(/참조 파일 HEAD 확인: 2\/2개/);
+  expect((path as HTMLInputElement).disabled).toBe(false);
 });
