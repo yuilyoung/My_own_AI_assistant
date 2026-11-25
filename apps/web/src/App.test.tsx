@@ -481,10 +481,17 @@ it("previews the full cast without API access and keeps the chosen voice when pa
 
   const cast = within(screen.getByRole("group", { name: "캐릭터 선택" }));
   expect(cast.getAllByRole("button")).toHaveLength(3);
-  for (const name of ["이솔", "서린", "하나"]) {
-    const member = cast.getByRole("button", { name: new RegExp(name) });
+  for (const [name, role] of [
+    ["이솔", "대학생"],
+    ["서린", "직장인"],
+    ["하나", "고등학생"],
+  ]) {
+    const member = cast.getByRole("button", {
+      name: new RegExp(`${name}.*${role}`),
+    });
+    expect(within(member).getByAltText("").getAttribute("src")).toBeTruthy();
     await user.click(member);
-    expect(member.getAttribute("aria-pressed")).toBe("true");
+    expect(cast.getAllByRole("button", { pressed: true })).toEqual([member]);
     expect(screen.getByRole("img", { name: new RegExp(name) })).toBeTruthy();
   }
   expect(screen.getByRole("log", { name: "샘플 대화" })).toBeTruthy();

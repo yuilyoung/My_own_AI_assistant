@@ -430,7 +430,7 @@ export function App() {
   };
   if (app && avatarBridge.current) {
     return (
-      <main>
+      <main className="site-workspace">
         <header>
           <p className="eyebrow">MY COMPANION</p>
           <h1>My own AI assistant</h1>
@@ -484,7 +484,7 @@ export function App() {
       <section className="site-hero" aria-labelledby="demo-title">
         <h1 id="demo-title">캐릭터와 대화</h1>
         <p>
-          캐릭터의 목소리와 움직임을 샘플 대화로 만나보세요.
+          카드를 골라 샘플 대화를 듣고 캐릭터의 움직임을 확인해 보세요.
           <span>토큰 없이 체험할 수 있어요.</span>
         </p>
       </section>

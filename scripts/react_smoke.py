@@ -438,21 +438,34 @@ def check_landing_cast(browser, profile, base, token):
         page.on("request", lambda req: api_requests.append(req) if "/api/" in req.url else None)
         page.goto(base + "/")
         demo = page.locator("#demo")
-        cast = demo.get_by_role("group", name="캐릭터 선택")
+        cast = demo.get_by_role("group", name="캐릭터 선택", exact=True)
         expect(cast.get_by_role("button")).to_have_count(3)
         thread = demo.get_by_role("log", name="샘플 대화")
         rows = thread.locator("article")
         meter = demo.get_by_role("meter", name="음성 레벨")
         stop = demo.get_by_role("button", name="재생 중지", exact=True)
-        for voice, name in (("isol", "이솔"), ("seorin", "서린"), ("hana", "하나")):
-            choice = cast.get_by_role("button", name=re.compile(name))
+        covers = set()
+        for voice, name, role in (
+            ("isol", "이솔", "대학생"),
+            ("seorin", "서린", "직장인"),
+            ("hana", "하나", "고등학생"),
+        ):
+            choice = cast.get_by_role("button", name=re.compile(f"{name}.*{role}"))
+            cover = choice.locator('img[alt=""]')
+            expect(cover).to_be_visible()
             choice.click()
+            covers.add(
+                cover.evaluate("async image => { await image.decode(); return image.currentSrc; }")
+            )
             expect(choice).to_have_attribute("aria-pressed", "true")
+            expect(cast.get_by_role("button", pressed=True)).to_have_count(1)
+            expect(demo.get_by_role("heading", name="대화 미리보기")).to_be_focused()
             portrait = demo.locator(f'svg[data-character="{voice}"]')
             expect(portrait.get_by_test_id("avatar-features")).to_be_visible()
             expect(rows.last.get_by_text(name, exact=True)).to_be_visible()
             expect(meter).to_have_attribute("value", "0")
             expect(stop).to_have_count(0)
+        assert len(covers) == 3, "Each character card should have its own decoded portrait"
         expect(rows).to_have_count(2)
         first_exchange = rows.all_text_contents()
         with painted_motion(portrait) as trace:
