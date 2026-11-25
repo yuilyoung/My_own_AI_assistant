@@ -200,10 +200,9 @@ export function AvatarInspector({
         audit.manifest,
         bindings,
       );
-      if (controller.signal.aborted) {
-        bridge.detach();
-        return;
-      }
+      // The cancellation handler already detached this load. A newer
+      // connection may now own the bridge; never detach it here.
+      if (controller.signal.aborted) return;
       if (attached) {
         setRuntimeStatus(
           "로컬 어댑터 초기화 완료. 실제 WebGL 표시와 립싱크 동작은 수동으로 확인해야 합니다.",
