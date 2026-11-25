@@ -54,7 +54,7 @@ cd My_own_AI_assistant
 .\scripts\setup.ps1
 ```
 
-React 화면을 사용하려면 Node.js 22 이상으로 한 번 빌드한 뒤 Gateway를 시작합니다. 진단 화면만 사용하려면 빌드 없이 `scripts\start.ps1`을 실행할 수 있습니다.
+React 화면을 사용하려면 Node.js 22.22.2 이상인 22 LTS 또는 24.15.0 이상인 24 LTS에서 한 번 빌드한 뒤 Gateway를 시작합니다. 진단 화면만 사용하려면 빌드 없이 `scripts\start.ps1`을 실행할 수 있습니다.
 
 ```powershell
 cd apps/web
@@ -158,12 +158,7 @@ $env:WHISPER_MODEL = 'C:\tools\whisper.cpp\models\ggml-small.bin'
 
 ### 한국어 TTS
 
-Supertonic 2 워커를 설치하면 실제 대화 답변을 하나(F4), 서린(F1), 이솔(F2)의 한국어 음성으로 읽습니다. 세 목소리 모두 기존 캐릭터별 발화 속도의 1.2배로 말하며, 하나의 밝은 고음과 서린의 차분한 억양, 이솔의 부드러운 말투를 유지합니다. 워커와 Gateway에 동일한 `SUPERTONIC_TOKEN`을 지정하고, 워커를 시작한 뒤 아래 명령으로 연결하세요. 마이크로 질문도 입력하려면 whisper.cpp를 준비하고 실행 명령에 `-Microphone`을 더하세요. [Supertonic 2 모델 다운로드와 워커 설치](workers/tts-supertonic/README.md)
-
-```powershell
-.\scripts\check-readiness.ps1 -TtsProvider supertonic
-.\scripts\start.ps1 -Provider ollama -TtsProvider supertonic
-```
+Supertonic 2 워커를 설치하면 하나(F4), 서린(F1), 이솔(F2)이 한국어 답변을 읽습니다. 세 목소리는 음높이를 유지하며 기존 낭독보다 1.2배 빠르게 말합니다. Windows x64와 Linux에서 운영 웹 앱을 빌드하고 워커를 연결하는 절차는 설치 안내에 있습니다. 먼저 데모의 고정 답변으로 세 목소리를 확인한 뒤 Ollama를 연결해 대화할 수 있습니다. [Supertonic 2 설치 및 확인](workers/tts-supertonic/README.md)
 
 MeloTTS의 단일 한국어 음성을 사용하려면 별도 환경에서 `workers/tts-melo/server.py`를 실행합니다. 워커와 Gateway에 동일한 32자 이상 `MELO_TOKEN`을 지정하고 `.\scripts\start.ps1 -Provider ollama -TtsProvider melo`로 연결하세요.
 

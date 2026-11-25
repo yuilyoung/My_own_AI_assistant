@@ -423,6 +423,7 @@ def send_with_voice(page, question, voice):
     with page.expect_request(lambda r: r.method == "POST" and r.url.endswith("/turns")) as turn:
         page.get_by_role("button", name="전송", exact=True).click()
     assert turn.value.post_data_json == {"text": question, "voice": voice}
+    return turn.value.url
 
 
 def check_avatar_cast(page, turns, portraits):
@@ -564,21 +565,33 @@ def check_news_reading(page, *, reduced):
     return profile
 
 
-def check_cast_previews(page, avatars):
-    """Play both shipped recordings through each character's normal preview buttons."""
-    from playwright.sync_api import expect
-
-    preview = page.locator("details.avatar-panel__preview")
-    if preview.get_attribute("open") is None:
-        preview.locator("summary").click()
+@contextmanager
+def observe_playback(page):
     # Observe the native node without replacing its playback or the player's clock.
     probe = page.evaluate_handle("""() => {
         const proto = AudioBufferSourceNode.prototype, start = proto.start;
-        const probe = {restore: () => { proto.start = start; }};
+        const audio = AudioNode.prototype, connect = audio.connect;
+        const routes = new WeakMap();
+        audio.connect = function(destination, ...args) {
+            const result = connect.call(this, destination, ...args);
+            if (destination instanceof AudioNode)
+                routes.set(this, [...(routes.get(this) ?? []), destination]);
+            return result;
+        };
+        const reachesOutput = (node, output, visited = new Set()) => {
+            if (node === output) return true;
+            if (visited.has(node)) return false;
+            visited.add(node);
+            return (routes.get(node) ?? []).some(next => reachesOutput(next, output, visited));
+        };
+        const probe = {restore: () => { proto.start = start; audio.connect = connect; }};
         proto.start = function(...args) {
             const result = start.apply(this, args);
             const started = this.context.currentTime;
-            const played = {buffer: this.buffer, rate: this.playbackRate.value};
+            const played = {
+                buffer: this.buffer, rate: this.playbackRate.value,
+                output: reachesOutput(this, this.context.destination),
+            };
             this.addEventListener('ended', () => { played.elapsed = this.context.currentTime - started; },
                                   {once: true});
             probe.played = played;
@@ -586,8 +599,22 @@ def check_cast_previews(page, avatars):
         };
         return probe;
     }""")
-    durations = {}
     try:
+        yield probe
+    finally:
+        probe.evaluate("p => p.restore()")
+        probe.dispose()
+
+
+def check_cast_previews(page, avatars):
+    """Play both shipped recordings through each character's normal preview buttons."""
+    from playwright.sync_api import expect
+
+    preview = page.locator("details.avatar-panel__preview")
+    if preview.get_attribute("open") is None:
+        preview.locator("summary").click()
+    durations = {}
+    with observe_playback(page) as probe:
         for character, option in [("hana", "hana"), ("isol", "isol"), ("seorin", "builtin")]:
             avatars.select_option(option)
             portrait = page.locator(f'svg[data-character="{character}"]')
@@ -629,9 +656,6 @@ def check_cast_previews(page, avatars):
                     assert elapsed is not None and elapsed >= duration - 0.10, (key, elapsed)
                 expect(page.get_by_role("meter")).to_have_attribute("value", "0")
                 mouth_box(portrait, speaking=False)
-    finally:
-        probe.evaluate("p => p.restore()")
-        probe.dispose()
     preview.locator("summary").click()
     return durations
 
