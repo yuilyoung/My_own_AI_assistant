@@ -19,7 +19,7 @@ import type { Mode, Segment } from "./gateway";
 import "./avatar-panel.css";
 
 export type AvatarPanelProps = {
-  bridge: AvatarMotionBridge;
+  bridge?: AvatarMotionBridge;
   level: number;
   brightness?: number;
   cue?: Pick<Segment, "emotion" | "gesture">;
@@ -64,8 +64,11 @@ export function AvatarPanel({
   const [preferred, setPreferred] = useState<AvatarCharacter | "live2d">(
     defaultCharacter,
   );
+  const builtin = preferred === "live2d" ? defaultCharacter : preferred;
   const kind =
-    preferred === "live2d" ? "live2d" : characterForMode(preferred, mode);
+    bridge && preferred === "live2d"
+      ? "live2d"
+      : characterForMode(builtin, mode);
   const [preview, setPreview] = useState<{
     source: AvatarPanelProps["cue"];
     sample: Pick<(typeof previews)[number], "emotion" | "gesture"> | null;
@@ -99,11 +102,17 @@ export function AvatarPanel({
     !playback && currentPreview && !sample ? "idle" : visibleCue?.gesture;
   const gesture = isMotionCue(motion) ? motion : "idle";
   const status =
-    visibleLevel > 0 ? "말하는 중" : busy ? "답변 준비 중" : "대화 준비 완료";
+    visibleLevel > 0
+      ? "말하는 중"
+      : busy
+        ? "답변 준비 중"
+        : bridge
+          ? "대화 준비 완료"
+          : "미리보기 준비 완료";
 
   useEffect(() => {
-    bridge.detach();
-    return () => bridge.detach();
+    bridge?.detach();
+    return () => bridge?.detach();
   }, [bridge]);
 
   return (
@@ -120,11 +129,13 @@ export function AvatarPanel({
         onChange={(event) => {
           const value = event.target.value;
           const next =
-            value === "hana" || value === "isol" || value === "live2d"
+            value === "hana" ||
+            value === "isol" ||
+            (value === "live2d" && bridge)
               ? value
               : "seorin";
           narration.stop();
-          bridge.detach();
+          bridge?.detach();
           setPreview(null);
           setPreferred(next);
           if (next !== "live2d") onCharacterChange?.(next);
@@ -135,7 +146,7 @@ export function AvatarPanel({
           <option value="hana">{avatarNames.hana} · 17세 고등학생</option>
         )}
         <option value="isol">{avatarNames.isol} · 22세 대학생</option>
-        <option value="live2d">Live2D (사용권 필요)</option>
+        {bridge && <option value="live2d">Live2D (사용권 필요)</option>}
       </select>
       {kind !== "live2d" ? (
         <>
@@ -160,10 +171,12 @@ export function AvatarPanel({
             max="1"
             value={visibleLevel}
           />
-          <p className="avatar-panel__note">
-            TTS가 켜진 대화에서 {avatarNames[kind]}의 입 모양이 답변 음성을 따라
-            움직입니다.
-          </p>
+          {bridge && (
+            <p className="avatar-panel__note">
+              TTS가 켜진 대화에서 {avatarNames[kind]}의 입 모양이 답변 음성을
+              따라 움직입니다.
+            </p>
+          )}
           <details
             className="avatar-panel__preview"
             onToggle={(event) => {
@@ -215,7 +228,7 @@ export function AvatarPanel({
             )}
           </details>
         </>
-      ) : (
+      ) : bridge ? (
         <div className="avatar-panel__licensed">
           <p className="avatar-panel__note">
             Live2D는 사용권이 확인된 모델 자산과 별도로 설치한 Cubism SDK
@@ -229,7 +242,7 @@ export function AvatarPanel({
           </p>
           <AvatarInspector bridge={bridge} />
         </div>
-      )}
+      ) : null}
     </section>
   );
 }

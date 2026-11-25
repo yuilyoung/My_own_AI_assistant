@@ -52,8 +52,12 @@ class LocalGuard:
             code = 404
         elif host not in allowed_hosts:
             code = 400
-        elif self.s.public_origin and host in loopback_hosts and not _is_loopback_peer(scope):
-            # A public socket may receive arbitrary Host headers over plain HTTP.
+        elif (
+            (self.s.public_origin or self.s.claude_cli is not None)
+            and host in loopback_hosts
+            and not _is_loopback_peer(scope)
+        ):
+            # A local Host header does not establish a local network peer.
             code = 400
         elif origin and origin not in allowed_origins:
             code = 403
@@ -171,7 +175,9 @@ def create_app(settings: Settings) -> FastAPI:
 
     @app.post("/api/sessions", status_code=201)
     async def session(body: SessionCreate):
-        runtime = services.runtimes[body.service or services.default_service]
+        runtime = services.runtimes.get(body.service or services.default_service)
+        if runtime is None:
+            raise HTTPException(503, "로컬에서 CLAUDE_CLI를 설정하세요.")
         if not runtime.available:
             raise HTTPException(503, runtime.reason)
         return {**runtime.store.create_session(body), "service": runtime.id}

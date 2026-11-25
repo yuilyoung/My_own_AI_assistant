@@ -1,15 +1,17 @@
 """Non-invasive checks for a user-owned Windows local MVP installation.
 
-The checker never starts model inference, downloads assets, or sends requests
-outside configured literal-loopback addresses.
+Direct HTTP checks use configured literal-loopback addresses. Claude Code
+auth status is delegated to the installed CLI. No check starts model inference.
 """
 
+import asyncio
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
 import httpx
 
+from .claude import ClaudeLLM
 from .config import Settings
 
 
@@ -48,6 +50,20 @@ def inspect_local_readiness(
                 "클라우드 API를 사용하려면 서버에 CLOUD_API_KEY와 CLOUD_MODEL을 설정하세요.",
             )
         )
+
+    if settings.claude_cli is not None:
+        try:
+            asyncio.run(ClaudeLLM(settings.claude_cli, settings.timeout).check_auth())
+        except (ValueError, TimeoutError, OSError):
+            checks.append(
+                Check(
+                    "Claude Code",
+                    "FAIL",
+                    "공식 Claude Code CLI에서 Claude 구독 계정으로 로그인했는지 확인하세요.",
+                )
+            )
+        else:
+            checks.append(Check("Claude Code", "PASS", "Claude 구독 로그인 확인"))
 
     if not settings.local_llm_enabled:
         checks.append(

@@ -9,19 +9,29 @@ import { Conversation } from "./conversation";
 import { Player } from "../../diagnostics/player.mjs";
 import { MicrophoneRecorder } from "../../diagnostics/recorder.mjs";
 
+const serviceLabels: Record<ServiceId, string> = {
+  demo: "DEMO",
+  local: "LOCAL",
+  cloud: "CLOUD",
+  claude: "CLAUDE",
+};
+
 function Workspace({
   app,
+  character,
+  onCharacterChange,
   level,
   brightness,
   bridge,
 }: {
   app: Conversation;
+  character: AvatarCharacter;
+  onCharacterChange: (character: AvatarCharacter) => void;
   level: number;
   brightness: number;
   bridge: AvatarMotionBridge;
 }) {
   const state = useSyncExternalStore(app.subscribe, app.snapshot);
-  const [character, setCharacter] = useState<AvatarCharacter>("seorin");
   const [memory, setMemory] = useState(""),
     [note, setNote] = useState("");
   const end = useRef<HTMLDivElement>(null);
@@ -67,12 +77,7 @@ function Workspace({
   const selectedService = state.status?.services?.find(
     (item) => item.id === state.service,
   );
-  const serviceLabel =
-    state.service === "cloud"
-      ? "CLOUD"
-      : state.service === "local"
-        ? "LOCAL"
-        : "DEMO";
+  const serviceLabel = serviceLabels[state.service ?? "demo"];
   const model = selectedService?.model ?? state.status?.model;
   const mode = state.mode === "assistant" ? "개인 비서" : "가상 소개팅";
   const voiceLabel = {
@@ -99,7 +104,8 @@ function Workspace({
             state.status?.services ?? [
               {
                 id: state.service ?? "demo",
-                label: serviceLabel,
+                label:
+                  state.service === "claude" ? "Claude 구독" : serviceLabel,
                 available: true,
                 model,
               },
@@ -123,6 +129,12 @@ function Workspace({
           <p className="notice">
             이 서비스의 메시지와 저장한 기억은 설정한 클라우드 제공자에게
             전송됩니다.
+          </p>
+        )}
+        {state.service === "claude" && (
+          <p className="notice">
+            이 PC에서 인증된 Claude Code를 사용합니다. 메시지와 저장한 기억은
+            Anthropic으로 전송됩니다.
           </p>
         )}
         {state.service === "local" && (
@@ -171,7 +183,7 @@ function Workspace({
             bridge={bridge}
             mode={state.mode}
             defaultCharacter={character}
-            onCharacterChange={setCharacter}
+            onCharacterChange={onCharacterChange}
             level={level}
             brightness={brightness}
             cue={state.latestCue ?? undefined}
@@ -362,6 +374,7 @@ function Workspace({
 }
 export function App() {
   const [token, setToken] = useState("");
+  const [character, setCharacter] = useState<AvatarCharacter>("seorin");
   const [app, setApp] = useState<Conversation | null>(null),
     [level, setLevel] = useState(0),
     [brightness, setBrightness] = useState(0.5);
@@ -422,6 +435,8 @@ export function App() {
         <>
           <Workspace
             app={app}
+            character={character}
+            onCharacterChange={setCharacter}
             level={level}
             brightness={brightness}
             bridge={avatarBridge.current}
@@ -437,23 +452,30 @@ export function App() {
           </button>
         </>
       ) : (
-        <form className="pairing" onSubmit={connect}>
-          <h2>비서 서버 연결</h2>
-          <p>
-            이 서버에 설정한 연결 토큰을 입력하세요. 로컬 실행은 실행 콘솔,
-            클라우드는 서버 환경 설정에서 확인할 수 있습니다.
-          </p>
-          <label htmlFor="token">연결 토큰</label>
-          <input
-            id="token"
-            type="password"
-            autoComplete="off"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            required
+        <div className="workspace">
+          <AvatarPanel
+            level={0}
+            defaultCharacter={character}
+            onCharacterChange={setCharacter}
           />
-          <button className="primary">연결</button>
-        </form>
+          <form className="pairing" onSubmit={connect}>
+            <h2>비서 서버 연결</h2>
+            <p>
+              이 서버에 설정한 연결 토큰을 입력하세요. 로컬 실행은 실행 콘솔,
+              클라우드는 서버 환경 설정에서 확인할 수 있습니다.
+            </p>
+            <label htmlFor="token">연결 토큰</label>
+            <input
+              id="token"
+              type="password"
+              autoComplete="off"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              required
+            />
+            <button className="primary">연결</button>
+          </form>
+        </div>
       )}
       <footer>
         대화는 연결한 서버에 저장됩니다. 로컬 실행은 해당 PC, 클라우드 실행은

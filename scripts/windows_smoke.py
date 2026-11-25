@@ -4,6 +4,7 @@ This is a synthetic demo test; it does not test actual LLM/STT/TTS or Live2D har
 Run from the repository root after building apps/web/dist.
 """
 
+import argparse
 import json
 import os
 import re
@@ -77,7 +78,12 @@ def check(base, token):
 
 
 def main():
-    if not (ROOT / "apps/web/dist/index.html").is_file():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--launcher", action="store_true", help="Install and start via PowerShell")
+    args = parser.parse_args()
+    if args.launcher and os.name != "nt":
+        parser.error("--launcher requires Windows")
+    if not args.launcher and not (ROOT / "apps/web/dist/index.html").is_file():
         raise RuntimeError("Build apps/web first: npm ci && npm run build")
     token = secrets.token_urlsafe(32)
     with socket.socket() as sock:
@@ -97,16 +103,30 @@ def main():
             TTS_PROVIDER="none",
             STT_PROVIDER="none",
         )
+        command = [sys.executable, "-m", "gateway.cli"]
+        if args.launcher:
+            command = [
+                "powershell.exe",
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                str(ROOT / "scripts/launch.ps1"),
+                "-Provider",
+                "demo",
+                "-NoBrowser",
+            ]
         with log_path.open("w", encoding="utf-8") as log:
             process = subprocess.Popen(
-                [sys.executable, "-m", "gateway.cli"],
+                command,
                 cwd=ROOT,
                 env=env,
                 stdout=log,
                 stderr=subprocess.STDOUT,
             )
             try:
-                for _ in range(150):
+                deadline = time.monotonic() + (240 if args.launcher else 15)
+                while time.monotonic() < deadline:
                     if process.poll() is not None:
                         raise RuntimeError("Gateway exited during startup")
                     try:
@@ -119,10 +139,22 @@ def main():
                 check(base, token)
             except BaseException:
                 log.flush()
-                print(log_path.read_text(encoding="utf-8").replace(token, "[REDACTED]"))
+                print(
+                    log_path.read_text(encoding="utf-8", errors="replace").replace(
+                        token, "[REDACTED]"
+                    )
+                )
                 raise
             finally:
-                process.terminate()
+                if args.launcher and process.poll() is None:
+                    subprocess.run(
+                        ["taskkill.exe", "/T", "/F", "/PID", str(process.pid)],
+                        capture_output=True,
+                        timeout=10,
+                        check=False,
+                    )
+                else:
+                    process.terminate()
                 try:
                     process.wait(timeout=10)
                 except subprocess.TimeoutExpired:

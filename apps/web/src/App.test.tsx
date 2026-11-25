@@ -446,3 +446,97 @@ it("shows local and cloud choices, clears prior messages, and labels cloud trans
   expect(screen.getByText(/클라우드 제공자에게 전송/)).toBeTruthy();
   expect(screen.getByRole("img", { name: /기본 아바타/ })).toBeTruthy();
 });
+
+it("applies a character selected before pairing to the first conversation turn", async () => {
+  const turns: unknown[] = [];
+  const fetchApi = vi.fn(async (url: string, options: RequestInit = {}) => {
+    if (url === "/api/status")
+      return Response.json({
+        llm: "demo",
+        tts: "none",
+        stt_enabled: false,
+        model: null,
+      });
+    if (url === "/api/sessions") return Response.json({ id: "paired" });
+    if (url.endsWith("/turns")) {
+      turns.push(JSON.parse(String(options.body)));
+      return Response.json({ id: "first", status: "queued", segments: [] });
+    }
+    if (url.endsWith("/turns/first"))
+      return Response.json({ id: "first", status: "completed", segments: [] });
+    return Response.json([]);
+  });
+  vi.stubGlobal("fetch", fetchApi);
+  const user = userEvent.setup();
+  render(<App />);
+
+  const selector = within(screen.getByLabelText("아바타 종류"));
+  expect(selector.getByRole("option", { name: /서린/ })).toBeTruthy();
+  expect(selector.getByRole("option", { name: /하나/ })).toBeTruthy();
+  expect(selector.getByRole("option", { name: /이솔/ })).toBeTruthy();
+  expect(selector.queryByRole("option", { name: /Live2D/ })).toBeNull();
+  await user.selectOptions(screen.getByLabelText("아바타 종류"), "hana");
+  expect(screen.getByRole("img", { name: /하나/ })).toBeTruthy();
+  expect(fetchApi).not.toHaveBeenCalled();
+
+  await user.type(screen.getByLabelText("연결 토큰"), "test-token");
+  await user.click(screen.getByRole("button", { name: "연결" }));
+  await screen.findByText("대화 준비됨");
+  expect(
+    (screen.getByLabelText("아바타 종류") as HTMLSelectElement).value,
+  ).toBe("hana");
+  await user.type(screen.getByLabelText("메시지"), "첫 메시지");
+  await user.click(screen.getByRole("button", { name: "전송" }));
+  await waitFor(() =>
+    expect(turns).toEqual([{ text: "첫 메시지", voice: "hana" }]),
+  );
+});
+
+it("uses the configured Claude subscription and identifies its response errors", async () => {
+  const sessions: unknown[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, options: RequestInit = {}) => {
+      if (url === "/api/status")
+        return Response.json({
+          llm: "claude",
+          tts: "none",
+          stt_enabled: false,
+          model: "sonnet",
+          deployment: "local",
+          services: [
+            {
+              id: "claude",
+              label: "Claude 구독",
+              model: "sonnet",
+              available: true,
+            },
+          ],
+        });
+      if (url === "/api/sessions") {
+        sessions.push(JSON.parse(String(options.body)));
+        return Response.json({ id: "subscribed", service: "claude" });
+      }
+      if (url.endsWith("/turns"))
+        return Response.json({ id: "failed", status: "queued", segments: [] });
+      if (url.endsWith("/turns/failed"))
+        return Response.json({ id: "failed", status: "error", segments: [] });
+      return Response.json([]);
+    }),
+  );
+  const user = userEvent.setup();
+  render(<App />);
+  await user.type(screen.getByLabelText("연결 토큰"), "test-token");
+  await user.click(screen.getByRole("button", { name: "연결" }));
+  await screen.findByText("대화 준비됨");
+  expect(screen.getByRole("option", { name: "Claude 구독" })).toBeTruthy();
+  expect(sessions).toEqual([expect.objectContaining({ service: "claude" })]);
+  expect(screen.getByText(/CLAUDE · sonnet/)).toBeTruthy();
+  expect(screen.getByText(/Anthropic으로 전송됩니다/)).toBeTruthy();
+
+  await user.type(screen.getByLabelText("메시지"), "구독 응답 확인");
+  await user.click(screen.getByRole("button", { name: "전송" }));
+  expect((await screen.findByRole("alert")).textContent).toMatch(
+    /Claude Code 로그인/,
+  );
+});

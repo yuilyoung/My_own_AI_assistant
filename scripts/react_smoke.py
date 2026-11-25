@@ -426,6 +426,39 @@ def send_with_voice(page, question, voice):
     return turn.value.url
 
 
+def check_landing_cast(browser, profile, base, token):
+    """Preview a bundled model before pairing and use that model in the first turn."""
+    from playwright.sync_api import expect
+
+    context = browser.new_context(**profile)
+    try:
+        page = context.new_page()
+        api_requests = []
+        page.on("request", lambda req: api_requests.append(req) if "/api/" in req.url else None)
+        page.goto(base + "/")
+        selector = page.get_by_label("아바타 종류")
+        for option, voice in (("builtin", "seorin"), ("hana", "hana"), ("isol", "isol")):
+            selector.select_option(option)
+            expect(page.locator(f'svg[data-character="{voice}"]')).to_be_visible()
+        expect(selector.locator('option[value="live2d"]')).to_have_count(0)
+        page.get_by_text("표정·동작 미리보기", exact=True).click()
+        with page.expect_response(re.compile(r"/isol-greeting-[\w-]+\.mp3$")) as preview:
+            page.get_by_role("button", name="인사말 듣기", exact=True).click()
+        assert preview.value.ok
+        expect(page.get_by_role("meter")).not_to_have_attribute("value", "0")
+        assert not api_requests, "The landing page queried the Gateway before pairing"
+
+        page.get_by_label("연결 토큰").fill(token)
+        page.get_by_role("button", name="연결", exact=True).click()
+        expect(page.get_by_text("대화 준비됨", exact=True)).to_be_visible()
+        expect(selector).to_have_value("isol")
+        expect(page.get_by_role("meter")).to_have_attribute("value", "0")
+        send_with_voice(page, "첫 인사", "isol")
+        expect(page.get_by_text("대화 준비됨", exact=True)).to_be_visible()
+    finally:
+        context.close()
+
+
 def check_avatar_cast(page, turns, portraits):
     """Change portraits and send real turns within the current local session."""
     from playwright.sync_api import expect
@@ -768,6 +801,7 @@ def main():
                     )
                     mobile = os.getenv("SMOKE_MOBILE") == "1"
                     profile = playwright.devices["Pixel 7"] if mobile else {}
+                    check_landing_cast(browser, profile, base, token)
                     context = browser.new_context(permissions=["microphone"], **profile)
                     page = context.new_page()
                     page.on(
@@ -1026,6 +1060,7 @@ def main():
                         "cast_preview_seconds": preview_durations,
                         "checks": [
                             "pairing",
+                            "landing_cast_preview_and_first_turn_selection",
                             "invalid_token_reentry",
                             "same_tab_token_link",
                             "temporary_status_failure_retry",

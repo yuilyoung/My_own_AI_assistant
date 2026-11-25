@@ -18,7 +18,7 @@ def main(argv: list[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
     parser = argparse.ArgumentParser(description="Check local AI assistant MVP prerequisites")
-    parser.add_argument("--provider", choices=["demo", "ollama", "cloud"])
+    parser.add_argument("--provider", choices=["demo", "ollama", "cloud", "claude"])
     parser.add_argument(
         "--voice", action="store_true", help="Require the selected or configured voice worker"
     )

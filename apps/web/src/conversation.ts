@@ -20,9 +20,17 @@ export type AudioPlayer = {
 };
 type Item = { id: string; text: string };
 type StorageOperation = "list" | "memories" | "notes" | "forget";
+const turnErrors: Record<ServiceId, string> = {
+  demo: "데모 응답 처리 오류입니다.",
+  local: "로컬 AI 서비스 오류입니다. Ollama 실행과 모델 설정을 확인하세요.",
+  cloud:
+    "클라우드 AI 서비스 오류입니다. API 키, 모델 및 응답 형식을 확인하세요.",
+  claude:
+    "Claude 구독 응답 오류입니다. 이 PC에서 Claude Code 로그인과 구독 상태를 확인하세요.",
+};
 function defaultService(status: Status): ServiceId {
   if (status.default_service) return status.default_service;
-  if (status.llm === "cloud") return "cloud";
+  if (status.llm === "cloud" || status.llm === "claude") return status.llm;
   return status.llm === "ollama" ? "local" : "demo";
 }
 function connectionError(error: unknown): string {
@@ -310,13 +318,7 @@ export class Conversation {
               "음성 생성에 실패했습니다. 텍스트로 대화를 계속할 수 있습니다.",
           });
         if (result.status === "error")
-          throw new Error(
-            this.state.service === "cloud"
-              ? "클라우드 AI 서비스 오류입니다. API 키, 모델 및 응답 형식을 확인하세요."
-              : this.state.service === "local"
-                ? "로컬 AI 서비스 오류입니다. Ollama 실행과 모델 설정을 확인하세요."
-                : "데모 응답 처리 오류입니다.",
-          );
+          throw new Error(turnErrors[this.state.service ?? "demo"]);
         if (["completed", "cancelled"].includes(result.status)) break;
         await new Promise((resolve) => setTimeout(resolve, this.interval));
       }
