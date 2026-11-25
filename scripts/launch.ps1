@@ -90,25 +90,12 @@ function Connect-ClaudeSubscription([string]$Executable) {
 }
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$Web = Join-Path $Root "apps/web"
-$Dist = Join-Path $Web "dist"
+$Archive = Join-Path $Root "windows/web-dist.zip"
+if (!(Test-Path -LiteralPath $Archive -PathType Leaf)) {
+    throw "The Windows web bundle is missing. Update your checkout of the published Windows install branch and run Start.cmd again."
+}
 $VenvPython = Join-Path $Root ".venv/Scripts/python.exe"
-$Node = Find-Application "node.exe"
-$Npm = Find-Application "npm.cmd"
-if (!$Node -or !$Npm) {
-    throw "A supported Node.js release and npm are required. Run 'winget install --exact --id OpenJS.NodeJS.LTS', then reopen PowerShell."
-}
-$NodeVersionText = & $Node --version
-$NodeVersion = if ($LASTEXITCODE -eq 0 -and $NodeVersionText -match '^v(\d+\.\d+\.\d+)$') {
-    [version]$Matches[1]
-}
-if (!$NodeVersion -or !(
-    ($NodeVersion.Major -eq 22 -and $NodeVersion -ge [version]"22.22.2") -or
-    ($NodeVersion.Major -eq 24 -and $NodeVersion -ge [version]"24.15.0") -or
-    $NodeVersion.Major -ge 26
-)) {
-    throw "Node.js 22.22.2+ in 22, 24.15.0+ in 24, or 26+ is required. Update Node.js and reopen PowerShell."
-}
+$Dist = $null
 
 Push-Location $Root
 try {
@@ -118,27 +105,19 @@ try {
     }
     Invoke-Checked $VenvPython @("-m", "pip", "install", "--disable-pip-version-check", "-r", "requirements.txt") "Could not install Gateway dependencies"
 
-    Push-Location $Web
+    $Dist = Join-Path ([System.IO.Path]::GetTempPath()) ("assistant-web-" + [guid]::NewGuid().ToString("N"))
     try {
-        $Hasher = [System.Security.Cryptography.SHA256]::Create()
-        try {
-            $LockBytes = [System.IO.File]::ReadAllBytes((Join-Path $Web "package-lock.json"))
-            $LockHash = [BitConverter]::ToString($Hasher.ComputeHash($LockBytes)).Replace("-", "")
-        } finally {
-            $Hasher.Dispose()
-        }
-        $InstalledLock = "node_modules/.assistant-package-lock.sha256"
-        if (!(Test-Path -LiteralPath $InstalledLock -PathType Leaf) -or
-            (Get-Content -LiteralPath $InstalledLock -Raw -Force).Trim() -ne $LockHash) {
-            Invoke-Checked $Npm @("ci", "--no-audit", "--no-fund") "Could not install web dependencies"
-            Set-Content -LiteralPath $InstalledLock -Value $LockHash -Encoding Ascii
-        }
-        Invoke-Checked $Npm @("run", "build") "Could not build the web application"
-    } finally {
-        Pop-Location
+        [void][System.IO.Directory]::CreateDirectory($Dist)
+        Invoke-Checked $VenvPython @("-m", "zipfile", "-e", $Archive, $Dist) "Could not unpack the Windows web bundle"
+    } catch {
+        throw "Could not unpack windows/web-dist.zip. Update your checkout of the published Windows install branch and retry. $_"
     }
-    if (!(Test-Path -LiteralPath (Join-Path $Dist "index.html") -PathType Leaf)) {
-        throw "The production web build did not create index.html."
+    $Assets = Join-Path $Dist "assets"
+    if (!(Test-Path -LiteralPath (Join-Path $Dist "index.html") -PathType Leaf) -or
+        !(Test-Path -LiteralPath $Assets -PathType Container) -or
+        [System.IO.Directory]::GetFiles($Assets, "*.js").Length -eq 0 -or
+        [System.IO.Directory]::GetFiles($Assets, "*.mjs").Length -eq 0) {
+        throw "The Windows web bundle is incomplete. Update your checkout of the published Windows install branch and retry."
     }
 
     $Claude = $null
@@ -164,5 +143,8 @@ try {
         }
     }
 } finally {
+    if ($Dist -and (Test-Path -LiteralPath $Dist -PathType Container)) {
+        Remove-Item -LiteralPath $Dist -Recurse -Force -ErrorAction SilentlyContinue
+    }
     Pop-Location
 }

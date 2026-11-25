@@ -49,12 +49,11 @@ React/Vite 화면과 개발용 진단 화면을 제공합니다. 두 화면은 �
 
 ### 바로 설치하고 실행하기
 
-Windows에 Git, Python, Node.js가 없다면 PowerShell에서 필요한 항목만 설치한 뒤 새 PowerShell을 여세요.
+Windows에 Git 또는 Python이 없다면 PowerShell에서 필요한 항목을 설치한 뒤 새 PowerShell을 여세요.
 
 ```powershell
 winget install --exact --id Git.Git
 winget install --exact --id Python.Python.3.12
-winget install --exact --id OpenJS.NodeJS.LTS
 ```
 
 GitHub의 설치 브랜치를 받은 뒤 `Start.cmd`를 실행합니다. 파일 탐색기에서는 받은 폴더의 **Start.cmd**를 더블 클릭할 수 있습니다.
@@ -65,7 +64,7 @@ cd My_own_AI_assistant
 .\Start.cmd
 ```
 
-설치기는 Python 3.11 이상과 Node.js 22.22.2 이상인 22 LTS 또는 24.15.0 이상인 24 LTS를 사용해 Gateway와 웹 앱을 준비합니다. Windows용 공식 Claude Code 2.1.248 이상이 필요합니다. 프로그램이 없다면 다음 명령으로 설치한 뒤 새 PowerShell에서 `Start.cmd`를 실행하세요. [공식 Claude Code 설치](https://github.com/anthropics/claude-code#get-started)
+설치기는 Python 3.11 이상으로 Gateway를 준비하고 설치 브랜치에 포함된 웹 빌드를 실행합니다. Windows용 공식 Claude Code 2.1.248 이상이 필요합니다. 프로그램이 없다면 다음 명령으로 설치한 뒤 새 PowerShell에서 `Start.cmd`를 실행하세요. [공식 Claude Code 설치](https://github.com/anthropics/claude-code#get-started)
 
 ```powershell
 winget install --exact --id Anthropic.ClaudeCode
@@ -76,6 +75,8 @@ winget install --exact --id Anthropic.ClaudeCode
 열린 로컬 브라우저에서 하나·서린·이솔을 고르고 인사와 자기소개를 들을 수 있습니다. 콘솔에 표시된 연결 주소를 사용하거나 화면에 **이 앱의 연결 토큰**을 입력해 대화를 시작합니다. 선택한 캐릭터가 첫 대화에 적용됩니다. 답변 낭독은 Supertonic 2 워커를 연결해 켤 수 있습니다. [캐릭터별 답변 낭독 설정](workers/tts-supertonic/README.md)
 
 Claude 로그인 없이 설치와 화면만 확인하려면 `.\Start.cmd -Provider demo`로 실행합니다. 데모의 대화에는 고정 응답이 표시됩니다.
+
+이미 설치 브랜치를 받았다면 그 폴더에서 `git pull --ff-only`로 갱신하고 `Start.cmd`를 다시 실행합니다.
 
 ### 개발용 수동 설치
 
@@ -95,6 +96,8 @@ npm run build
 cd ../..
 .\scripts\start.ps1
 ```
+
+설치 브랜치에 화면 변경을 반영할 때는 운영 빌드 후 저장소 루트에서 `python scripts/package_windows_web.py`로 동봉 빌드를 갱신합니다.
 
 콘솔에 표시되는 `http://127.0.0.1:8765/#token=...` 주소를 열고 **연결**을 누릅니다. React는 주소의 토큰을 즉시 지우고 메모리에만 보관합니다. `ASSISTANT_WEB_DIR=apps/diagnostics`를 지정하면 진단 화면을 선택할 수 있습니다. 토큰을 공유하지 마세요. 기본 모드는 **고정 응답 `demo` / TTS 없음 / STT 없음**입니다.
 
