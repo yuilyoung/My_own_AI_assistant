@@ -16,7 +16,7 @@ npm run build
 
 개발 서버는 `npm run dev`로 실행하며 Gateway도 별도 실행해야 합니다. 포트 5173을 고정하고 같은 개발 출처의 Origin만 Gateway 출처로 변환합니다. 운영에서는 Gateway의 동일 출처 제공을 사용합니다.
 
-Live2D SDK와 캐릭터가 없어 현재 아바타 영역에는 설치 안내가 표시됩니다. 실제 모델 렌더링·표정·모션·립싱크는 미구현입니다. `assets/manifest.example.json`은 설치 계약 예시이며 활성화 기능이 아닙니다.
+하나·서린·이솔은 웹 앱에 포함되어 바로 표시됩니다. Live2D를 선택하면 별도 SDK·모델·어댑터 설치 안내가 표시됩니다. `assets/manifest.example.json`은 설치 계약 예시이며 활성화 기능이 아닙니다.
 
 ## Live2D 모델 JSON 사전 검사
 

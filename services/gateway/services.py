@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 
+from .claude import ClaudeLLM
 from .config import Settings
 from .contracts import Service
 from .engine import Engine
@@ -40,9 +41,12 @@ class ServiceRuntime:
 
 class Services:
     def __init__(self, settings: Settings):
-        self.default_service: Service = {"demo": "demo", "ollama": "local", "cloud": "cloud"}[
-            settings.llm
-        ]
+        self.default_service: Service = {
+            "demo": "demo",
+            "ollama": "local",
+            "cloud": "cloud",
+            "claude": "claude",
+        }[settings.llm]
         cloud_available = settings.cloud_configured
         definitions = [
             ("demo", "데모", "demo", True, None, None, DemoLLM()),
@@ -67,6 +71,18 @@ class Services:
                 CloudLLM(settings),
             ),
         ]
+        if settings.claude_cli is not None:
+            definitions.append(
+                (
+                    "claude",
+                    "Claude 구독",
+                    "claude_subscription",
+                    True,
+                    None,
+                    None,
+                    ClaudeLLM(settings.claude_cli, settings.timeout),
+                )
+            )
         if settings.tts == "supertonic":
             tts = SupertonicTTS(settings)
         elif settings.tts == "melo":

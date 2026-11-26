@@ -50,8 +50,9 @@ class Settings:
     host: str = "127.0.0.1"
     public_origin: str = ""
     port: int = 8765
-    llm: Literal["demo", "ollama", "cloud"] = "demo"
+    llm: Literal["demo", "ollama", "cloud", "claude"] = "demo"
     local_llm_enabled: bool | None = None
+    claude_cli: Path | None = None
     cloud_api_key: str = field(default="", repr=False)
     cloud_model: str = ""
     cloud_base_url: str = "https://api.openai.com/v1"
@@ -93,6 +94,16 @@ class Settings:
                 raise ValueError("Public deployment requires an explicit access token")
         if self.host == "0.0.0.0" and not self.public_origin:
             raise ValueError("Public binding requires ASSISTANT_PUBLIC_ORIGIN")
+        if self.public_origin and (self.claude_cli is not None or self.llm == "claude"):
+            raise ValueError("Claude Code is supported only for loopback deployments")
+        if self.claude_cli is not None and (
+            not self.claude_cli.is_absolute()
+            or not self.claude_cli.is_file()
+            or (os.name == "nt" and self.claude_cli.suffix.lower() != ".exe")
+        ):
+            raise ValueError("CLAUDE_CLI must be an absolute path to the installed Claude Code CLI")
+        if self.llm == "claude" and self.claude_cli is None:
+            raise ValueError("Set CLAUDE_CLI to the installed Claude Code CLI")
         object.__setattr__(self, "ollama_url", loopback_endpoint(self.ollama_url))
         object.__setattr__(self, "melo_url", loopback_endpoint(self.melo_url))
         object.__setattr__(self, "supertonic_url", loopback_endpoint(self.supertonic_url))
@@ -139,7 +150,7 @@ class Settings:
                 raise ValueError("Configure existing WHISPER_CLI and WHISPER_MODEL files")
             if ".en." in self.whisper_model.name.lower():
                 raise ValueError("Korean STT requires a multilingual model, not .en")
-        if self.llm not in {"demo", "ollama", "cloud"} or self.tts not in {
+        if self.llm not in {"demo", "ollama", "cloud", "claude"} or self.tts not in {
             "none",
             "melo",
             "supertonic",
@@ -169,6 +180,7 @@ class Settings:
             port=int(os.getenv("PORT", os.getenv("ASSISTANT_PORT", "8765"))),
             llm=llm or os.getenv("LLM_PROVIDER", "demo"),
             local_llm_enabled=optional_env_bool("LOCAL_LLM_ENABLED"),
+            claude_cli=Path(os.environ["CLAUDE_CLI"]) if os.getenv("CLAUDE_CLI") else None,
             cloud_api_key=os.getenv("CLOUD_API_KEY", "").strip(),
             cloud_model=os.getenv("CLOUD_MODEL", "").strip(),
             cloud_base_url=os.getenv("CLOUD_BASE_URL", "https://api.openai.com/v1"),

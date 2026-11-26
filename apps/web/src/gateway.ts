@@ -1,6 +1,6 @@
 import type { AvatarCharacter } from "./avatar-cast";
 
-export type ServiceId = "demo" | "local" | "cloud";
+export type ServiceId = "demo" | "local" | "cloud" | "claude";
 export type ServiceOption = {
   id: ServiceId;
   label: string;
