@@ -156,11 +156,12 @@ jobs:
           .\.venv\Scripts\python.exe -m pip install -r requirements-pet.txt
           .\.venv\Scripts\python.exe scripts/windows_pet_smoke.py --launcher
       - name: Preserve the native desktop pet capture
+        if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-pet
           path: ${{ runner.temp }}/windows-pet.png
-          if-no-files-found: error
+          if-no-files-found: warn
       - name: Install Chromium for Windows synthetic voice E2E
         run: |
           python -m pip install playwright==1.64.1

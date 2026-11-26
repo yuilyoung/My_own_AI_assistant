@@ -10,6 +10,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from threading import Thread
 
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QCursor
@@ -110,6 +111,54 @@ def check_windows_launcher(directory):
                 launcher.wait(timeout=10)
 
 
+def check_windows_input(app, window, point):
+    """Exercise Win32 hit-testing and dragging when the runner has an input desktop."""
+    import ctypes
+    from ctypes import wintypes
+
+    api = ctypes.WinDLL("user32", use_last_error=True)
+    api.WindowFromPoint.argtypes = (wintypes.POINT,)
+    api.WindowFromPoint.restype = wintypes.HWND
+    api.GetAncestor.argtypes = (wintypes.HWND, wintypes.UINT)
+    api.GetAncestor.restype = wintypes.HWND
+    api.ClientToScreen.argtypes = (wintypes.HWND, ctypes.POINTER(wintypes.POINT))
+    api.SetCursorPos.argtypes = (ctypes.c_int, ctypes.c_int)
+    hwnd = int(window.winId())
+
+    def screen_point(x, y):
+        scale = window.devicePixelRatioF()
+        pt = wintypes.POINT(round(x * scale), round(y * scale))
+        assert api.ClientToScreen(hwnd, ctypes.byref(pt))
+        return pt
+
+    def hit(point):
+        return api.GetAncestor(api.WindowFromPoint(point), 2)
+
+    face = screen_point(*point)
+    if hit(face) != hwnd or not api.SetCursorPos(face.x, face.y):
+        print("Runner input desktop unavailable for Win32 hit-test and pointer drag.")
+        return
+    assert hit(screen_point(1, 1)) != hwnd, "Transparent corner intercepted desktop input"
+    before = window.pos()
+
+    def drag():
+        api.mouse_event(0x0002, 0, 0, 0, 0)
+        try:
+            time.sleep(0.18)
+            for i in range(1, 13):
+                api.SetCursorPos(face.x - i * 3, face.y)
+                time.sleep(0.025)
+        finally:
+            api.mouse_event(0x0004, 0, 0, 0, 0)
+
+    pointer = Thread(target=drag)
+    pointer.start()
+    wait_for(app, lambda: not pointer.is_alive(), "native pointer release")
+    pointer.join()
+    assert window.x() < before.x() - 5, "Dragging the pet did not reposition the native window"
+    print("Win32 hit-testing and mouse drag passed.")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--web-dir", type=Path, default=ROOT / "apps/web/dist")
@@ -177,20 +226,75 @@ def main():
                     ),
                     "real Gateway demo response",
                 )
+                wait_for(
+                    app,
+                    lambda: js("!!document.querySelector('.pet-chat input:enabled')"),
+                    "completed demo turn",
+                )
+                js(
+                    "requestAnimationFrame(() => requestAnimationFrame(() => { window.petPainted = true; }))"
+                )
+                wait_for(app, lambda: js("window.petPainted === true"), "rendered conversation")
+                QTest.qWait(160)
+                image = window.grab().toImage()
+                assert image.pixelColor(1, 1).alpha() == 0, "Native corner was opaque"
+                colors = {
+                    image.pixelColor(x, y).rgba()
+                    for x in range(2, image.width(), 8)
+                    for y in range(2, image.height(), 8)
+                }
+                assert len(colors) > 32, "Native capture was blank"
                 if report := os.getenv("PET_SCREENSHOT_PATH"):
-                    assert window.grab().save(report), "Could not capture native window"
+                    assert image.save(report), "Could not capture native window"
                 js("document.querySelector('[data-pet-chat]').click()")
                 wait_for(
                     app,
                     lambda: js("!document.querySelector('.pet-chat')"),
                     "compact pet",
                 )
+                if os.name == "nt":
+                    QTest.qWait(200)
+                    face = json.loads(
+                        js("""
+                        (() => {
+                          const r = document.querySelector('.pet-figure svg').getBoundingClientRect();
+                          return JSON.stringify([r.x + r.width * .5, r.y + r.height * .32]);
+                        })()
+                    """)
+                    )
+                    check_windows_input(app, window, face)
                 QCursor.setPos(window.screen().availableGeometry().topLeft() + QPoint(1, 1))
+                bounds = window.screen().availableGeometry()
+                if window.frameGeometry().contains(QCursor.pos()):
+                    for edge in (
+                        bounds.topLeft(),
+                        QPoint(
+                            bounds.right() - window.width() + 1,
+                            bounds.bottom() - window.height() + 1,
+                        ),
+                    ):
+                        window.move(edge)
+                        if not window.frameGeometry().contains(QCursor.pos()):
+                            break
                 before = window.pos()
+                reduced = js("matchMedia('(prefers-reduced-motion: reduce)').matches")
                 js(
                     "[...document.querySelectorAll('button')].find(b => b.textContent === '산책').click()"
                 )
-                wait_for(app, lambda: window.pos() != before, "native desktop movement")
+                if reduced:
+                    QTest.qWait(240)
+                    assert before == window.pos() and not window.controls.timer.isActive()
+                    # Exercise native movement separately from the UI's accessibility policy.
+                    js("window.desktopPet.setRoaming(true)")
+                wait_for(
+                    app, window.controls.timer.isActive, f"roaming request (reduced={reduced})"
+                )
+                details = (
+                    f"screen={bounds.getRect()}, frame={window.frameGeometry().getRect()}, "
+                    f"cursor={QCursor.pos().toTuple()}, held={QApplication.mouseButtons()}, "
+                    f"modal={bool(QApplication.activeModalWidget())}, reduced={reduced}"
+                )
+                wait_for(app, lambda: window.pos() != before, "native desktop movement " + details)
                 js("window.desktopPet.setRoaming(false)")
                 wait_for(app, lambda: not window.controls.timer.isActive(), "roaming stop")
                 assert window.screen().availableGeometry().contains(window.frameGeometry())
