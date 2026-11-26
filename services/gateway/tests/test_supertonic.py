@@ -183,9 +183,11 @@ def test_live_synthesis_uses_the_cast_recording_profile_on_new_text(tmp_path, mo
     from types import SimpleNamespace
     from unittest.mock import Mock
 
+    import numpy as np
+
     for name in worker.MODEL_FILES.values():
         (tmp_path / name).touch()
-    raw, adjusted = [0.1, -0.1, 0.0], [0.14, -0.08]
+    raw, adjusted = np.float32([0.1, -0.1, 0.0]), np.float32([0.14, -0.08])
     model = Mock(num_speakers=10)
     model.generate.return_value = SimpleNamespace(samples=raw, sample_rate=44100)
     sherpa = SimpleNamespace(
@@ -196,34 +198,42 @@ def test_live_synthesis_uses_the_cast_recording_profile_on_new_text(tmp_path, mo
         GenerationConfig=SimpleNamespace,
     )
     resample = Mock(return_value=adjusted)
-    compressed = [0.13]
-    tempo = Mock(return_value=compressed)
-    monkeypatch.setattr(worker, "speed_up_cast_speech", tempo)
+    paced = np.float32([0.13])
+    shape_pauses = Mock(return_value=paced)
+    monkeypatch.setattr(worker, "shape_cast_pauses", shape_pauses)
     monkeypatch.setitem(sys.modules, "sherpa_onnx", sherpa)
-    monkeypatch.setitem(
-        sys.modules, "numpy", SimpleNamespace(asarray=lambda samples, dtype: samples, float32=float)
-    )
     monkeypatch.setitem(sys.modules, "soxr", SimpleNamespace(resample=resample))
     monkeypatch.setattr(worker, "pcm16_wav", lambda samples, rate: (samples, rate))
-    synthesize = worker.load_synthesizer(tmp_path)
-    for name, speaker, speed in [("hana", 3, 0.82), ("isol", 1, 0.99), ("seorin", 0, 0.95)]:
-        resample.reset_mock()
-        tempo.reset_mock()
-        text = f"지금 {name} 목소리로 처음 읽는 한 문장이에요."
-        samples, rate = synthesize(text, name)
-        spoken, config = model.generate.call_args.args
-        assert (spoken, config.sid, config.num_steps, config.extra) == (
-            text,
-            speaker,
-            24,
-            {"lang": "ko"},
-        )
-        assert config.speed == speed
-        assert rate == 44100
-        assert samples is compressed
-        if name != "hana":
-            tempo.assert_called_once_with(raw, rate)
-            resample.assert_not_called()
-        else:
-            tempo.assert_called_once_with(adjusted, rate)
-            resample.assert_called_once_with(raw, rate * 1.20, rate, quality="HQ")
+    synthesize = worker.load_synthesizer(tmp_path, seed=2718)
+    profiles = [
+        ("hana", 3, 1.06, 1.02, 1.08, 0.25),
+        ("isol", 1, 1.06, 1.03, 1.045, 0.30),
+        ("seorin", 0, 1.01, 0.96, 0.98, 0.36),
+    ]
+    for name, speaker, statement_rate, question_rate, register, pause in profiles:
+        for text, speed in [
+            ("함께 새 프로젝트를 시작해요.", statement_rate),
+            ("“어떤 일부터 함께 시작할까요？”", question_rate),
+        ]:
+            resample.reset_mock()
+            shape_pauses.reset_mock()
+            samples, rate = synthesize(text, name)
+            spoken, config = model.generate.call_args.args
+            assert (spoken, config.sid, config.speed, config.num_steps) == (
+                text,
+                speaker,
+                speed,
+                24,
+            )
+            assert config.extra == {"lang": "ko", "silence_duration": str(pause), "seed": "2718"}
+            assert rate == 44100
+            assert samples is paced
+            resample.assert_called_once_with(raw, rate * register, rate, quality="HQ")
+            shape_pauses.assert_called_once_with(adjusted, rate, pause)
+
+    worker.load_synthesizer(tmp_path)("나중에 다시 이야기해요.", "seorin")
+    assert "seed" not in model.generate.call_args.args[1].extra
+
+    shape_pauses.return_value = np.float32([1.2, -0.6, 0.0])
+    samples, _ = synthesize("밝게 인사해요.", "isol")
+    assert samples.tolist() == pytest.approx([0.9, -0.45, 0.0])

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { FormEvent } from "react";
 import { GatewayClient, type ServiceId } from "./gateway";
 import { AvatarPanel } from "./AvatarPanel";
+import { DesktopPet, isPetWindow } from "./DesktopPet";
 import { DemoStudio } from "./DemoStudio";
 import { characterForMode, type AvatarCharacter } from "./avatar-cast";
 import { AvatarMotionBridge } from "./avatar-motion";
@@ -375,6 +376,10 @@ function Workspace({
   );
 }
 export function App() {
+  return isPetWindow(location) ? <DesktopPet /> : <WebApp />;
+}
+
+function WebApp() {
   const [token, setToken] = useState("");
   const [character, setCharacter] = useState<AvatarCharacter>("seorin");
   const [app, setApp] = useState<Conversation | null>(null),
@@ -505,7 +510,8 @@ export function App() {
               <h3>Windows · Claude 구독</h3>
               <p>
                 Windows 설치본에서 공식 Claude Code에 본인 구독 계정으로
-                로그인하면 이 PC의 로컬 앱에서 대화할 수 있습니다.
+                로그인하면 이 PC에서 대화할 수 있습니다. 바탕화면 펫으로 쓰려면
+                Pet.cmd를 실행하세요.
               </p>
             </div>
             <div>

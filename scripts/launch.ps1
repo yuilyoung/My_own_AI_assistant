@@ -1,6 +1,9 @@
 param(
     [ValidateSet("claude", "demo", "ollama", "cloud")][string]$Provider = "claude",
-    [switch]$NoBrowser
+    [switch]$NoBrowser,
+    [switch]$Pet,
+    [switch]$Voice,
+    [switch]$Microphone
 )
 
 $ErrorActionPreference = "Stop"
@@ -184,6 +187,10 @@ try {
     }
     Invoke-Checked $VenvPython @("-m", "pip", "install", "--disable-pip-version-check", "-r", "requirements.txt") "Could not install Gateway dependencies"
 
+    if ($Pet) {
+        Invoke-Checked $VenvPython @("-m", "pip", "install", "--disable-pip-version-check", "-r", "requirements-pet.txt") "Could not install the desktop pet runtime"
+    }
+
     $Dist = Join-Path ([System.IO.Path]::GetTempPath()) ("assistant-web-" + [guid]::NewGuid().ToString("N"))
     try {
         [void][System.IO.Directory]::CreateDirectory($Dist)
@@ -212,7 +219,7 @@ try {
         $env:ASSISTANT_PUBLIC_ORIGIN = $null
         $env:ASSISTANT_WEB_DIR = $Dist
         if ($Claude) { $env:CLAUDE_CLI = $Claude }
-        & (Join-Path $PSScriptRoot "start.ps1") -Provider $Provider -OpenBrowser:(!$NoBrowser)
+        & (Join-Path $PSScriptRoot "start.ps1") -Provider $Provider -Pet:$Pet -Voice:$Voice -Microphone:$Microphone -OpenBrowser:(!$NoBrowser -and !$Pet)
         exit $LASTEXITCODE
     } finally {
         foreach ($Name in $Variables) {

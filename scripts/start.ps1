@@ -4,7 +4,8 @@ param(
     [switch]$Voice,
     [ValidateSet("none", "melo", "supertonic")][string]$TtsProvider,
     [switch]$Microphone,
-    [switch]$OpenBrowser
+    [switch]$OpenBrowser,
+    [switch]$Pet
 )
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..")
@@ -22,6 +23,10 @@ elseif ($Voice -and (!$env:TTS_PROVIDER -or $env:TTS_PROVIDER -eq "none")) {
 elseif (!$env:TTS_PROVIDER) { $env:TTS_PROVIDER = "none" }
 if ($env:TTS_PROVIDER -eq "supertonic" -and $env:SUPERTONIC_TOKEN.Length -lt 32) { throw "Set SUPERTONIC_TOKEN and start the separate Supertonic 2 worker first." }
 if ($env:TTS_PROVIDER -eq "melo" -and $env:MELO_TOKEN.Length -lt 32) { throw "Set MELO_TOKEN and start the separate Melo worker first." }
+if ($Pet) {
+    & $Python -m gateway.desktop_pet
+    exit $LASTEXITCODE
+}
 $GatewayOptions = @()
 if ($OpenBrowser) { $GatewayOptions += "--open-browser" }
 & $Python -m gateway.cli @GatewayOptions

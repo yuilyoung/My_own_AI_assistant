@@ -7,17 +7,70 @@ import {
 } from "./narration-motion";
 
 const restingArmAngle = { hana: 5, seorin: 6, isol: 4 };
-// At rest the forearm folds across the waist. Its elbow stays attached as the
-// hand travels into the painted wave, including for a cue interrupted mid-reach.
-const foldedElbow = { hana: -98, seorin: -193.28, isol: -112 };
+// The resting forearms hang beside the body. Positive winding takes them
+// around the outside shoulder, including when a gesture releases mid-reach.
+const foldedElbow = { hana: 188, seorin: 166.72, isol: 171 };
 const heldTilt = { hana: -5, seorin: -3.5, isol: 4 };
 type Arm = Exclude<NarrationPose["armPose"], "idle">;
+type ArmRig = Readonly<{
+  upperX: number;
+  upperY: number;
+  forearmX: number;
+  forearmY: number;
+}>;
+const radians = Math.PI / 180;
+
+function verticalProjection(pitch: number) {
+  return Math.cos(pitch * radians);
+}
+
+function ease(value: number) {
+  const t = Math.max(0, Math.min(1, value));
+  return t * t * (3 - 2 * t);
+}
+
+function readArmRig(svg: SVGSVGElement): ArmRig | undefined {
+  const coordinates = (value: string) => value.split(" ").map(parseFloat);
+  const [sx, sy] = coordinates(svg.style.getPropertyValue("--shoulder-pivot"));
+  const [ex, ey] = coordinates(svg.style.getPropertyValue("--elbow-pivot"));
+  const wrist = svg.querySelector<SVGGElement>(".avatar-panel__hand");
+  const [wx, wy] = coordinates(wrist?.style.transformOrigin ?? "");
+  if (![sx, sy, ex, ey, wx, wy].every(Number.isFinite)) return undefined;
+  return {
+    upperX: ex - sx,
+    upperY: ey - sy,
+    forearmX: wx - ex,
+    forearmY: wy - ey,
+  };
+}
+
+function keepWristInFrame(
+  rig: ArmRig,
+  upper: number,
+  elbow: number,
+  clearance: number,
+) {
+  const bend = elbow * radians;
+  const x =
+    rig.upperX + rig.forearmX * Math.cos(bend) - rig.forearmY * Math.sin(bend);
+  const y =
+    rig.upperY + rig.forearmX * Math.sin(bend) + rig.forearmY * Math.cos(bend);
+  const turn = upper * radians;
+  const wristX = x * Math.cos(turn) - y * Math.sin(turn);
+  const wristY = x * Math.sin(turn) + y * Math.cos(turn);
+  if (wristX <= clearance || wristY <= 0) return 0;
+  // Turn about the shoulder to bring the wrist inside the safe arc, keeping
+  // both limb lengths and the elbow registration fixed.
+  const target = Math.acos(clearance / Math.hypot(wristX, wristY));
+  return Math.min(45, (target - Math.atan2(wristY, wristX)) / radians);
+}
 
 function draw(
   svg: SVGSVGElement,
   previous: Map<string, string>,
   character: AvatarCharacter,
   pose: NarrationPose,
+  rig: ArmRig | undefined,
 ) {
   function channel(name: string, value: number, unit = "") {
     const next = Math.round(value * 10000) / 10000 + unit;
@@ -34,8 +87,11 @@ function draw(
   channel("--head-x", pose.headX, "px");
   channel("--head-y", pose.headY, "px");
   channel("--head-angle", pose.headAngle, "deg");
+  channel("--head-scale-y", verticalProjection(pose.headPitch));
+  channel("--neck-angle", pose.neckAngle, "deg");
   channel("--torso-y", pose.torsoY, "px");
   channel("--torso-angle", pose.torsoAngle, "deg");
+  channel("--torso-scale-y", verticalProjection(pose.torsoPitch));
   channel("--fringe-angle", pose.fringeAngle, "deg");
   channel("--hair-angle", pose.hairAngle, "deg");
   channel("--lock-left-angle", pose.lockLeftAngle, "deg");
@@ -44,19 +100,34 @@ function draw(
   channel("--arm-lift", pose.armLift);
   // Only dissolve between two registrations at the very bottom of the reach.
   // The arm stays opaque through the visible arc, including its return.
-  const entrance = Math.min(1, pose.armLift / 0.065);
-  channel("--arm-opacity", entrance * entrance * (3 - 2 * entrance));
-  channel(
-    "--elbow-angle",
-    pose.armPose === "idle" ? 0 : foldedElbow[character] * (1 - pose.armLift),
-    "deg",
-  );
+  channel("--arm-opacity", ease(pose.armLift / 0.065));
+  const elbow =
+    pose.armPose === "idle"
+      ? 0
+      : foldedElbow[character] * (1 - pose.elbowOpen) + pose.elbowAngle;
+  channel("--elbow-angle", elbow, "deg");
   const lowering =
     pose.armPose === "idle"
       ? 0
       : (1 - pose.armLift) * restingArmAngle[character];
-  channel("--upper-arm-angle", pose.upperArmAngle + lowering, "deg");
-  channel("--wrist-angle", pose.wristAngle, "deg");
+  const upper = pose.upperArmAngle + lowering;
+  const reach =
+    ease(pose.elbowOpen / 0.19) * (1 - ease((pose.elbowOpen - 0.79) / 0.19));
+  const clearance = 23 + 95 * (1 - reach);
+  const tuck =
+    rig && reach ? keepWristInFrame(rig, upper, elbow, clearance) : 0;
+  // Let the palm lead the short arc up, then leave the held wave to the clock.
+  const palmLead =
+    ease((pose.elbowOpen - 0.22) / 0.23) *
+    (1 - ease((pose.elbowOpen - 0.86) / 0.11));
+  channel("--upper-arm-angle", upper + tuck, "deg");
+  channel(
+    "--wrist-angle",
+    pose.wristAngle - (rig ? (elbow + tuck) * 0.8 * palmLead : 0),
+    "deg",
+  );
+  channel("--finger-curl", pose.fingerCurl);
+  channel("--finger-splay", pose.fingerSplay, "deg");
 }
 
 /** The painted hand changes twice per gesture; inter-frame motion stays on the SVG. */
@@ -90,6 +161,7 @@ export function useNarrationMotion(
     let paintedArm: NarrationPose["armPose"] | undefined;
     let focus: { x: number; y: number } | undefined;
     const previous = new Map<string, string>();
+    const rig = character === "seorin" ? undefined : readArmRig(svg);
 
     function paint(dt: number) {
       if (!svg) return;
@@ -105,13 +177,15 @@ export function useNarrationMotion(
           ...neutral,
           headAngle: current.gesture === "tilt" ? heldTilt[character] : 0,
           headY: current.gesture === "nod" ? 1.5 : 0,
+          headPitch: current.gesture === "nod" ? 5 : 0,
           armPose: held,
           armLift: held === "idle" ? 0 : 1,
+          elbowOpen: held === "idle" ? 0 : 1,
         };
       } else {
         pose = model.advance(dt, { ...current, focus });
       }
-      draw(svg, previous, character, pose);
+      draw(svg, previous, character, pose, rig);
       if (paintedArm !== pose.armPose) {
         paintedArm = pose.armPose;
         setArm(paintedArm === "idle" ? undefined : paintedArm);

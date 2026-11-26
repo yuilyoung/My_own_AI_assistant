@@ -11,10 +11,12 @@ on:
       - 'docs/design/*-original.png'
       - 'docs/design/*-original.webp'
       - 'scripts/windows_smoke.py'
+      - 'scripts/windows_pet_smoke.py'
       - 'scripts/package_windows_web.py'
       - 'scripts/launch.ps1'
       - 'scripts/start.ps1'
       - 'Start.cmd'
+      - 'Pet.cmd'
       - 'windows/web-dist.zip'
       - 'requirements*.txt'
       - 'pyproject.toml'
@@ -32,10 +34,12 @@ on:
       - 'docs/design/*-original.png'
       - 'docs/design/*-original.webp'
       - 'scripts/windows_smoke.py'
+      - 'scripts/windows_pet_smoke.py'
       - 'scripts/package_windows_web.py'
       - 'scripts/launch.ps1'
       - 'scripts/start.ps1'
       - 'Start.cmd'
+      - 'Pet.cmd'
       - 'windows/web-dist.zip'
       - 'requirements*.txt'
       - 'pyproject.toml'
@@ -145,6 +149,19 @@ jobs:
         run: |
           $env:PYTHONPATH = "services"
           python -m gateway.readiness_cli --provider demo --json
+      - name: Exercise the native desktop pet and local demo conversation
+        env:
+          PET_SCREENSHOT_PATH: ${{ runner.temp }}/windows-pet.png
+        run: |
+          .\.venv\Scripts\python.exe -m pip install -r requirements-pet.txt
+          .\.venv\Scripts\python.exe scripts/windows_pet_smoke.py --launcher
+      - name: Preserve the native desktop pet capture
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-pet
+          path: ${{ runner.temp }}/windows-pet.png
+          if-no-files-found: warn
       - name: Install Chromium for Windows synthetic voice E2E
         run: |
           python -m pip install playwright==1.64.1

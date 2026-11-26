@@ -41,7 +41,11 @@ class DemoLLM:
             {
                 "segments": [
                     {
-                        "text": "연결 확인용 고정 응답입니다. 실제 AI 대화는 LLM 서비스에서 로컬 Ollama 또는 클라우드 API를 설정한 뒤 사용할 수 있어요.",
+                        "text": (
+                            "연결 확인용 고정 응답입니다. Windows 앱은 기본 옵션으로 열면 "
+                            "Claude 구독으로 대화할 수 있어요. 웹에서는 설정된 로컬 Ollama "
+                            "또는 클라우드 API를 선택해 주세요."
+                        ),
                         "emotion": "happy",
                         "gesture": "greeting",
                     }

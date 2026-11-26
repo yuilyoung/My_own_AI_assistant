@@ -25,12 +25,13 @@ def test_valid_and_truncated_wav():
         validate_wav(wav_bytes()[:-10])
 
 
-async def test_demo_is_fixed_and_guides_users_to_both_real_services():
+async def test_demo_is_fixed_and_guides_users_to_windows_and_web_services():
     from gateway.providers import DemoLLM
 
     reply = await DemoLLM().reply([{"role": "user", "content": "do-not-echo-this"}])
     text = reply.segments[0].text
     assert "연결 확인용 고정 응답입니다." in text
+    assert "Claude 구독" in text
     assert "로컬 Ollama 또는 클라우드 API" in text
     assert "do-not-echo-this" not in text
 
