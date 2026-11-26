@@ -85,11 +85,14 @@ describe("narrator motion", () => {
     expect(Math.abs(first.torsoAngle)).toBeLessThan(0.01);
     const turning = sample(model, 0.2, target);
     expect(turning.headAngle).toBeGreaterThan(1);
+    expect(turning.headYaw).toBeGreaterThan(8);
+    expect(Math.abs(turning.torsoX)).toBeLessThan(1);
     expect(turning.hairAngle).toBeLessThan(-0.3);
     const looking = sample(model, 0.55, target);
     expect(looking.gazeX).toBeLessThanOrEqual(1);
     expect(looking.gazeY).toBeGreaterThanOrEqual(-1);
     expect(looking.torsoAngle).toBeGreaterThan(0.4);
+    expect(looking.torsoX).toBeGreaterThan(1);
     const left = sample(model, 0.2, idle);
     expect(Math.abs(left.gazeX)).toBeLessThan(0.03);
     expect(left.headAngle).toBeGreaterThan(0.3);
@@ -216,6 +219,24 @@ describe("narrator motion", () => {
     expect(run(60)).toEqual(run(60));
   });
 
+  it("keeps Isol's lift and release timing from 12 to 60 fps", () => {
+    const run = (fps: number) => {
+      const model = createNarrationMotion("isol");
+      const wave = { ...idle, gesture: "greeting", armReady: true } as const;
+      const rising = sample(model, 1 / 3, wave, fps);
+      const falling = sample(model, 1 / 6, idle, fps);
+      const resting = sample(model, 0.5, idle, fps);
+      return { rising, falling, resting };
+    };
+    const slow = run(12);
+    expect(slow).toEqual(run(30));
+    expect(slow).toEqual(run(60));
+    expect(slow.rising.armPose).toBe("greeting");
+    expect(slow.falling.elbowOpen).toBeGreaterThan(0);
+    expect(slow.falling.elbowOpen).toBeLessThan(slow.rising.elbowOpen);
+    expect(slow.resting).toMatchObject({ armPose: "idle", elbowOpen: 0 });
+  });
+
   it("lowers an interrupted arm before replacing its painted hand", () => {
     const model = createNarrationMotion("seorin", 4);
     const wave = sample(model, 0.5, {
@@ -228,7 +249,9 @@ describe("narrator motion", () => {
     expect(releasing.armPose).toBe("greeting");
     expect(releasing.armLift).toBeGreaterThan(0);
     expect(releasing.armLift).toBeLessThan(wave.armLift);
-    const replaced = sample(model, 0.3, point);
+    const easingOut = sample(model, 0.22, point);
+    expect(easingOut.armPose).toBe("greeting");
+    const replaced = sample(model, 0.26, point);
     expect(replaced.armPose).toBe("point");
   });
 

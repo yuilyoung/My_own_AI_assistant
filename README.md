@@ -205,7 +205,7 @@ $env:WHISPER_MODEL = 'C:\tools\whisper.cpp\models\ggml-small.bin'
 
 ### 한국어 TTS
 
-Supertonic 2 워커를 설치하면 하나(F4), 서린(F1), 이솔(F2)이 한국어 답변을 읽습니다. 캐릭터마다 음높이와 말의 속도를 조율하고, 질문은 조금 여유 있게 읽습니다. 짧은 쉼과 문장 억양도 살립니다. Windows x64와 Linux에서 운영 웹 앱을 빌드하고 워커를 연결하는 절차는 설치 안내에 있습니다. 먼저 데모의 고정 답변으로 세 목소리를 확인한 뒤 Ollama를 연결해 대화할 수 있습니다. [Supertonic 2 설치 및 확인](workers/tts-supertonic/README.md)
+Supertonic 2 워커를 설치하면 하나(F2), 서린(F1), 이솔(F4)이 한국어 답변을 읽습니다. 캐릭터마다 음높이와 말의 속도를 조율하고, 질문은 조금 여유 있게 읽습니다. 짧은 쉼과 문장 억양도 살립니다. Windows x64와 Linux에서 운영 웹 앱을 빌드하고 워커를 연결하는 절차는 설치 안내에 있습니다. 먼저 데모의 고정 답변으로 세 목소리를 확인한 뒤 Ollama를 연결해 대화할 수 있습니다. [Supertonic 2 설치 및 확인](workers/tts-supertonic/README.md)
 
 MeloTTS의 단일 한국어 음성을 사용하려면 별도 환경에서 `workers/tts-melo/server.py`를 실행합니다. 워커와 Gateway에 동일한 32자 이상 `MELO_TOKEN`을 지정하고 `.\scripts\start.ps1 -Provider ollama -TtsProvider melo`로 연결하세요.
 

@@ -61,7 +61,11 @@ async def test_turn_uses_selected_cast_speaking_style(tmp_path):
     llm = CapturingLLM()
     engine = Engine(store, llm, SilentTTS())
     try:
-        for voice, style in (("hana", "10대"), ("isol", "대학 새내기"), ("seorin", "30대 직장인")):
+        for voice, style in (
+            ("hana", "17세 고등학생"),
+            ("isol", "대학 새내기"),
+            ("seorin", "30대 직장인"),
+        ):
             turn = engine.start(sid, "안녕하세요", voice)
             assert (await settled(engine, sid, turn["id"]))["status"] == "completed"
             assert style in llm.prompts[-1][0]["content"]

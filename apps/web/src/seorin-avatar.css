@@ -15,8 +15,8 @@
 /* Torso, neck and trailing hair have independent joints in the 360-unit stage. */
 .narration__torso {
   transform-origin: 176px 349px;
-  transform: translateY(var(--torso-y, 0px)) rotate(var(--torso-angle, 0deg))
-    scaleY(var(--torso-scale-y, 1));
+  transform: translate(var(--torso-x, 0px), var(--torso-y, 0px))
+    rotate(var(--torso-angle, 0deg)) scaleY(var(--torso-scale-y, 1));
 }
 
 .narration__neck {
@@ -28,7 +28,8 @@
 .narration__hair-anchor {
   transform-origin: var(--neck-pivot, 166px 212px);
   transform: translate(var(--head-x, 0px), var(--head-y, 0px))
-    rotate(var(--head-angle, 0deg)) scaleY(var(--head-scale-y, 1));
+    rotate(var(--head-angle, 0deg)) skewY(var(--head-yaw-skew, 0deg))
+    scale(var(--head-scale-x, 1), var(--head-scale-y, 1));
 }
 
 .narration__rear-hair {
@@ -62,18 +63,32 @@
 .narration__arm,
 .narration__upper-arm {
   transform-origin: var(--shoulder-pivot, 253px 246px);
-  transform: rotate(var(--upper-arm-angle, 0deg));
+  transform: rotate(var(--upper-arm-angle, 0deg))
+    scaleY(var(--upper-arm-scale-y, 1));
 }
 .narration__forearm {
   transform-origin: var(--elbow-pivot, 300px 340px);
-  transform: rotate(var(--elbow-angle, 0deg));
+  transform: scaleY(var(--forearm-counter-scale-y, 1))
+    rotate(var(--elbow-angle, 0deg)) scaleY(var(--forearm-scale-y, 1));
 }
 .narration__arm,
 .narration__arm-foreground {
   opacity: var(--arm-opacity, 0);
 }
+/* The original Isol sleeve is skinned through the whole greeting. Switch
+   to that same registered drawing at rest and keep a single opaque arm. */
+svg[data-character="isol"] [data-arm-pose="greeting"] .narration__rest-outfit {
+  display: none;
+}
+svg[data-character="isol"] [data-arm-pose="greeting"] .narration__raised-outfit,
+svg[data-character="isol"] [data-arm-pose="greeting"] .narration__arm {
+  opacity: 1;
+}
+
 .seorin .avatar-panel__hand {
-  transform: rotate(var(--wrist-angle, 0deg));
+  transform: scaleY(var(--hand-counter-scale-y, 1))
+    rotate(var(--wrist-angle, 0deg)) skewY(var(--palm-skew-y, 0deg))
+    scale(var(--palm-scale-x, 1), var(--palm-scale-y, 1));
 }
 
 @media (prefers-reduced-motion: reduce) {

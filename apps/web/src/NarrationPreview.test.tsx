@@ -47,9 +47,9 @@ it("uses the local narration's audio for the visible meter and yields to a real 
   expect(state.play).toHaveBeenCalledOnce();
   expect(screen.getByTestId("avatar-character").dataset.gesture).toBe("idle");
   act(() => state.report?.(0.65, 0.4));
-  expect(screen.getByTestId("avatar-character").dataset.gesture).toBe("point");
+  expect(screen.getByTestId("avatar-character").dataset.gesture).toBe("nod");
   act(() => state.report?.(0, 0.5));
-  expect(screen.getByTestId("avatar-character").dataset.gesture).toBe("point");
+  expect(screen.getByTestId("avatar-character").dataset.gesture).toBe("nod");
   act(() => state.report?.(0.65, 0.4));
   const meter = screen.getByRole("meter") as HTMLMeterElement;
   expect(meter.value).toBe(0.65);

@@ -1,4 +1,6 @@
 import { useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { isolGreetingPose } from "./isol-greeting-pose";
+import { paintIsolGreetingSleeve } from "./IsolGreetingSleeve";
 import type { AvatarCharacter } from "./avatar-cast";
 import {
   createNarrationMotion,
@@ -6,22 +8,22 @@ import {
   type NarrationPose,
 } from "./narration-motion";
 
-const restingArmAngle = { hana: 5, seorin: 6, isol: 4 };
-// The resting forearms hang beside the body. Positive winding takes them
-// around the outside shoulder, including when a gesture releases mid-reach.
-const foldedElbow = { hana: 188, seorin: 166.72, isol: 171 };
 const heldTilt = { hana: -5, seorin: -3.5, isol: 4 };
+const armDepth = {
+  hana: { forearm: 0.46, hand: 0.46, shoulder: 10, opened: 11 },
+  seorin: { forearm: 0.25, hand: 0.24, shoulder: 4, opened: 19 },
+  isol: { forearm: 0.48, hand: 0.43, shoulder: 13, opened: 12 },
+};
 type Arm = Exclude<NarrationPose["armPose"], "idle">;
 type ArmRig = Readonly<{
-  upperX: number;
-  upperY: number;
+  upperAngle: number;
   forearmX: number;
   forearmY: number;
 }>;
 const radians = Math.PI / 180;
 
-function verticalProjection(pitch: number) {
-  return Math.cos(pitch * radians);
+function projectedScale(angle: number) {
+  return Math.cos(angle * radians);
 }
 
 function ease(value: number) {
@@ -37,32 +39,14 @@ function readArmRig(svg: SVGSVGElement): ArmRig | undefined {
   const [wx, wy] = coordinates(wrist?.style.transformOrigin ?? "");
   if (![sx, sy, ex, ey, wx, wy].every(Number.isFinite)) return undefined;
   return {
-    upperX: ex - sx,
-    upperY: ey - sy,
+    upperAngle: Math.atan2(ey - sy, ex - sx) / radians,
     forearmX: wx - ex,
     forearmY: wy - ey,
   };
 }
 
-function keepWristInFrame(
-  rig: ArmRig,
-  upper: number,
-  elbow: number,
-  clearance: number,
-) {
-  const bend = elbow * radians;
-  const x =
-    rig.upperX + rig.forearmX * Math.cos(bend) - rig.forearmY * Math.sin(bend);
-  const y =
-    rig.upperY + rig.forearmX * Math.sin(bend) + rig.forearmY * Math.cos(bend);
-  const turn = upper * radians;
-  const wristX = x * Math.cos(turn) - y * Math.sin(turn);
-  const wristY = x * Math.sin(turn) + y * Math.cos(turn);
-  if (wristX <= clearance || wristY <= 0) return 0;
-  // Turn about the shoulder to bring the wrist inside the safe arc, keeping
-  // both limb lengths and the elbow registration fixed.
-  const target = Math.acos(clearance / Math.hypot(wristX, wristY));
-  return Math.min(45, (target - Math.atan2(wristY, wristX)) / radians);
+function signedBend(upper: number, forearm: number) {
+  return ((forearm - upper + 540) % 360) - 180;
 }
 
 function draw(
@@ -87,45 +71,72 @@ function draw(
   channel("--head-x", pose.headX, "px");
   channel("--head-y", pose.headY, "px");
   channel("--head-angle", pose.headAngle, "deg");
-  channel("--head-scale-y", verticalProjection(pose.headPitch));
+  channel("--head-scale-y", projectedScale(pose.headPitch));
+  channel("--head-scale-x", projectedScale(pose.headYaw));
+  channel("--head-yaw-skew", pose.headYaw * 0.11, "deg");
   channel("--neck-angle", pose.neckAngle, "deg");
+  channel("--torso-x", pose.torsoX, "px");
   channel("--torso-y", pose.torsoY, "px");
   channel("--torso-angle", pose.torsoAngle, "deg");
-  channel("--torso-scale-y", verticalProjection(pose.torsoPitch));
+  channel("--torso-scale-y", projectedScale(pose.torsoPitch));
   channel("--fringe-angle", pose.fringeAngle, "deg");
   channel("--hair-angle", pose.hairAngle, "deg");
   channel("--lock-left-angle", pose.lockLeftAngle, "deg");
   channel("--lock-right-angle", pose.lockRightAngle, "deg");
   channel("--accessory-angle", pose.accessoryAngle, "deg");
   channel("--arm-lift", pose.armLift);
+  channel("--elbow-open", pose.elbowOpen);
   // Only dissolve between two registrations at the very bottom of the reach.
   // The arm stays opaque through the visible arc, including its return.
   channel("--arm-opacity", ease(pose.armLift / 0.065));
+  const profile = armDepth[character];
+  const open = pose.elbowOpen;
+  const close =
+    character === "isol" && pose.armPose === "greeting" && rig?.forearmY
+      ? isolGreetingPose(open)
+      : undefined;
+  if (close) paintIsolGreetingSleeve(svg, close.upperPaint, close.forearmPaint);
+  const transit = ease(open / 0.27) * (1 - ease((open - 0.87) / 0.115));
+  const forearmScale = close?.forearmScale ?? 1 - profile.forearm * transit;
+  const forearmAngle = rig
+    ? Math.atan2(rig.forearmY, rig.forearmX) / radians
+    : -90;
+  const basis = signedBend(rig?.upperAngle ?? 75, forearmAngle);
+  const projectedAngle = rig
+    ? Math.atan2(rig.forearmY * forearmScale, rig.forearmX) / radians
+    : forearmAngle;
+  const projectedBend = signedBend(rig?.upperAngle ?? 75, projectedAngle);
+  const closed = -basis - 6;
+  const flex = closed * (1 - open) + profile.opened * open + pose.elbowAngle;
+  // Stay on the painted elbow's bend side all the way to the resting pose.
+  // Scaling the forearm in depth can alter its projected line of action.
   const elbow =
-    pose.armPose === "idle"
+    close?.elbow ??
+    (pose.armPose === "idle" ? 0 : Math.min(flex, -projectedBend - 4));
+  const hanging = Math.max(0, 89 - (rig?.upperAngle ?? 75));
+  const shoulder =
+    close?.shoulder ??
+    (pose.armPose === "idle"
       ? 0
-      : foldedElbow[character] * (1 - pose.elbowOpen) + pose.elbowAngle;
+      : hanging * (1 - pose.armLift) +
+        profile.shoulder * transit +
+        pose.upperArmAngle);
+  const wristGuide = close
+    ? 10 * Math.sin(Math.PI * open)
+    : Math.min(28, Math.max(0, elbow - profile.opened) * 0.28) * transit;
+  channel("--upper-arm-angle", shoulder, "deg");
+  channel("--upper-arm-scale-y", close?.upperScale ?? 1);
+  channel("--forearm-counter-scale-y", 1 / (close?.upperScale ?? 1));
   channel("--elbow-angle", elbow, "deg");
-  const lowering =
-    pose.armPose === "idle"
-      ? 0
-      : (1 - pose.armLift) * restingArmAngle[character];
-  const upper = pose.upperArmAngle + lowering;
-  const reach =
-    ease(pose.elbowOpen / 0.19) * (1 - ease((pose.elbowOpen - 0.79) / 0.19));
-  const clearance = 23 + 95 * (1 - reach);
-  const tuck =
-    rig && reach ? keepWristInFrame(rig, upper, elbow, clearance) : 0;
-  // Let the palm lead the short arc up, then leave the held wave to the clock.
-  const palmLead =
-    ease((pose.elbowOpen - 0.22) / 0.23) *
-    (1 - ease((pose.elbowOpen - 0.86) / 0.11));
-  channel("--upper-arm-angle", upper + tuck, "deg");
+  channel("--forearm-scale-y", forearmScale);
+  channel("--hand-counter-scale-y", 1 / forearmScale);
+  channel("--wrist-angle", pose.wristAngle - wristGuide, "deg");
+  channel("--palm-scale-x", projectedScale(pose.palmYaw));
   channel(
-    "--wrist-angle",
-    pose.wristAngle - (rig ? (elbow + tuck) * 0.8 * palmLead : 0),
-    "deg",
+    "--palm-scale-y",
+    1 - profile.hand * (close ? 1 - forearmScale : transit),
   );
+  channel("--palm-skew-y", pose.palmYaw * 0.09, "deg");
   channel("--finger-curl", pose.fingerCurl);
   channel("--finger-splay", pose.fingerSplay, "deg");
 }
@@ -140,6 +151,9 @@ export function useNarrationMotion(
   const latest = useRef(input);
   const refresh = useRef<(() => void) | undefined>(undefined);
   const [arm, setArm] = useState<Arm>();
+  useLayoutEffect(() => {
+    if (arm === "greeting" && character === "isol") refresh.current?.();
+  }, [arm, character]);
   useLayoutEffect(() => {
     latest.current = input;
     refresh.current?.();
@@ -161,7 +175,7 @@ export function useNarrationMotion(
     let paintedArm: NarrationPose["armPose"] | undefined;
     let focus: { x: number; y: number } | undefined;
     const previous = new Map<string, string>();
-    const rig = character === "seorin" ? undefined : readArmRig(svg);
+    const rig = readArmRig(svg);
 
     function paint(dt: number) {
       if (!svg) return;

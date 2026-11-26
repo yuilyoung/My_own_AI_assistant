@@ -1,14 +1,12 @@
 import { memo } from "react";
 import type { MotionCue } from "./avatar-motion";
+import { IsolGreetingSleeve, isolRelaxedSleeve } from "./IsolGreetingSleeve";
 import {
   PaintedGreetingHand,
   PaintedGreetingWrist,
   type GreetingHandRig,
 } from "./PaintedGreetingHand";
 import torso from "./portraits/isol/body.webp";
-import restingSleeve from "./portraits/isol/rest-sleeve.webp";
-import wavingSleeve from "./portraits/isol/greeting-sleeve.webp";
-import wavingForearm from "./portraits/isol/greeting-forearm.webp";
 import wavingHand from "./portraits/isol/greeting.webp";
 import pointingSleeve from "./portraits/isol/point-sleeve.webp";
 import pointingForearm from "./portraits/isol/point-forearm.webp";
@@ -30,8 +28,6 @@ export function isolPivot(x: number, y: number) {
 type ArmGesture = "greeting" | "point";
 const poses = {
   greeting: {
-    upper: { href: wavingSleeve, x: 407, y: 338, width: 158, height: 299 },
-    forearm: { href: wavingForearm, x: 489, y: 394, width: 112, height: 249 },
     hand: { href: wavingHand, x: 483, y: 272, width: 125, height: 147 },
   },
   point: {
@@ -63,25 +59,25 @@ const greetingHand: GreetingHandRig = {
 };
 
 const Wardrobe = memo(function IsolOvershirt({
+  id,
   greeting,
   gesture,
 }: {
+  id: string;
   greeting: boolean;
   gesture: MotionCue;
 }) {
-  const sleeve = poses[gesture === "point" ? "point" : "greeting"].upper;
   return (
     <g>
+      {greeting && gesture === "greeting" && (
+        <g className="narration__upper-arm" style={{ transform: "none" }}>
+          <g transform={isolProjection}>
+            <IsolGreetingSleeve id={id} />
+          </g>
+        </g>
+      )}
       <g transform={isolProjection}>
-        {!greeting && (
-          <image
-            href={restingSleeve}
-            x="455"
-            y="352"
-            width="100"
-            height="448"
-          />
-        )}
+        {!greeting && <image {...isolRelaxedSleeve} />}
         <image
           className="isol__portrait"
           href={torso}
@@ -91,10 +87,10 @@ const Wardrobe = memo(function IsolOvershirt({
           height="551"
         />
       </g>
-      {greeting && (
+      {greeting && gesture === "point" && (
         <g className="narration__upper-arm">
           <g transform={isolProjection}>
-            <image {...sleeve} />
+            <image {...poses.point.upper} />
           </g>
         </g>
       )}
@@ -111,8 +107,9 @@ const Forearm = memo(function IsolForearm({
 }) {
   return (
     <g transform={isolProjection}>
-      <image {...poses[gesture].forearm} />
-      {gesture === "greeting" && (
+      {gesture === "point" ? (
+        <image {...poses.point.forearm} />
+      ) : (
         <PaintedGreetingWrist
           id={id}
           image={poses.greeting.hand}
@@ -152,9 +149,9 @@ export const isolBody = {
   shoulderPivot: isolPivot(460, 374),
   elbowPivot: isolPivot(522, 606),
   handPivot: isolPivot(544, 412),
-  bodyImages: [torso, restingSleeve],
+  bodyImages: [torso, isolRelaxedSleeve.href],
   poseImages: {
-    greeting: [wavingSleeve, wavingForearm, wavingHand],
+    greeting: [wavingHand],
     point: [pointingSleeve, pointingForearm, pointingHand],
   },
 };
