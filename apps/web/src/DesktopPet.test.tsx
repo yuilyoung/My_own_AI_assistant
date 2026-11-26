@@ -2,6 +2,7 @@
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
+import { MicrophoneRecorder } from "../../diagnostics/recorder.mjs";
 import { DesktopPet, isPetWindow } from "./DesktopPet";
 
 it("opens only the dedicated loopback pet route", () => {
@@ -27,7 +28,7 @@ it("waits for the native host, pairs once and sends text as the selected pet", a
       Authorization: "Bearer pet-test-key",
     });
     if (path === "/api/status")
-      return Response.json({ llm: "demo", tts: "none", stt_enabled: false });
+      return Response.json({ llm: "demo", tts: "none", stt_enabled: true });
     if (path === "/api/sessions") return Response.json({ id: "s" });
     if (path.endsWith("/turns")) return Response.json({ id: "t" });
     if (path.endsWith("/turns/t"))
@@ -41,6 +42,9 @@ it("waits for the native host, pairs once and sends text as the selected pet", a
   });
   vi.stubGlobal("fetch", requests);
   try {
+    vi.spyOn(MicrophoneRecorder.prototype, "start").mockResolvedValue(
+      undefined,
+    );
     const user = userEvent.setup();
     render(<DesktopPet />);
     expect(location.hash).toBe("");
@@ -63,6 +67,15 @@ it("waits for the native host, pairs once and sends text as the selected pet", a
       text: "안녕",
       voice: "hana",
     });
+    await user.click(screen.getByRole("button", { name: "마이크로 입력" }));
+    await screen.findByRole("button", { name: "녹음 완료" });
+    expect(
+      (screen.getByRole("button", { name: "대화" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    expect(host.setRoaming).toHaveBeenLastCalledWith(false);
+    await user.click(screen.getByRole("button", { name: "음성 입력 취소" }));
+    await screen.findByRole("button", { name: "마이크로 입력" });
     await user.click(screen.getByRole("button", { name: "펫 종료" }));
     expect(host.close).toHaveBeenCalledOnce();
     await waitFor(() =>
@@ -73,6 +86,7 @@ it("waits for the native host, pairs once and sends text as the selected pet", a
   } finally {
     cleanup();
     delete window.desktopPet;
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
     history.replaceState(null, "", original);
   }

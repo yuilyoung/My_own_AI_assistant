@@ -78,6 +78,16 @@ Claude 로그인 없이 설치와 화면만 확인하려면 `.\Start.cmd -Provid
 
 이미 `main` 또는 `codex/windows-claude-app`을 받았다면 그 폴더에서 `git pull --ff-only`로 갱신하고 `Start.cmd`를 다시 실행합니다.
 
+### 바탕화면 펫으로 대화하기
+
+Windows에서 **Pet.cmd**를 더블 클릭하면 이 화면을 투명한 바탕화면 창으로 엽니다. 첫 실행에는 Qt와 내장 브라우저를 합해 약 260MB를 내려받습니다. 기본 연결은 로컬 Claude Code의 구독 계정을 사용합니다. Claude 로그인 전에 움직임과 고정 데모 응답을 확인하려면 다음과 같이 실행하세요.
+
+```powershell
+.\Pet.cmd -Provider demo
+```
+
+캐릭터를 끌거나 **Alt + 방향키**로 위치를 옮길 수 있습니다. **산책**을 켜면 펫이 화면 안에서 스스로 이동하고, **대화**를 열면 멈춥니다. **인사**는 내장 음원으로 동작합니다. 텍스트 대화는 바로 사용할 수 있습니다. 자유 대화의 음성 입력과 답변 낭독은 whisper.cpp와 Supertonic 워커를 설정한 후 `.\Pet.cmd -Microphone -Voice`로 켤 수 있습니다. **×**로 펫과 해당 창의 로컬 서버를 종료합니다. [음성 입력 설정](docs/voice-input.md) · [답변 낭독 설정](workers/tts-supertonic/README.md)
+
 ### 개발용 수동 설치
 
 구현 커밋이 포함된 브랜치에서 Python 3.11 이상을 사용합니다. 최초 패키지 설치에는 인터넷 연결이 필요합니다.
@@ -195,7 +205,7 @@ $env:WHISPER_MODEL = 'C:\tools\whisper.cpp\models\ggml-small.bin'
 
 ### 한국어 TTS
 
-Supertonic 2 워커를 설치하면 하나(F4), 서린(F1), 이솔(F2)이 한국어 답변을 읽습니다. 세 목소리는 음높이를 유지하며 기존 낭독보다 1.2배 빠르게 말합니다. Windows x64와 Linux에서 운영 웹 앱을 빌드하고 워커를 연결하는 절차는 설치 안내에 있습니다. 먼저 데모의 고정 답변으로 세 목소리를 확인한 뒤 Ollama를 연결해 대화할 수 있습니다. [Supertonic 2 설치 및 확인](workers/tts-supertonic/README.md)
+Supertonic 2 워커를 설치하면 하나(F4), 서린(F1), 이솔(F2)이 한국어 답변을 읽습니다. 캐릭터마다 음높이와 말의 속도를 조율하고, 질문은 조금 여유 있게 읽습니다. 짧은 쉼과 문장 억양도 살립니다. Windows x64와 Linux에서 운영 웹 앱을 빌드하고 워커를 연결하는 절차는 설치 안내에 있습니다. 먼저 데모의 고정 답변으로 세 목소리를 확인한 뒤 Ollama를 연결해 대화할 수 있습니다. [Supertonic 2 설치 및 확인](workers/tts-supertonic/README.md)
 
 MeloTTS의 단일 한국어 음성을 사용하려면 별도 환경에서 `workers/tts-melo/server.py`를 실행합니다. 워커와 Gateway에 동일한 32자 이상 `MELO_TOKEN`을 지정하고 `.\scripts\start.ps1 -Provider ollama -TtsProvider melo`로 연결하세요.
 

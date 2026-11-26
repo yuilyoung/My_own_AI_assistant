@@ -17,13 +17,13 @@ type Cue = { emotion: ExpressionCue; gesture: MotionCue };
 const cast = [
   {
     id: "isol",
-    role: "22세 대학생",
+    role: "20대 대학생 새내기",
     image: isolCard,
-    quote: "나무 그늘에서 잠깐 같이 쉴까요?",
+    quote: "나무 그늘에서 잠깐 같이 쉴래요?",
   },
   {
     id: "seorin",
-    role: "28세 직장인",
+    role: "30대 직장인",
     image: seorinCard,
     quote: "만나서 반가워요.",
   },
@@ -66,9 +66,9 @@ const replies: Record<AvatarCharacter, Record<SpeechSample, string>> = {
   },
   isol: {
     greeting:
-      "안녕하세요. 제 이름은 이솔입니다. 수업이 조금 일찍 끝났어요. 저기 나무 그늘에서 잠깐 같이 쉴까요?",
+      "안녕하세요! 저는 이솔이라고 해요. 오늘 수업이 일찍 끝났어요. 저기 나무 그늘에서 잠깐 같이 쉴래요?",
     intro:
-      "저는 대학생 이솔입니다. 수업 사이에는 캠퍼스를 천천히 걸어요. 마음에 드는 풍경이 보이면 작은 노트에 그려요.",
+      "이솔이라고 해요! 이번에 대학에 들어왔어요. 수업 사이에 예쁜 풍경이 보이면 작은 노트에 그려요.",
   },
   seorin: {
     greeting:

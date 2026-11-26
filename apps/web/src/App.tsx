@@ -510,7 +510,8 @@ function WebApp() {
               <h3>Windows · Claude 구독</h3>
               <p>
                 Windows 설치본에서 공식 Claude Code에 본인 구독 계정으로
-                로그인하면 이 PC의 로컬 앱에서 대화할 수 있습니다.
+                로그인하면 이 PC에서 대화할 수 있습니다. 바탕화면 펫으로 쓰려면
+                Pet.cmd를 실행하세요.
               </p>
             </div>
             <div>

@@ -23,8 +23,8 @@ it("keeps the selected speaker throughout a reply and allows changing it after p
   const selector = screen.getByLabelText("아바타 종류");
   for (const label of [
     "하나 · 17세 고등학생",
-    "서린 · 28세 직장인",
-    "이솔 · 22세 대학생",
+    "서린 · 30대 직장인",
+    "이솔 · 20대 대학생 새내기",
   ]) {
     expect(within(selector).getByRole("option", { name: label })).toBeTruthy();
   }

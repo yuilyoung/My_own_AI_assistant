@@ -91,7 +91,7 @@ class Engine:
             prompt = [
                 {
                     "role": "system",
-                    "content": system_prompt(s["mode"], self.store.memories(s["id"])),
+                    "content": system_prompt(s["mode"], self.store.memories(s["id"]), t.voice),
                 }
             ]
             prompt += self.store.history(s["id"])

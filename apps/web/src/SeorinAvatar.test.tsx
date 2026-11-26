@@ -77,7 +77,7 @@ it("keeps the idle sleeve while assets load, then lifts the arm over several fra
   expect(lift).toBeLessThan(1);
   clock.step(65);
   expect(stageValue(svg, "--arm-opacity")).toBe(1);
-  expect(stageValue(svg, "--elbow-angle")).toBeLessThan(-35);
+  expect(stageValue(svg, "--elbow-angle")).toBeGreaterThan(35);
   expect(
     container.querySelector(
       ".narration__arm > .narration__forearm > .avatar-panel__hand",
@@ -91,6 +91,36 @@ it("keeps the idle sleeve while assets load, then lifts the arm over several fra
   expect(stageValue(svg, "--arm-lift")).toBeGreaterThan(lift);
   expect(screen.getByTestId("avatar-mouth")).toBe(mouth);
 });
+
+it.each(["hana", "seorin", "isol"] as const)(
+  "moves %s's raised forearm outside the torso on ascent and descent",
+  (character) => {
+    const clock = motionClock();
+    const { container } = render(
+      <MotionAvatar
+        character={character}
+        emotion="happy"
+        gesture="greeting"
+        level={0}
+      />,
+    );
+    const stage = container.querySelector("svg")!;
+    let raised = false;
+    const ascent: number[] = [];
+    const descent: number[] = [];
+    for (let i = 0; i < 80; i++) {
+      clock.step(32);
+      const lift = stageValue(stage, "--arm-lift");
+      if (lift >= 0.99) raised = true;
+      if (lift >= 0.3 && lift <= 0.7) {
+        (raised ? descent : ascent).push(stageValue(stage, "--elbow-angle"));
+      }
+    }
+    expect(ascent.length).toBeGreaterThan(0);
+    expect(descent.length).toBeGreaterThan(0);
+    expect(Math.min(...ascent, ...descent)).toBeGreaterThan(20);
+  },
+);
 
 it.each(["hana", "seorin", "isol"] as const)(
   "holds %s's painted gesture for an active reduced-motion cue without starting a frame loop",

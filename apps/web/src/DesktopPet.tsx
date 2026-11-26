@@ -102,23 +102,35 @@ function PetSurface({
   );
   const previewActive = !!preview.signal;
   const cue = preview.signal?.started ? greeting : state.latestCue;
+  const [reduceMotion, setReduceMotion] = useState(
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
   useEffect(() => {
     const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () =>
-      host.setRoaming(
-        roaming &&
-          !chatOpen &&
-          !state.busy &&
-          !previewActive &&
-          !preference.matches,
-      );
-    update();
+    const update = () => setReduceMotion(preference.matches);
     preference.addEventListener("change", update);
-    return () => {
-      preference.removeEventListener("change", update);
-      host.setRoaming(false);
-    };
-  }, [host, roaming, chatOpen, state.busy, previewActive]);
+    update();
+    return () => preference.removeEventListener("change", update);
+  }, []);
+  useEffect(() => {
+    host.setRoaming(
+      roaming &&
+        !chatOpen &&
+        !state.busy &&
+        state.voice === "idle" &&
+        !previewActive &&
+        !reduceMotion,
+    );
+    return () => host.setRoaming(false);
+  }, [
+    host,
+    roaming,
+    chatOpen,
+    state.busy,
+    state.voice,
+    previewActive,
+    reduceMotion,
+  ]);
   useEffect(() => {
     if (chatOpen) input.current?.focus();
   }, [chatOpen]);
@@ -172,7 +184,13 @@ function PetSurface({
         </button>
         <button
           type="button"
-          aria-pressed={roaming}
+          aria-pressed={roaming && !reduceMotion}
+          disabled={reduceMotion}
+          title={
+            reduceMotion
+              ? "Windows 동작 줄이기 설정으로 산책이 꺼져 있습니다."
+              : "대화 창이 닫혀 있을 때 바탕화면에서 움직입니다."
+          }
           onClick={() => setRoaming(!roaming)}
         >
           산책
@@ -180,6 +198,7 @@ function PetSurface({
         <button
           type="button"
           data-pet-chat
+          disabled={state.voice !== "idle"}
           aria-expanded={chatOpen}
           aria-controls="pet-chat"
           onClick={() => setChatOpen(!chatOpen)}
@@ -260,6 +279,9 @@ function PetSurface({
                         ? "마이크로 입력"
                         : "음성 처리 중"}
                   </button>
+                )}
+                {state.voice !== "idle" && (
+                  <button onClick={() => app.stop()}>음성 입력 취소</button>
                 )}
                 {state.busy && state.session && (
                   <button onClick={() => app.stop()}>응답 중지</button>
