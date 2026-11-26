@@ -80,7 +80,7 @@ Claude 로그인 없이 설치와 화면만 확인하려면 `.\Start.cmd -Provid
 
 ### 바탕화면 펫으로 대화하기
 
-Windows에서 **Pet.cmd**를 더블 클릭하면 이 화면을 투명한 바탕화면 창으로 엽니다. 첫 실행에는 Qt와 내장 브라우저를 합해 약 260MB를 내려받습니다. 기본 연결은 로컬 Claude Code의 구독 계정을 사용합니다. Claude 로그인 전에 움직임과 고정 데모 응답을 확인하려면 다음과 같이 실행하세요.
+Windows에서 **Pet.cmd**를 더블 클릭하면 선택한 캐릭터가 바탕화면 위에 나타납니다. 펫은 Windows x64용 Python을 사용하며 첫 실행에는 Qt와 내장 브라우저를 합해 약 260MB를 내려받습니다. 기본 연결은 로컬 Claude Code의 구독 계정을 사용합니다. Claude 로그인 전에 움직임과 고정 데모 응답을 확인하려면 다음과 같이 실행하세요.
 
 ```powershell
 .\Pet.cmd -Provider demo
