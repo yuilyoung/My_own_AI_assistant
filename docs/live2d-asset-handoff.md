@@ -18,6 +18,8 @@
 
 ## 로컬 모델 JSON 사전 검사 (새 기능, 렌더링 아님)
 
+2026-11-26: 단독 모델 JSON 검사도 동일 출처 요청, 자격증명 생략, 리다이렉트 거부 및 취소 신호를 적용합니다. 실제 모델 렌더링이나 라이선스 검증을 의미하지 않습니다.
+
 1. 공식 SDK/Core 및 사용할 캐릭터의 이용 조건을 확인한다. Core·모델을 공개 Git 저장소에 커밋하지 않는다.
 2. 내보낸 캐릭터 전체 폴더는 웹 빌드 밖의 비공개 디렉터리(예: `C:\\private-avatar-assets\\Haru\\`)에 둔다. `apps/web/public/avatar-local/`은 Vite 빌드시 `dist/`에 복사될 수 있어 사용하지 않는다.
 3. `cd apps/web; npm ci; npm run build`로 React를 빌드한 뒤, `ASSISTANT_AVATAR_DIR=C:\\private-avatar-assets` 같은 로컬 환경 변수를 설정하고 **loopback Gateway**를 시작한다. 모델·SDK 파일 자체는 `dist/`에 복사하지 않는다.
