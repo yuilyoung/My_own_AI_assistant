@@ -167,7 +167,8 @@ export async function inspectLocalModel3(
     );
   }
   signal?.throwIfAborted();
-  const response = await (read ??
+  const readMetadata =
+    read ??
     ((url: string) =>
       fetch(url, {
         cache: "no-store",
@@ -175,7 +176,8 @@ export async function inspectLocalModel3(
         mode: "same-origin",
         redirect: "error",
         signal,
-      })))(model.href);
+      }));
+  const response = await readMetadata(model.href);
   signal?.throwIfAborted();
   if (response.redirected) {
     throw new Error("모델 JSON 리다이렉트는 허용하지 않습니다.");
