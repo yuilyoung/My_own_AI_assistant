@@ -132,7 +132,8 @@ export function AvatarInspector({
       const manifest = await inspectLocalModel3(
         path.trim(),
         location.origin,
-        (url) => fetch(url, { cache: "no-store", signal: controller.signal }),
+        undefined,
+        controller.signal,
       );
       if (controller.signal.aborted) return;
       const expressions = Object.keys(manifest.expressions);
