@@ -1,6 +1,7 @@
 """Local Korean multi-voice Supertonic 2 worker, using preinstalled CPU models."""
 
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Literal, NamedTuple
@@ -23,18 +24,29 @@ class VoiceProfile(NamedTuple):
     question_rate: float
     register: float  # Change resonance and pitch by this ratio after synthesis.
     pause_seconds: float
+    exclamation_rate: float | None = None
 
 
 # The gallery and live turns use the same Korean stock speakers and direction.
 VOICE_PROFILES = {
     "hana": VoiceProfile(
-        speaker=3, speech_rate=1.06, question_rate=1.02, register=1.08, pause_seconds=0.25
+        speaker=1,
+        speech_rate=1.085,
+        question_rate=1.035,
+        register=1.0,
+        pause_seconds=0.19,
+        exclamation_rate=1.11,
     ),
     "seorin": VoiceProfile(
         speaker=0, speech_rate=1.01, question_rate=0.96, register=0.98, pause_seconds=0.36
     ),
     "isol": VoiceProfile(
-        speaker=1, speech_rate=1.06, question_rate=1.03, register=1.045, pause_seconds=0.30
+        speaker=3,
+        speech_rate=1.005,
+        question_rate=0.97,
+        register=1.025,
+        pause_seconds=0.24,
+        exclamation_rate=1.03,
     ),
 }
 MODEL_FILES = {
@@ -46,6 +58,21 @@ MODEL_FILES = {
     "unicode_indexer": "unicode_indexer.bin",
     "voice_style": "voice.bin",
 }
+
+
+_SENTENCE_BREAK = re.compile(r"""[.!?…。！？]["'”’」』)）]*\s+\S""")
+
+
+def _speech_rate(text: str, profile: VoiceProfile) -> float:
+    ending = text.rstrip(" \t\r\n\"'”’」』)）")
+    if profile.exclamation_rate is not None:
+        # An ending mark directs a short utterance. For several sentences, let
+        # the model pace each sentence in context at the character's base rate.
+        if _SENTENCE_BREAK.search(ending):
+            return profile.speech_rate
+        if ending.endswith(("!", "！")):
+            return profile.exclamation_rate
+    return profile.question_rate if ending.endswith(("?", "？")) else profile.speech_rate
 
 
 def create_app(token, synthesize, *, port=PORT):
@@ -80,10 +107,7 @@ def load_synthesizer(directory: Path, *, seed: int | None = None):
         config = sherpa_onnx.GenerationConfig()
         profile = VOICE_PROFILES[voice]
         config.sid = profile.speaker
-        ending = text.rstrip(" \t\r\n\"'”’」』)）")
-        config.speed = (
-            profile.question_rate if ending.endswith(("?", "？")) else profile.speech_rate
-        )
+        config.speed = _speech_rate(text, profile)
         config.num_steps = 24
         extra = {"lang": "ko", "silence_duration": str(profile.pause_seconds)}
         if seed is not None:

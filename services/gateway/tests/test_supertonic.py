@@ -206,14 +206,16 @@ def test_live_synthesis_uses_the_cast_recording_profile_on_new_text(tmp_path, mo
     monkeypatch.setattr(worker, "pcm16_wav", lambda samples, rate: (samples, rate))
     synthesize = worker.load_synthesizer(tmp_path, seed=2718)
     profiles = [
-        ("hana", 3, 1.06, 1.02, 1.08, 0.25),
-        ("isol", 1, 1.06, 1.03, 1.045, 0.30),
-        ("seorin", 0, 1.01, 0.96, 0.98, 0.36),
+        ("hana", 1, 1.085, 1.035, 1.11, 1.0, 0.19, 1.085),
+        ("isol", 3, 1.005, 0.97, 1.03, 1.025, 0.24, 1.005),
+        ("seorin", 0, 1.01, 0.96, 1.01, 0.98, 0.36, 0.96),
     ]
-    for name, speaker, statement_rate, question_rate, register, pause in profiles:
+    for name, speaker, statement, question, exclamation, register, pause, mixed in profiles:
         for text, speed in [
-            ("함께 새 프로젝트를 시작해요.", statement_rate),
-            ("“어떤 일부터 함께 시작할까요？”", question_rate),
+            ("함께 새 프로젝트를 시작해요.", statement),
+            ("“어떤 일부터 함께 시작할까요？”", question),
+            ("정말 반가워요！", exclamation),
+            ("오늘 날씨가 정말 좋네요. 잠깐 같이 걸을래요?", mixed),
         ]:
             resample.reset_mock()
             shape_pauses.reset_mock()
@@ -228,8 +230,12 @@ def test_live_synthesis_uses_the_cast_recording_profile_on_new_text(tmp_path, mo
             assert config.extra == {"lang": "ko", "silence_duration": str(pause), "seed": "2718"}
             assert rate == 44100
             assert samples is paced
-            resample.assert_called_once_with(raw, rate * register, rate, quality="HQ")
-            shape_pauses.assert_called_once_with(adjusted, rate, pause)
+            if register == 1:
+                resample.assert_not_called()
+                shape_pauses.assert_called_once_with(raw, rate, pause)
+            else:
+                resample.assert_called_once_with(raw, rate * register, rate, quality="HQ")
+                shape_pauses.assert_called_once_with(adjusted, rate, pause)
 
     worker.load_synthesizer(tmp_path)("나중에 다시 이야기해요.", "seorin")
     assert "seed" not in model.generate.call_args.args[1].extra

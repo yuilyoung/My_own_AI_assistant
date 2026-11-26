@@ -170,6 +170,126 @@ def compare_plate(portrait, character):
     )
 
 
+def trace_arm_transitions(portrait):
+    return portrait.evaluate_handle("""svg => {
+        const samples = [];
+        const sleeveProblems = [];
+        let frame;
+        const channel = key => parseFloat(svg.style.getPropertyValue('--' + key));
+        function pivot(selector, stage) {
+            const node = svg.querySelector(selector);
+            const origin = getComputedStyle(node).transformOrigin.split(' ').map(parseFloat);
+            return new DOMPoint(...origin).matrixTransform(stage.multiply(node.getScreenCTM()));
+        }
+        function tick(time) {
+            const arm = svg.querySelector('.avatar-panel__hand [data-pose]');
+            if (svg.dataset.character === 'isol' && arm?.dataset.pose === 'greeting') {
+                const rest = getComputedStyle(svg.querySelector('.narration__rest-outfit'));
+                const raised = getComputedStyle(svg.querySelector('.narration__raised-outfit'));
+                const forearm = getComputedStyle(svg.querySelector('.narration__arm'));
+                // The hanging and lifted sleeve must never occupy different
+                // places with partial alpha, including their first paint.
+                if (rest.display !== 'none' || raised.opacity !== '1' || forearm.opacity !== '1') {
+                    sleeveProblems.push({time, rest: rest.display,
+                        raised: raised.opacity, forearm: forearm.opacity});
+                }
+            }
+            if (arm && channel('arm-opacity') > 0.6) {
+                const stage = svg.getScreenCTM().inverse();
+                const shoulder = pivot('.narration__arm', stage);
+                const elbow = pivot('.narration__forearm', stage);
+                const wrist = pivot('.avatar-panel__hand', stage);
+                const ux = elbow.x - shoulder.x, uy = elbow.y - shoulder.y;
+                const fx = wrist.x - elbow.x, fy = wrist.y - elbow.y;
+                const bend = Math.atan2(ux * fy - uy * fx, ux * fx + uy * fy) * 180 / Math.PI;
+                samples.push({time, bend, pose: arm.dataset.pose, open: channel('elbow-open'),
+                    elbowX: elbow.x - shoulder.x, wristX: wrist.x, wristY: wrist.y,
+                    wrist: channel('wrist-angle'), shoulder: channel('upper-arm-angle')});
+            }
+            frame = requestAnimationFrame(tick);
+        }
+        frame = requestAnimationFrame(tick);
+        return {samples, sleeveProblems, stop: () => cancelAnimationFrame(frame)};
+    }""")
+
+
+def stop_arm_trace(trace):
+    result = trace.evaluate("""trace => {
+        trace.stop();
+        return {samples: trace.samples, sleeveProblems: trace.sleeveProblems};
+    }""")
+    trace.dispose()
+    return result["samples"], result["sleeveProblems"]
+
+
+def verify_isol_greeting_lift(frames):
+    """Inspect the initial painted rise up to the first held pose."""
+    ascent = []
+    for frame in frames:
+        if frame["pose"] == "greeting":
+            ascent.append(frame)
+            if frame["open"] >= 0.98:
+                break
+    assert len(ascent) >= 6 and ascent[-1]["open"] >= 0.98, ascent
+    start, end = ascent[0], ascent[-1]
+    bounds = {
+        "rise": round(start["wristY"] - end["wristY"], 2),
+        "sideways": round(max(f["wristX"] for f in ascent) - min(f["wristX"] for f in ascent), 2),
+        "elbow_out": round(max(abs(f["elbowX"]) for f in ascent), 2),
+        "downward_step": round(
+            max(b["wristY"] - a["wristY"] for a, b in zip(ascent, ascent[1:])), 2
+        ),
+    }
+    assert bounds["rise"] > 145 and bounds["sideways"] < 48, bounds
+    assert bounds["elbow_out"] < 25 and bounds["downward_step"] < 2, bounds
+    assert all(-166 < frame["bend"] < -1 for frame in ascent), ascent
+    return bounds
+
+
+def verify_arm_transitions(trace, character):
+    frames, sleeve_problems = stop_arm_trace(trace)
+    assert not sleeve_problems, sleeve_problems[:6]
+    assert {frame["pose"] for frame in frames} == {"greeting", "point"}, frames
+    assert len(frames) > 100, (character, len(frames))
+    max_bend = max(frame["bend"] for frame in frames)
+    min_bend = min(frame["bend"] for frame in frames)
+    max_wrist = max(abs(frame["wrist"]) for frame in frames)
+    max_shoulder = max(abs(frame["shoulder"]) for frame in frames)
+    max_wrist_speed = max(
+        1000 * abs(new["wrist"] - old["wrist"]) / (new["time"] - old["time"])
+        for old, new in zip(frames, frames[1:])
+        if 0 < new["time"] - old["time"] < 40
+    )
+    bounds = {
+        "elbow_degrees": [round(min_bend, 2), round(max_bend, 2)],
+        "max_wrist_degrees": round(max_wrist, 2),
+        "max_shoulder_degrees": round(max_shoulder, 2),
+        "max_wrist_degrees_per_second": round(max_wrist_speed, 2),
+    }
+    assert -169 < min_bend < max_bend < -1, (character, bounds)
+    assert max_wrist < 42 and max_shoulder < 29, (character, bounds)
+    assert max_wrist_speed < 700, (character, bounds)
+    if character == "isol":
+        bounds["greeting_lift"] = verify_isol_greeting_lift(frames)
+    return bounds
+
+
+def arm_frame(portrait, check_edge):
+    return portrait.evaluate(
+        """(svg, checkEdge) => {
+        const hand = svg.querySelector('.avatar-panel__hand [data-pose]');
+        const lift = Number(svg.style.getPropertyValue('--arm-lift'));
+        if (!checkEdge || !hand) return {lift, active: !!hand, edge: false};
+        const {x, y, width, height} = hand.getBBox();
+        const m = svg.getScreenCTM().inverse().multiply(hand.getScreenCTM());
+        const right = m.e + m.a * (x + (m.a > 0 ? width : 0))
+            + m.c * (y + (m.c > 0 ? height : 0));
+        return {lift, active: true, edge: right >= 359};
+    }""",
+        check_edge,
+    )
+
+
 def check_proportions(page, base, token):
     # Keep each native compositor frame still while decoding paint masks and
     # sampling the screenshot. The regular audio tests keep their real clock.
@@ -208,6 +328,7 @@ def check_proportions(page, base, token):
         neck = measures[character]["neutral"]["gaps"]["neck"]
         assert neck is not None and neck <= 2, (character, measures[character])
         preview.locator("summary").evaluate("button => button.click()")
+        trace = trace_arm_transitions(portrait)
         for pose, label in [("greeting", "인사하기"), ("point", "가리켜 설명하기")]:
             preview.get_by_role("button", name=label).evaluate("button => button.click()")
             # HTTP and image decoding use real time. Start the gesture sample
@@ -223,9 +344,17 @@ def check_proportions(page, base, token):
                 )
                 page.clock.run_for(17)
             samples = measures[character][pose] = []
+            check_edge = character == "isol" and pose == "greeting"
+            rightmost = 0
             for _ in range(150):
                 page.clock.run_for(17)
-                lift = portrait.evaluate("svg => Number(svg.style.getPropertyValue('--arm-lift'))")
+                stage = arm_frame(portrait, check_edge)
+                lift = stage["lift"]
+                if stage["edge"]:
+                    edge = portrait.evaluate(joint_probe, True)
+                    if edge is not None:
+                        assert edge < 359, (character, pose, lift, edge)
+                        rightmost = max(rightmost, edge)
                 if (not samples and 0.4 <= lift < 0.8) or (len(samples) == 1 and lift >= 0.99):
                     frame = portrait.evaluate(joint_probe)
                     assert all(gap is not None and gap <= 2 for gap in frame["gaps"].values()), (
@@ -235,6 +364,8 @@ def check_proportions(page, base, token):
                         frame,
                     )
                     reference = ARM_LENGTHS[character]
+                    if character == "isol" and pose == "greeting":
+                        reference = {**reference, "upperArm": 116.1, "forearm": 95.5}
                     for part in ("upperArm", "forearm", "reach"):
                         target = reference[pose if part == "reach" else part]
                         assert abs(frame[part] - target) <= 2, (
@@ -245,10 +376,31 @@ def check_proportions(page, base, token):
                             target,
                         )
                     samples.append(frame)
-                    if len(samples) == 2:
-                        break
+                if len(samples) == 2 and (not check_edge or not stage["active"]):
+                    break
             assert len(samples) == 2, (character, pose, samples)
             assert abs(samples[0]["reach"] - samples[1]["reach"]) < 2, (character, pose, samples)
+            assert samples[0]["projectedForearm"] < samples[0]["forearm"] * 0.92, (
+                character,
+                samples,
+            )
             page.clock.run_for(2600)
+            if check_edge:
+                measures[character]["rightmost_painted_hand_when_near_edge"] = rightmost or None
+                expect(portrait.locator(".narration__rest-outfit")).to_be_visible()
+                expect(portrait.locator("[data-isol-greeting-sleeve]")).to_have_count(0)
+        preview.get_by_role("button", name="인사하기").evaluate("button => button.click()")
+        page.clock.run_for(450)
+        waving = portrait.locator('.avatar-panel__hand [data-pose="greeting"]')
+        expect(waving).to_have_count(1)
+        preview.get_by_role("button", name="가리켜 설명하기").evaluate("button => button.click()")
+        page.clock.run_for(100)
+        expect(waving).to_have_count(1)
+        page.clock.run_for(1100)
+        expect(portrait.locator('.avatar-panel__hand [data-pose="point"]')).to_have_count(1)
+        preview.get_by_role("button", name="갸웃하기").evaluate("button => button.click()")
+        page.clock.run_for(650)
+        expect(portrait.locator(".avatar-panel__hand [data-pose]")).to_have_count(0)
+        measures[character]["motion_bounds"] = verify_arm_transitions(trace, character)
         preview.locator("summary").evaluate("button => button.click()")
     return measures

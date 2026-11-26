@@ -430,6 +430,11 @@ def send_with_voice(page, question, voice):
 def check_landing_cast(browser, profile, base, token):
     """Exercise the sample chat, voice and motion before sending a paired turn."""
     from playwright.sync_api import expect
+    from portrait_proportions import (
+        stop_arm_trace,
+        trace_arm_transitions,
+        verify_isol_greeting_lift,
+    )
 
     context = browser.new_context(**profile)
     try:
@@ -465,6 +470,27 @@ def check_landing_cast(browser, profile, base, token):
             expect(rows.last.get_by_text(name, exact=True)).to_be_visible()
             expect(meter).to_have_attribute("value", "0")
             expect(stop).to_have_count(0)
+            if voice == "isol":
+                trace = trace_arm_transitions(portrait)
+                try:
+                    with page.expect_response(re.compile(r"/isol-greeting-[\w-]+\.mp3$")) as sound:
+                        demo.get_by_role("button", name="인사말 듣기", exact=True).click()
+                    assert sound.value.ok
+                    assert (
+                        sound.value.body()
+                        == (ROOT / "apps/web/src/audio/isol-greeting.mp3").read_bytes()
+                    )
+                    page.wait_for_function(
+                        "trace => trace.samples.some(frame => frame.open >= 0.98)",
+                        arg=trace,
+                        timeout=8_000,
+                    )
+                finally:
+                    frames, sleeve_problems = stop_arm_trace(trace)
+                assert not sleeve_problems, sleeve_problems[:6]
+                verify_isol_greeting_lift(frames)
+                stop.click()
+                expect(meter).to_have_attribute("value", "0")
         assert len(covers) == 3, "Each character card should have its own decoded portrait"
         expect(rows).to_have_count(2)
         first_exchange = rows.all_text_contents()
@@ -1131,6 +1157,7 @@ def main():
                             "pairing",
                             "landing_cast_preview_and_first_turn_selection",
                             "landing_scripted_chat_bundled_audio_and_manual_motion",
+                            "isol_greeting_audio_drives_continuous_rise",
                             "invalid_token_reentry",
                             "same_tab_token_link",
                             "temporary_status_failure_retry",
@@ -1156,6 +1183,7 @@ def main():
                             "cast_breathing_preserves_anatomical_scale",
                             "original_plate_face_and_clothing_registration",
                             "painted_neck_shoulder_wrist_and_elbow_at_mid_and_full_reach",
+                            "cast_arm_bend_and_wrist_through_interrupted_motion",
                             "surprised_mouth_keeps_its_anchor_during_transition",
                             "assistant_avatar_restored_after_adult_mode",
                             "turn_posts_selected_hana_isol_and_companion_seorin_voices",
