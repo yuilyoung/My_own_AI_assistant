@@ -2,10 +2,11 @@
 
 from dataclasses import dataclass
 
+from .claude import ClaudeLLM
 from .config import Settings
 from .contracts import Service
 from .engine import Engine
-from .providers import CloudLLM, DemoLLM, MeloTTS, OllamaLLM, SilentTTS
+from .providers import CloudLLM, DemoLLM, MeloTTS, OllamaLLM, SilentTTS, SupertonicTTS
 from .speech import WhisperCpp
 from .store import Store
 from .transcription import Transcriptions
@@ -40,10 +41,13 @@ class ServiceRuntime:
 
 class Services:
     def __init__(self, settings: Settings):
-        self.default_service: Service = {"demo": "demo", "ollama": "local", "cloud": "cloud"}[
-            settings.llm
-        ]
-        cloud_available = bool(settings.cloud_api_key and settings.cloud_model)
+        self.default_service: Service = {
+            "demo": "demo",
+            "ollama": "local",
+            "cloud": "cloud",
+            "claude": "claude",
+        }[settings.llm]
+        cloud_available = settings.cloud_configured
         definitions = [
             ("demo", "데모", "demo", True, None, None, DemoLLM()),
             (
@@ -67,16 +71,29 @@ class Services:
                 CloudLLM(settings),
             ),
         ]
+        if settings.claude_cli is not None:
+            definitions.append(
+                (
+                    "claude",
+                    "Claude 구독",
+                    "claude_subscription",
+                    True,
+                    None,
+                    None,
+                    ClaudeLLM(settings.claude_cli, settings.timeout),
+                )
+            )
+        if settings.tts == "supertonic":
+            tts = SupertonicTTS(settings)
+        elif settings.tts == "melo":
+            tts = MeloTTS(settings)
+        else:
+            tts = SilentTTS()
         self.runtimes: dict[Service, ServiceRuntime] = {}
         for service, label, partition, available, model, reason, llm in definitions:
             directory = settings.data_dir / partition
             store = Store(directory / "state.sqlite3")
-            engine = Engine(
-                store,
-                llm,
-                SilentTTS() if settings.tts == "none" else MeloTTS(settings),
-                settings.timeout,
-            )
+            engine = Engine(store, llm, tts, settings.timeout)
             recognizer = (
                 WhisperCpp(
                     settings.whisper_cli,

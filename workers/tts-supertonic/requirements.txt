@@ -1,0 +1,4 @@
+-r ../../requirements.txt
+sherpa-onnx==2.0.3
+numpy>=1.26,<3
+soxr==1.0.0

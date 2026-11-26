@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -50,6 +51,7 @@ it("inspects local model metadata without claiming that Cubism is loaded", async
   expect(inspectLocalModel3).toHaveBeenCalledWith(
     "/avatar-local/Haru/Haru.model3.json",
     window.location.origin,
+    expect.any(Function),
   );
 });
 
@@ -565,4 +567,101 @@ it("shows an SDK callback failure instead of stale connected status", async () =
     "GPU callback failed",
   );
   expect(screen.queryByText(/로컬 어댑터 초기화 완료/)).toBeNull();
+});
+
+it("keeps the restored renderer when a cancelled model load finishes late", async () => {
+  vi.mocked(verifyLocalModelResources).mockResolvedValue(modelAudit(2));
+  let finish!: () => void;
+  const delayed = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const first = {
+    load: vi.fn((_url: string, _signal?: AbortSignal) => delayed),
+    setExpression: vi.fn(),
+    setMotion: vi.fn(),
+    setLipSync: vi.fn(),
+    dispose: vi.fn(),
+  };
+  const replacement = {
+    ...first,
+    load: vi.fn(async () => {}),
+    setLipSync: vi.fn(),
+    dispose: vi.fn(),
+  };
+  const loadAdapter = vi
+    .fn()
+    .mockResolvedValueOnce(first)
+    .mockResolvedValueOnce(replacement);
+  const bridge = new AvatarMotionBridge();
+  const user = userEvent.setup();
+  render(<AvatarInspector bridge={bridge} loadAdapter={loadAdapter} />);
+  await user.type(
+    screen.getByLabelText("로컬 모델 export 경로 점검"),
+    "/avatar-local/Haru/Haru.model3.json",
+  );
+  await user.click(screen.getByRole("button", { name: "참조 파일 접근 검사" }));
+  await screen.findByText(/참조 파일 HEAD 확인: 2\/2개/);
+  const connect = screen.getByRole("button", {
+    name: "로컬 Cubism 어댑터 연결",
+  });
+  await user.click(connect);
+  await waitFor(() => expect(first.load).toHaveBeenCalledOnce());
+  const canvas = screen.getByRole("img", {
+    name: "Live2D 로컬 캔버스",
+  });
+  fireEvent(canvas, new Event("webglcontextlost", { cancelable: true }));
+  expect(first.load.mock.calls[0][1]?.aborted).toBe(true);
+  expect(first.dispose).toHaveBeenCalledOnce();
+  fireEvent(canvas, new Event("webglcontextrestored"));
+  await user.click(connect);
+  await screen.findByText(/로컬 어댑터 초기화 완료/);
+  expect(bridge.ready).toBe(true);
+
+  await act(async () => finish());
+
+  expect(bridge.ready).toBe(true);
+  expect(first.dispose).toHaveBeenCalledOnce();
+  expect(replacement.dispose).not.toHaveBeenCalled();
+  bridge.onAudioLevel(0.6);
+  expect(replacement.setLipSync).toHaveBeenLastCalledWith(0.6);
+});
+
+it("ignores a cancelled JSON inspection after WebGL loss and a new asset check", async () => {
+  const audit = modelAudit(2);
+  let finishJson!: (manifest: typeof audit.manifest) => void;
+  let finishAudit!: (value: typeof audit) => void;
+  vi.mocked(inspectLocalModel3).mockReturnValue(
+    new Promise((resolve) => {
+      finishJson = resolve;
+    }),
+  );
+  vi.mocked(verifyLocalModelResources).mockReturnValue(
+    new Promise((resolve) => {
+      finishAudit = resolve;
+    }),
+  );
+  const user = userEvent.setup();
+  render(<AvatarInspector bridge={new AvatarMotionBridge()} />);
+  const path = screen.getByLabelText("로컬 모델 export 경로 점검");
+  await user.type(path, "/avatar-local/Old/Old.model3.json");
+  await user.click(screen.getByRole("button", { name: "모델 JSON 검사" }));
+  expect(inspectLocalModel3).toHaveBeenCalledOnce();
+
+  const canvas = screen.getByRole("img", {
+    name: "Live2D 로컬 캔버스",
+  });
+  fireEvent(canvas, new Event("webglcontextlost", { cancelable: true }));
+  fireEvent(canvas, new Event("webglcontextrestored"));
+  await user.clear(path);
+  await user.type(path, "/avatar-local/Haru/Haru.model3.json");
+  await user.click(screen.getByRole("button", { name: "참조 파일 접근 검사" }));
+  expect(verifyLocalModelResources).toHaveBeenCalledOnce();
+
+  await act(async () => finishJson(audit.manifest));
+
+  expect(screen.queryByText(/JSON 검사 완료/)).toBeNull();
+  expect((path as HTMLInputElement).disabled).toBe(true);
+  await act(async () => finishAudit(audit));
+  await screen.findByText(/참조 파일 HEAD 확인: 2\/2개/);
+  expect((path as HTMLInputElement).disabled).toBe(false);
 });

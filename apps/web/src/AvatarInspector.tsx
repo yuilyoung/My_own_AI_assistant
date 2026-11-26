@@ -126,8 +126,15 @@ export function AvatarInspector({
     setRuntimeStatus("");
     setBindings({});
     bridge?.detach();
+    const controller = new AbortController();
+    pending.current = controller;
     try {
-      const manifest = await inspectLocalModel3(path.trim(), location.origin);
+      const manifest = await inspectLocalModel3(
+        path.trim(),
+        location.origin,
+        (url) => fetch(url, { cache: "no-store", signal: controller.signal }),
+      );
+      if (controller.signal.aborted) return;
       const expressions = Object.keys(manifest.expressions);
       const motions = Object.entries(manifest.motions)
         .filter(([, files]) => files.length > 0)
@@ -136,9 +143,10 @@ export function AvatarInspector({
         `JSON 검사 완료: 참조 ${manifest.referencedFiles.length}개, LipSync 파라미터 ${manifest.lipSyncIds.join(", ") || "없음"}, 표정 ${expressions.join(", ") || "없음"}, 모션 ${motions.join(", ") || "없음"}. 실제 파일 존재·렌더링은 미검증입니다.`,
       );
     } catch (reason) {
-      setError(String(reason));
+      if (!controller.signal.aborted) setError(String(reason));
     } finally {
-      setBusy(false);
+      if (pending.current === controller) pending.current = null;
+      if (!controller.signal.aborted) setBusy(false);
     }
   };
 
@@ -200,10 +208,9 @@ export function AvatarInspector({
         audit.manifest,
         bindings,
       );
-      if (controller.signal.aborted) {
-        bridge.detach();
-        return;
-      }
+      // The cancellation handler already detached this load. A newer
+      // connection may now own the bridge; never detach it here.
+      if (controller.signal.aborted) return;
       if (attached) {
         setRuntimeStatus(
           "로컬 어댑터 초기화 완료. 실제 WebGL 표시와 립싱크 동작은 수동으로 확인해야 합니다.",

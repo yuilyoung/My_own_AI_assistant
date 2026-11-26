@@ -1,6 +1,6 @@
 # 구성요소 출처와 라이선스 확인 기록
 
-2026-10-29 설계의 출처를 저장소용으로 정리했다. 이 문서는 법률 자문이나 배포 허가서가 아니다. 실제 고정 revision, 모델·부속 사전·목소리·캐릭터의 조건을 배포 전에 다시 확인한다. 이번 구현에는 모델 가중치·Cubism Core·캐릭터 파일을 포함하지 않는다.
+2026-10-29 설계의 출처를 저장소용으로 정리했다. 이 문서는 법률 자문이나 배포 허가서가 아니다. 실제 고정 revision, 모델·부속 사전·목소리·캐릭터의 조건을 배포 전에 다시 확인한다. 저장소에는 프로젝트용 원화와 합성한 한국어 음원이 들어 있다. 언어·음성 모델 가중치와 개인 Cubism 자산은 따로 설치한다.
 
 ## 기본 구성
 
@@ -11,6 +11,8 @@
 | whisper.cpp | https://github.com/ggml-org/whisper.cpp | 로컬 STT 실행 파일·다국어 모델 별도 설치 |
 | Ollama | https://github.com/ollama/ollama | 로컬 LLM 서버, 모델 라이선스 별도 |
 | Qwen3-4B | https://huggingface.co/Qwen/Qwen3-4B | 소형 초기 기준 모델 후보, 성능 미측정 |
+| Supertonic 2 | [제작사 모델 카드](https://huggingface.co/supertone-oss-archive/supertonic-2) | 로컬 한국어 TTS 워커와 내장 음성 여섯 편 |
+| sherpa-onnx | [프로젝트와 라이선스](https://github.com/k2-fsa/sherpa-onnx) | CPU에서 Supertonic 2 INT8 모델 실행 |
 | MeloTTS | https://github.com/myshell-ai/MeloTTS | 별도 한국어 TTS 워커 |
 | MeloTTS Korean | https://huggingface.co/myshell-ai/MeloTTS-Korean | 실제 가중치/부속 파일의 조건도 확인 |
 | Silero VAD | https://github.com/snakers4/silero-vad | 후속 발화 감지 후보 |
@@ -20,6 +22,12 @@
 | Vite | https://github.com/vitejs/vite | React UI 개발·운영 빌드 |
 
 whisper.cpp/Ollama/MeloTTS/Silero의 코드 라이선스 및 Qwen/Melo의 모델 카드 검토는 초기 선정의 근거다. 같은 제품 이름 아래 코드·런타임·가중치의 조건이 항상 같지는 않다. 실제 배포 파일 목록과 해시 기반으로 고지를 작성해야 한다.
+
+## 캐릭터 원화와 한국어 음성
+
+하나, 서린, 이솔은 이 프로젝트를 위해 생성한 원본 일러스트다. 원화에서 눈·입술·머리·의상을 분리했고, 인사와 가리키기에 쓸 소매와 손도 인물별로 제작했다. 한국 교복 참고 사진에서는 재킷의 깃과 흰 셔츠, 리본의 배치를 관찰했다. 사진과 외부 작품의 스틸은 참고 링크로 제공하며 앱과 영상에는 프로젝트 원화를 사용한다. [한국 교복 사진](https://github.com/uUZINN/gogyobok-blogSite/blob/a21640d0ffb017322668a5d0658dbe08f81c135c/assets/img/main_slide06.jpg) · [세 캐릭터의 원화와 작화 출처](motion-characters.md)
+
+세 인물의 인사·자기소개 대본은 이 프로젝트에서 작성했다. 낭독에는 로컬 Supertonic 2의 F4(하나), F1(서린), F2(이솔) 스타일을 사용했다. 하나의 음색은 10대 인물의 밝은 말투에 맞게 조율했다. 세 목소리는 캐릭터마다 조율한 음높이와 억양을 유지하면서 기존 녹음의 1.2배 속도로 낭독한다. 브라우저에 배포하는 파일은 합성된 음원이며 추론용 모델은 워커를 사용할 때 따로 받는다. 제작사 예제 코드는 MIT, Supertonic 2 가중치는 OpenRAIL-M 조건을 따른다. [제작사 코드와 라이선스](https://github.com/supertone-oss-archive/supertonic#license) · [Supertonic 2 모델 라이선스](https://huggingface.co/supertone-oss-archive/supertonic-2/blob/main/LICENSE) · [INT8 모델 배포 파일과 체크섬](../../workers/tts-supertonic/README.md)
 
 ## Live2D의 별도 배포 관문
 

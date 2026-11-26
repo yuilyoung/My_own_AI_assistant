@@ -1,6 +1,36 @@
 # 구현·검증 상태 — React 음성·기억 통합
 
-최종 작업 확인일: 2026-11-21 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+최종 작업 확인일: 2026-11-25 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+
+## 2026-11-25 모델 JSON 검사 취소 및 PR #40 병합
+
+- PR #40은 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/45295159495)와 [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/45295159260) 모두 성공한 뒤 [39c64ba](https://github.com/yuilyoung/My_own_AI_assistant/commit/39c64baf9fa04f216cd229c4118b1a637c1c7c70)로 병합했다. PR SHA 기준 Vitest 179개(19파일), Python 198개(경고 1건), Windows/Linux 합성 음성 브라우저, Docker 스모크 및 4개 OS/Python 인수 시험 잡이 통과했다. web-dist 2,872,524 B, gateway-wheel 23,383 B, Windows 합성 음성 보고서 2,673 B 및 인수 시험 보고서 4개 생성을 확인했다.
+- 모델 JSON 검사도 AbortController를 사용한다. WebGL 손실/패널 해제에서 요청을 취소하고, 취소된 결과가 새 모델의 HEAD 검사 진행 상태를 변경하지 않게 했다. 늦은 응답을 재현하는 React 회귀 테스트를 추가했다. 이번 변경 CI는 별도 확인 대상이다.
+- 공식 Cubism SDK/Core 및 사용권 확인 모델의 실제 렌더링, 사용자 Windows PC의 실제 LLM/STT/TTS·음성 장치 및 30분 안정성은 여전히 미검증이다.
+
+## 2026-11-24 WebGL 복구 후 취소된 모델 로딩의 간섭 방지
+
+- 작업 전 main: [6e7492b](https://github.com/yuilyoung/My_own_AI_assistant/commit/6e7492b2dc15c759172e5b21cc8aaeda01dd7a5f), PR #39의 서린 원화 및 캐릭터별 한국어 음성 속도 개선 포함. 해당 SHA의 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/45199997881)와 [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/45199997669)는 성공했다. 이는 수정 전 검증이다.
+- WebGL 손실로 취소된 어댑터의 `load()`가 새 연결 이후 늦게 완료되면, 이전 React 호출이 공유 브리지를 해제할 수 있었다. 취소 시점의 해제 및 브리지의 연결 식별 검사에 맡겨 이전 호출이 새 연결을 건드리지 않게 수정했다.
+- 모의 SDK가 AbortSignal을 무시하고 늦게 완료되는 상황을 재현하여 복구된 연결과 RMS 전달을 검사하는 React 회귀 테스트를 추가했다. 실제 SDK/GPU 동작 검증은 아니다. 이 수정의 CI 결과는 해당 커밋의 Actions에서 확인한다.
+- 현재 기본 캐릭터는 WebP 원화 레이어를 합성하는 SVG이며, Supertonic 2의 캐릭터별 한국어 음성도 제공한다. 공식 Live2D Core·모델 렌더링과 사용자 Windows PC의 실제 모델·음성 장치·30분 안정성은 여전히 미검증이다.
+
+## 2026-11-23 공개 서버의 Cubism 자산 유출 방지 (PR #33 병합 및 CI 통과)
+
+- **작업 전 main:** [SHA `ca22411`](https://github.com/yuilyoung/My_own_AI_assistant/commit/ca22411cdd8e2114866d2d395f00cf9b96e19e33)에서 [PR #32](https://github.com/yuilyoung/My_own_AI_assistant/pull/32) 내장 SVG 캐릭터 하나·이솔 추가까지 병합된 것을 확인했다. 이에 대한 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44984690050)와 [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44984690038)는 성공했다. **이 결과는 아래 수정 전 코드의 CI다.**
+- **문제:** `ASSISTANT_PUBLIC_ORIGIN`으로 공개한 HTTPS Gateway에서 `/api/`는 Bearer 인증을 검사하지만 `/avatar-local/` 정적 모델 파일은 인증 대상이 아니었다. `ASSISTANT_AVATAR_DIR`을 공개 서버에 지정하거나, Vite 빌드에서 `apps/web/public/avatar-local/`의 비공개 파일이 `dist/`로 복사되면 Core/모델 자산이 인증 없이 노출될 수 있었다.
+- **수정:** 공개 Gateway에서는 `ASSISTANT_AVATAR_DIR` 자체를 거부하고 `/avatar-local` 및 하위 URL을 404로 차단한다. Linux/Windows 웹 빌드 CI가 `dist/avatar-local` 존재를 검사해 배포 산출물의 비공개 파일 포함을 거부하도록 했다. 로컬 loopback Gateway에서의 명시적 모델 폴더 마운트는 유지한다. UI·README·로컬/클라우드·자산 인계 안내를 이 정책에 맞게 수정했다.
+- **새 회귀 검사:** 공개 설정의 비공개 폴더 거부, 공개 정적 웹 빌드에 이미 복사된 가짜 `.moc3` 파일의 차단을 검증한다. 테스트 파일은 실제 모델 파일을 사용하지 않는다.
+- **main 병합 검증:** [PR #33](https://github.com/yuilyoung/My_own_AI_assistant/pull/33)을 [main 코드 SHA `982cac5`](https://github.com/yuilyoung/My_own_AI_assistant/commit/982cac5d46077cd974e2530a9ad379d0dc00c294)에 병합했다. 해당 SHA의 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/45087798142) 및 [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/45087798287)가 **모두 성공**했다. Vitest **147 passed (14 files)**, Python **172 passed / upstream 경고 1건**, 필수 소프트웨어 8개 시험 **100/100점**, Windows/Linux × Python 3.11/3.13 **모두 통과**; Prettier, ESLint, TypeScript/Vite, Ruff, Docker 스모크, Windows/Linux Chromium 합성 음성 통합도 통과했다. `web-dist` **106,437 B**, `gateway-wheel` **22,599 B**, `windows-synthetic-voice-report` **649 B**, 인수 시험 JSON 4개(각 **1,242~1,249 B**)의 생성도 확인했다. 첫 CI에서 Prettier·Ruff 포맷 검사가 실패했지만 각각 수정한 마지막 브랜치 SHA와 병합 SHA를 다시 검사했다.
+- **검증 경계:** 공개 HTTP 경로 차단과 배포 산출물 검사 코드의 자동 검증이다. 이미 외부에 올린 artifact/CDN 복사본은 자동 삭제하지 않는다. 공식 Cubism SDK/Core와 사용권 확인 모델의 실제 WebGL 렌더링, TTS 립싱크, 사용자 Windows PC의 마이크·스피커·LLM/STT/TTS 및 30분 안정성은 **여전히 미검증**이다. 이후 문서 전용 커밋의 CI는 위 병합 코드 SHA 검증과 구분해야 한다.
+
+## 2026-11-22 필수 소프트웨어 시험 결과 증거 보존 (검증 중)
+
+- **기준 main 상태:** 2026-11-22 한국 시간(UTC 11월 21일) [PR #26](https://github.com/yuilyoung/My_own_AI_assistant/pull/26)~[PR #30](https://github.com/yuilyoung/My_own_AI_assistant/pull/30)이 병합되었다. [main HEAD `3e8cab0`](https://github.com/yuilyoung/My_own_AI_assistant/commit/3e8cab03162a9e797400aa7a106c6f1c888052fc)는 내장 SVG 캐릭터 서린, 대화 상태 보존, 필수 시험 채점 기능이 포함된 코드다. 이 SHA에서 [Web frontend CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44921573026) 및 [Local engine tests](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44921573013)가 성공했고 `web-dist`, `windows-synthetic-voice-report`, `gateway-wheel` 아티팩트가 생성되었다. **이것은 이번 보고서 보존 변경 전의 성공 결과다.**
+- **이번 변경:** `scripts/check_acceptance.py`의 8개 필수 시험 점수와 각 필수 테스트 사례, 전체 테스트 성공 여부를 stdout과 UTF-8 JSON 파일로 저장하는 선택적 `ACCEPTANCE_REPORT_PATH`를 추가했다. Windows/Ubuntu × Python 3.11/3.13 CI에서 `acceptance-<OS>-py<version>` 아티팩트로 보존하며, 필수 시험 실패 시에도 생성된 보고서를 업로드한다. 보고서 작성 전 프로세스가 실패하면 별도 산출물 없이 경고가 남는다. JSON 직렬화 및 실패한 필수 시험의 보존 단위 테스트를 추가했다.
+- **검증 경계:** 채점표는 이름이 지정된 **소프트웨어 테스트만** 평가한다. 실제 Cubism Core/모델 WebGL 출력, 립싱크의 물리적 시각 동작, Windows 사용자 PC의 Ollama·whisper.cpp·MeloTTS·마이크·스피커와 30분 안정성 검사는 포함하지 않는다. 공식 SDK/Core 다운로드 계약 및 모델별 권리는 계속 별도 확인이 필요하다.
+- **[PR #31](https://github.com/yuilyoung/My_own_AI_assistant/pull/31) 병합 완료:** [코드 병합 SHA `a930e6f`](https://github.com/yuilyoung/My_own_AI_assistant/commit/a930e6fa9d7e61a3cbe6c892eb2b35fea18c08c1) 기준 [main Web frontend CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44965836878) 및 [main Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/44965836882) **모두 성공**. Ubuntu/Windows × Python 3.11/3.13 **4개 잡 모두 성공**, Linux 3.11 로그에서 Python **168 passed, upstream warning 1건** 및 필수 8개 시험 **100/100점**, `suites_passed=true`를 확인했다. Web CI의 formatter/lint/TypeScript/Vite·Linux/Windows 합성 음성 Chromium·Docker 검사는 모두 성공했다. Artifacts: `web-dist` **94,674 B**, `windows-synthetic-voice-report` **603 B**, `gateway-wheel` **22,248 B**, `acceptance-ubuntu-latest-py3.11`/`py3.13` **각 1,242 B**, `acceptance-windows-latest-py3.11`/`py3.13` **각 1,249 B**. **이 검증은 코드 SHA 기준이며 후속 문서 커밋과 구별한다.**
+
 
 ## 2026-11-21 Live2D 모션 연결 음성 파일 사전 검사 보완 (PR #25 병합)
 

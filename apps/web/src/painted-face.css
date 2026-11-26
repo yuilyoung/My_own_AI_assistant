@@ -1,0 +1,25 @@
+.painted-face__gaze-iris {
+  transform: translate(
+    calc(var(--gaze-x, 0) * var(--travel-x)),
+    calc(var(--gaze-y, 0) * var(--travel-y))
+  );
+}
+
+.painted-face__lid-aperture {
+  transform: translateY(calc(var(--blink, 0) * var(--lid-travel)));
+}
+
+.painted-face__blink {
+  opacity: clamp(0, calc((0.86 - var(--blink, 0)) * 6), 1);
+}
+
+.painted-face__closed {
+  opacity: clamp(0, calc((var(--blink, 0) - 0.48) * 5), 1);
+  transform: translateY(calc((var(--blink, 0) - 1) * var(--lid-travel)));
+}
+
+.painted-face__brow-emphasis {
+  transform-origin: inherit;
+  transform: translateY(calc(var(--brow-lift, 0) * var(--brow-range)))
+    rotate(calc(var(--accent, 0) * var(--brow-tilt)));
+}

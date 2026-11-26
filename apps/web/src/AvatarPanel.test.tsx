@@ -2,11 +2,97 @@
 import { StrictMode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
+import { motionClock } from "./motion-clock.test-support";
 import userEvent from "@testing-library/user-event";
 import { AvatarPanel } from "./AvatarPanel";
 import { AvatarMotionBridge } from "./avatar-motion";
 
-afterEach(cleanup);
+vi.mock("./usePortraitReady", () => ({ usePortraitReady: () => "ready" }));
+vi.mock("./usePortraitPose", () => ({ usePortraitPose: () => true }));
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it("keeps the selected speaker throughout a reply and allows changing it after playback", async () => {
+  const user = userEvent.setup();
+  const bridge = new AvatarMotionBridge();
+  const cue = { emotion: "happy", gesture: "greeting" };
+  const { rerender } = render(<AvatarPanel bridge={bridge} level={0} />);
+  const selector = screen.getByLabelText("아바타 종류");
+  for (const label of [
+    "하나 · 17세 고등학생",
+    "서린 · 28세 직장인",
+    "이솔 · 22세 대학생",
+  ]) {
+    expect(within(selector).getByRole("option", { name: label })).toBeTruthy();
+  }
+  await user.selectOptions(selector, "hana");
+  for (const level of [0, 0.6, 0]) {
+    rerender(<AvatarPanel bridge={bridge} cue={cue} level={level} busy />);
+    await user.selectOptions(selector, "isol");
+    expect(
+      screen.getByRole("img", { name: /하나/ }).getAttribute("data-character"),
+    ).toBe("hana");
+    expect((screen.getByRole("meter") as HTMLMeterElement).value).toBe(level);
+  }
+  rerender(<AvatarPanel bridge={bridge} cue={cue} level={0} />);
+  await user.selectOptions(selector, "isol");
+  expect(screen.getByRole("img", { name: /이솔/ })).toBeTruthy();
+  await user.selectOptions(selector, "live2d");
+  expect(screen.getByLabelText("로컬 모델 export 경로 점검")).toBeTruthy();
+});
+
+it("previews a new gesture in silence and yields to the next reply", async () => {
+  const user = userEvent.setup();
+  const bridge = new AvatarMotionBridge();
+  const { rerender } = render(<AvatarPanel bridge={bridge} level={0} />);
+  await user.click(screen.getByText("표정·동작 미리보기"));
+  await user.click(screen.getByRole("button", { name: "갸웃하기" }));
+  expect(screen.getByRole("img", { name: /호기심.*고개 기울임/ })).toBeTruthy();
+  expect((screen.getByRole("meter") as HTMLMeterElement).value).toBe(0);
+  const reply = { emotion: "thoughtful", gesture: "point" };
+  rerender(<AvatarPanel bridge={bridge} level={0.3} cue={reply} busy />);
+  expect(screen.getByRole("img", { name: /사색.*가리키기/ })).toBeTruthy();
+  expect(
+    screen.getByRole<HTMLButtonElement>("button", { name: "갸웃하기" })
+      .disabled,
+  ).toBe(true);
+  rerender(<AvatarPanel bridge={bridge} level={0} cue={reply} />);
+  expect(screen.getByRole("img", { name: /사색.*가리키기/ })).toBeTruthy();
+});
+
+it.each(["close the preview", "start a turn"])(
+  "keeps a completed reply gesture at rest when I %s",
+  async (action) => {
+    const clock = motionClock();
+    const bridge = new AvatarMotionBridge();
+    const user = userEvent.setup();
+    const greeting = { emotion: "happy", gesture: "greeting" };
+    const panel = (cue: typeof greeting, busy = false) => (
+      <AvatarPanel bridge={bridge} level={0} cue={cue} busy={busy} />
+    );
+    const { rerender } = render(panel(greeting));
+    const avatar = screen.getByRole("img");
+    const raised = () => avatar.querySelector('[data-pose="greeting"]');
+    clock.step(450);
+    expect(raised()).toBeTruthy();
+    clock.step(3000);
+    expect(raised()).toBeNull();
+    const summary = screen.getByText("표정·동작 미리보기");
+    await user.click(summary);
+    await user.click(screen.getByRole("button", { name: "갸웃하기" }));
+    if (action === "close the preview") await user.click(summary);
+    else rerender(panel(greeting, true));
+    await screen.findByRole("img", { name: /기쁨.*대기/ });
+    clock.step(350);
+    expect(raised()).toBeNull();
+    rerender(panel({ ...greeting }));
+    clock.step(450);
+    expect(raised()).toBeTruthy();
+  },
+);
 
 async function attachRenderer(bridge: AvatarMotionBridge) {
   const adapter = {
@@ -41,7 +127,8 @@ it("shows an original SVG avatar by default without attaching a licensed runtime
     (screen.getByRole("combobox", { name: "아바타 종류" }) as HTMLSelectElement)
       .value,
   ).toBe("builtin");
-  const avatar = screen.getByRole("img", { name: /기본 아바타/ });
+  expect(screen.getByRole("option", { name: /서린/ })).toBeTruthy();
+  const avatar = screen.getByRole("img", { name: /서린/ });
   expect(avatar.tagName.toLowerCase()).toBe("svg");
   expect(avatar.getAttribute("viewBox")).toBeTruthy();
   expect(screen.queryByLabelText("로컬 모델 export 경로 점검")).toBeNull();
@@ -50,7 +137,7 @@ it("shows an original SVG avatar by default without attaching a licensed runtime
   expect(bridge.ready).toBe(false);
 });
 
-it("opens the existing licensed inspector and explains server assets in cloud deployments", async () => {
+it("opens the licensed inspector and warns public deployments about private assets", async () => {
   const user = userEvent.setup();
   const bridge = new AvatarMotionBridge();
   render(<AvatarPanel bridge={bridge} level={0} />);
@@ -64,10 +151,12 @@ it("opens the existing licensed inspector and explains server assets in cloud de
   expect(screen.getByLabelText("로컬 모델 export 경로 점검")).toBeTruthy();
   expect(screen.getByRole("img", { name: "Live2D 로컬 캔버스" })).toBeTruthy();
   expect(screen.getByText(/사용권이 확인된 모델/).textContent).toContain("SDK");
-  expect(screen.getByText(/클라우드에서도/).textContent).toContain(
+  expect(screen.getByText(/로컬 Gateway/).textContent).toContain(
     "/avatar-local/",
   );
-  expect(screen.getByText(/클라우드에서도/).textContent).toContain("같은 출처");
+  expect(screen.getByText(/공개 서버는/).textContent).toContain(
+    "비공개 모델 자산을 제공하지 않습니다.",
+  );
   expect(
     (
       screen.getByRole("button", {
@@ -155,17 +244,18 @@ it.each([
 ])(
   "keeps mouth geometry and the level meter finite for input %s",
   (level, expected) => {
-    render(<AvatarPanel bridge={new AvatarMotionBridge()} level={level} />);
+    const bridge = new AvatarMotionBridge();
+    const { rerender } = render(<AvatarPanel bridge={bridge} level={level} />);
 
     expect(
       (screen.getByRole("meter", { name: "음성 레벨" }) as HTMLMeterElement)
         .value,
     ).toBe(expected);
     const mouth = screen.getByTestId("avatar-mouth");
-    const radius = Number(mouth.getAttribute("ry"));
-    expect(Number.isFinite(radius)).toBe(true);
-    expect(radius).toBeGreaterThan(0);
-    expect(radius).toBeLessThanOrEqual(18);
+    const drawing = mouth.getAttribute("d");
+    expect(drawing).toMatch(/^M/);
+    rerender(<AvatarPanel bridge={bridge} level={expected} />);
+    expect(mouth.getAttribute("d")).toBe(drawing);
     expect(
       screen.getByRole("img", { name: /기본 아바타/ }).outerHTML,
     ).not.toMatch(/NaN|Infinity/);
@@ -175,18 +265,16 @@ it.each([
 it("moves the visible SVG mouth with audio and closes it when playback stops", () => {
   const bridge = new AvatarMotionBridge();
   const { rerender } = render(<AvatarPanel bridge={bridge} level={0} />);
-  const closed = Number(screen.getByTestId("avatar-mouth").getAttribute("ry"));
+  const mouth = screen.getByTestId("avatar-mouth");
+  const closed = mouth.getAttribute("d");
+  expect(closed).toMatch(/^M/);
 
   rerender(<AvatarPanel bridge={bridge} level={0.8} />);
-  expect(
-    Number(screen.getByTestId("avatar-mouth").getAttribute("ry")),
-  ).toBeGreaterThan(closed);
+  expect(mouth.getAttribute("d")).not.toBe(closed);
   expect(screen.getByRole("status").textContent).toContain("말하는 중");
 
   rerender(<AvatarPanel bridge={bridge} level={0} />);
-  expect(Number(screen.getByTestId("avatar-mouth").getAttribute("ry"))).toBe(
-    closed,
-  );
+  expect(mouth.getAttribute("d")).toBe(closed);
   expect(screen.getByRole("status").textContent).toContain("대화 준비 완료");
 });
 
@@ -248,49 +336,39 @@ it("reacts to supported gesture cues and safely resets unknown cues", () => {
   ).toBe("idle");
 });
 
-it("shows busy feedback while preserving the usable selector", async () => {
-  const user = userEvent.setup();
+it("shows distinct feedback while preparing and speaking a reply", () => {
   const bridge = new AvatarMotionBridge();
   const { rerender } = render(<AvatarPanel bridge={bridge} level={0} busy />);
   expect(screen.getByRole("status").textContent).toContain("답변 준비 중");
 
   rerender(<AvatarPanel bridge={bridge} level={0.4} busy />);
   expect(screen.getByRole("status").textContent).toContain("말하는 중");
-  await user.selectOptions(screen.getByLabelText("아바타 종류"), "live2d");
-  expect(screen.getByLabelText("로컬 모델 export 경로 점검")).toBeTruthy();
 });
 
-it.each([
-  ["nod", ".avatar-panel__head"],
-  ["greeting", ".avatar-panel__hand"],
-])(
-  "replays %s for a new cue object while preserving mouth playback",
-  (gesture, selector) => {
-    const bridge = new AvatarMotionBridge();
-    const cue = { emotion: "happy", gesture };
-    const { rerender } = render(
-      <AvatarPanel bridge={bridge} level={0.2} cue={cue} />,
-    );
-    const avatar = screen.getByRole("img", { name: /기본 아바타/ });
-    const target = avatar.querySelector<SVGGElement>(selector)!;
-    // jsdom does not run CSS animations. Observe the layout flush that restarts
-    // only the gesture's animated SVG group; Chromium verifies actual replay.
-    const restart = vi.spyOn(target, "getBoundingClientRect");
-    const mouth = screen.getByTestId("avatar-mouth");
-
-    rerender(<AvatarPanel bridge={bridge} level={0.8} cue={cue} />);
-    expect(restart).not.toHaveBeenCalled();
-    expect(screen.getByTestId("avatar-mouth")).toBe(mouth);
-    const speaking = mouth.getAttribute("ry");
-
-    rerender(<AvatarPanel bridge={bridge} level={0.8} cue={{ ...cue }} />);
-    expect(restart).toHaveBeenCalledOnce();
-    expect(screen.getByRole("img", { name: /기본 아바타/ })).toBe(avatar);
-    expect(screen.getByTestId("avatar-mouth")).toBe(mouth);
-    expect(mouth.getAttribute("ry")).toBe(speaking);
-    expect(target.style.animation).toBe("");
-  },
-);
+it("keeps a completed wave at rest across audio frames and replays it for a fresh reply", () => {
+  const clock = motionClock();
+  const bridge = new AvatarMotionBridge();
+  const greeting = { emotion: "happy", gesture: "greeting" };
+  const panel = (cue: typeof greeting, level: number) => (
+    <AvatarPanel bridge={bridge} cue={cue} level={level} />
+  );
+  const { rerender } = render(panel(greeting, 0.2));
+  const stage = screen.getByRole("img");
+  const mouth = screen.getByTestId("avatar-mouth");
+  const raised = () => stage.querySelector('[data-pose="greeting"]');
+  clock.step(600);
+  expect(raised()).toBeTruthy();
+  clock.step(3000);
+  expect(raised()).toBeNull();
+  rerender(panel(greeting, 0.75));
+  clock.step(250);
+  expect(raised()).toBeNull();
+  rerender(panel({ ...greeting }, 0.75));
+  clock.step(500);
+  expect(raised()).toBeTruthy();
+  expect(screen.getByTestId("avatar-mouth")).toBe(mouth);
+  expect((screen.getByRole("meter") as HTMLMeterElement).value).toBe(0.75);
+});
 
 it("resets selection and licensed form state when the parent's service/mode key changes", async () => {
   const user = userEvent.setup();
@@ -333,9 +411,8 @@ it("uses unique accessible labels and SVG definitions across concurrent panels i
   expect(avatars[0].getAttribute("aria-labelledby")).not.toBe(
     avatars[1].getAttribute("aria-labelledby"),
   );
-  const gradientIds = avatars.map(
-    (avatar) => avatar.querySelector("linearGradient")?.id,
+  const ids = avatars.flatMap((avatar) =>
+    Array.from(avatar.querySelectorAll("[id]"), (element) => element.id),
   );
-  expect(gradientIds[0]).toBeTruthy();
-  expect(gradientIds[0]).not.toBe(gradientIds[1]);
+  expect(new Set(ids).size).toBe(ids.length);
 });

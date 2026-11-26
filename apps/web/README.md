@@ -16,11 +16,11 @@ npm run build
 
 개발 서버는 `npm run dev`로 실행하며 Gateway도 별도 실행해야 합니다. 포트 5173을 고정하고 같은 개발 출처의 Origin만 Gateway 출처로 변환합니다. 운영에서는 Gateway의 동일 출처 제공을 사용합니다.
 
-Live2D SDK와 캐릭터가 없어 현재 아바타 영역에는 설치 안내가 표시됩니다. 실제 모델 렌더링·표정·모션·립싱크는 미구현입니다. `assets/manifest.example.json`은 설치 계약 예시이며 활성화 기능이 아닙니다.
+하나·서린·이솔은 웹 앱에 포함되어 바로 표시됩니다. Live2D를 선택하면 별도 SDK·모델·어댑터 설치 안내가 표시됩니다. `assets/manifest.example.json`은 설치 계약 예시이며 활성화 기능이 아닙니다.
 
 ## Live2D 모델 JSON 사전 검사
 
-React 아바타 패널의 **모델 JSON 검사**는 캐릭터를 렌더링하지 않고 공식 `.model3.json`의 참조 목록·LipSync 그룹 메타데이터를 확인합니다. 사용권을 확인한 모델 export 폴더를 `public/avatar-local/Haru/`에 보관하고 `npm run build` 후 `/avatar-local/Haru/Haru.model3.json`을 입력하세요. 외부 출처·경로 탈출은 거부합니다. Core·SDK가 없어도 이 JSON 점검은 실행할 수 있지만 실제 Cubism 캔버스 렌더링, 입모양 동기화, 자산 존재/라이선스 검증을 대신하지 않습니다. Core·샘플 모델은 Git 저장소에 포함하지 않습니다.
+React 아바타 패널의 **모델 JSON 검사**는 캐릭터를 렌더링하지 않고 공식 `.model3.json`의 참조 목록·LipSync 그룹 메타데이터를 확인합니다. 웹 빌드 바깥의 개인 폴더를 `ASSISTANT_AVATAR_DIR`로 설정하고, 그 아래 `Haru/`에 사용권을 확인한 모델을 둡니다. 로컬 Gateway를 실행한 뒤 `/avatar-local/Haru/Haru.model3.json`을 입력하세요. 외부 출처·경로 탈출은 거부합니다. Core·SDK가 없어도 이 JSON 점검은 실행할 수 있지만 실제 Cubism 캔버스 렌더링, 입모양 동기화, 자산 존재/라이선스 검증을 대신하지 않습니다. Core·샘플 모델은 Git 저장소에 포함하지 않습니다.
 
 ## 검증된 자동 검사
 
@@ -34,7 +34,7 @@ HEAD를 지원하지 않는 서버는 접근 실패로 표시될 수 있습니�
 
 ## 사용자 설치 Cubism 어댑터 연결 (2026-11-03)
 
-모델 JSON·참조 파일 HEAD 검사 이후 모든 참조가 접근 가능하면 **로컬 Cubism 어댑터 연결** 버튼으로 비공개 모듈을 직접 적재할 수 있습니다. `public/avatar-local/runtime/adapter.js`는 `export async function createAvatarAdapter(canvas) { ... }`를 제공해야 합니다. 반환 객체에는 `load(modelUrl)`, `setLipSync(level)`, `setExpression(name)`, `setMotion(group)`, `dispose()`가 필요합니다. 지정된 모듈 경로 외부의 코드를 가져오지 않으며 버튼 클릭 전에는 모듈이 실행되지 않습니다.
+모델 JSON·참조 파일 HEAD 검사 이후 모든 참조가 접근 가능하면 **로컬 Cubism 어댑터 연결** 버튼으로 비공개 모듈을 직접 적재할 수 있습니다. `ASSISTANT_AVATAR_DIR` 아래의 `runtime/adapter.js`는 `export async function createAvatarAdapter(canvas) { ... }`를 제공해야 합니다. 반환 객체에는 `load(modelUrl)`, `setLipSync(level)`, `setExpression(name)`, `setMotion(group)`, `dispose()`가 필요합니다. 지정된 모듈 경로 외부의 코드를 가져오지 않으며 버튼 클릭 전에는 모듈이 실행되지 않습니다.
 
 SDK/Core와 캐릭터는 공식 배포본을 사용권에 맞게 **사용자가 로컬에서 설치**해야 합니다. 저장소에는 실제 Core/WebGL 구현이나 모델을 포함하지 않습니다. 테스트는 모의 어댑터의 부착·정리·실패 흐름만 검증하므로 실제 화면 표시를 입증하지 않습니다. 임의로 다운로드한 JavaScript는 PC에서 실행하지 마세요.
 
@@ -42,4 +42,4 @@ SDK/Core와 캐릭터는 공식 배포본을 사용권에 맞게 **사용자가 
 
 연결 후 **LLM 서비스**에서 데모·로컬 Ollama·클라우드 API를 선택합니다. 미설정 옵션은 비활성화됩니다. 서비스 전환 시 새 대화를 시작하며 이전 서비스의 기록·기억을 자동으로 전송하지 않습니다. API 키는 서버 환경 변수로만 설정합니다.
 
-**아바타 종류**는 기본 SVG와 Live2D를 제공합니다. 기본 SVG는 배포에 포함되며, Live2D는 별도 SDK·모델·실제 어댑터와 서버 자산 경로 설정이 필요합니다. 로컬 PC와 Render 모두 동일한 화면을 사용합니다. [설정 안내](../../docs/local-cloud-services.md)를 참고하세요.
+**아바타 종류**에서 대화에 맞춰 표정과 입을 움직이는 기본 캐릭터 또는 Live2D를 선택합니다. 하나·서린·이솔의 그림은 웹 앱과 함께 제공되며, Live2D는 별도 SDK·모델·실제 어댑터와 서버 자산 경로 설정이 필요합니다. 로컬 PC와 Render 모두 동일한 화면을 사용합니다. [설정 안내](../../docs/local-cloud-services.md)를 참고하세요.

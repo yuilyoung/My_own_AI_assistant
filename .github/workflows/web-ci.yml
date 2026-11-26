@@ -6,7 +6,16 @@ on:
       - 'apps/diagnostics/**'
       - 'services/**'
       - 'scripts/react_smoke.py'
+      - 'scripts/portrait_proportions.py'
+      - 'scripts/portrait_joints.js'
+      - 'docs/design/*-original.png'
+      - 'docs/design/*-original.webp'
       - 'scripts/windows_smoke.py'
+      - 'scripts/package_windows_web.py'
+      - 'scripts/launch.ps1'
+      - 'scripts/start.ps1'
+      - 'Start.cmd'
+      - 'windows/web-dist.zip'
       - 'requirements*.txt'
       - 'pyproject.toml'
       - 'Dockerfile'
@@ -18,7 +27,16 @@ on:
       - 'apps/diagnostics/**'
       - 'services/**'
       - 'scripts/react_smoke.py'
+      - 'scripts/portrait_proportions.py'
+      - 'scripts/portrait_joints.js'
+      - 'docs/design/*-original.png'
+      - 'docs/design/*-original.webp'
       - 'scripts/windows_smoke.py'
+      - 'scripts/package_windows_web.py'
+      - 'scripts/launch.ps1'
+      - 'scripts/start.ps1'
+      - 'Start.cmd'
+      - 'windows/web-dist.zip'
       - 'requirements*.txt'
       - 'pyproject.toml'
       - 'Dockerfile'
@@ -37,8 +55,8 @@ jobs:
       run:
         working-directory: apps/web
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
           cache: npm
@@ -53,9 +71,18 @@ jobs:
         run: npm test
       - name: Typecheck and production build
         run: npm run build
-      - uses: actions/setup-python@v5
+      - name: Reject private Cubism exports in public web artifact
+        run: |
+          if [ -e dist/avatar-local ]; then
+            echo "Refusing to ship private /avatar-local assets in web-dist or Docker" >&2
+            exit 1
+          fi
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.11'
+      - name: Compare the Windows web bundle with the production build
+        working-directory: .
+        run: python scripts/package_windows_web.py --check
       - name: Install browser test dependencies
         working-directory: .
         run: |
@@ -89,7 +116,7 @@ jobs:
           print("Packaged Docker API smoke passed")
           '
       - name: Upload static build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: web-dist
           path: apps/web/dist/
@@ -99,29 +126,25 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: apps/web/package-lock.json
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.11'
-      - name: Install locked frontend dependencies
-        working-directory: apps/web
-        run: npm ci --no-audit --no-fund
-      - name: Build production React application
-        working-directory: apps/web
-        run: npm run build
+      - name: Install and start the Windows app without Node.js
+        run: python scripts/windows_smoke.py --launcher
+      - name: Unpack the shipped web build for the browser test
+        run: python -m zipfile -e windows/web-dist.zip apps/web/dist
+      - name: Reject private Cubism exports in Windows web build
+        run: |
+          if (Test-Path "apps/web/dist/avatar-local") {
+            throw "Private /avatar-local assets must not be bundled in the static build"
+          }
       - name: Install Gateway dependencies
         run: python -m pip install -r requirements.txt
       - name: Check Windows local readiness CLI (demo, no inference)
         run: |
           $env:PYTHONPATH = "services"
           python -m gateway.readiness_cli --provider demo --json
-      - name: Start real Windows Gateway and verify production API / assets
-        run: python scripts/windows_smoke.py
       - name: Install Chromium for Windows synthetic voice E2E
         run: |
           python -m pip install playwright==1.64.1
@@ -132,7 +155,7 @@ jobs:
         run: python scripts/react_smoke.py
       - name: Preserve Windows synthetic browser evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-synthetic-voice-report
           path: ${{ runner.temp }}/windows-voice-smoke.json

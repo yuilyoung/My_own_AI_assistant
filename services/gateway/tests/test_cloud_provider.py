@@ -40,6 +40,7 @@ def completion(content=None, **message):
 
 async def test_cloud_sends_authenticated_nonstreaming_strict_reply_schema():
     messages = [{"role": "user", "content": "hello"}]
+    segment = {"text": "이 부분을 볼까요?", "emotion": "thoughtful", "gesture": "point"}
 
     def handler(request):
         assert str(request.url) == "https://provider.example/custom/v1/chat/completions"
@@ -66,13 +67,15 @@ async def test_cloud_sends_authenticated_nonstreaming_strict_reply_schema():
             "default" not in value
             for value in schema["schema"]["$defs"]["Segment"]["properties"].values()
         )
-        return httpx.Response(200, json=completion())
+        fields = schema["schema"]["$defs"]["Segment"]["properties"]
+        assert "thoughtful" in fields["emotion"]["enum"]
+        assert "point" in fields["gesture"]["enum"]
+        return httpx.Response(200, json=completion(json.dumps({"segments": [segment]})))
 
     result = await provider(handler, cloud_base_url="https://provider.example/custom/v1/").reply(
         messages
     )
-    assert result.segments[0].text == "안녕"
-    assert result.segments[0].gesture == "nod"
+    assert result.segments[0].model_dump() == segment
 
 
 @pytest.mark.parametrize(
@@ -98,6 +101,20 @@ async def test_cloud_sends_authenticated_nonstreaming_strict_reply_schema():
         ),
         completion(function_call={"name": "shell", "arguments": "{}"}),
         completion(refusal="Refused"),
+    ],
+    ids=[
+        "missing-choices",
+        "empty-choices",
+        "invalid-choices",
+        "null-choice",
+        "empty-segments",
+        "invalid-gesture",
+        "invalid-text",
+        "extra-field",
+        "code-fence",
+        "tool-calls",
+        "function-call",
+        "refusal",
     ],
 )
 async def test_cloud_rejects_malformed_or_unsafe_reply(payload):

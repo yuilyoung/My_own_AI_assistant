@@ -1,0 +1,79 @@
+.seorin.avatar-panel__svg {
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: auto;
+  background: #c3c9bd;
+}
+
+.painted-face__eye-pose,
+.painted-face__brow-pose,
+.painted-face__mouth-pose {
+  transition: transform 160ms ease-out;
+}
+
+/* Torso, neck and trailing hair have independent joints in the 360-unit stage. */
+.narration__torso {
+  transform-origin: 176px 349px;
+  transform: translateY(var(--torso-y, 0px)) rotate(var(--torso-angle, 0deg));
+}
+
+.seorin .avatar-panel__head,
+.narration__hair-anchor {
+  transform-origin: var(--neck-pivot, 166px 212px);
+  transform: translate(var(--head-x, 0px), var(--head-y, 0px))
+    rotate(var(--head-angle, 0deg));
+}
+
+.narration__rear-hair {
+  transform-origin: var(--rear-hair-pivot, 164px 109px);
+  transform: rotate(var(--hair-angle, 0deg));
+}
+
+.narration__fringe {
+  transform-origin: var(--fringe-pivot, 155px 100px);
+  transform: rotate(var(--fringe-angle, 0deg));
+}
+
+.narration__accessory {
+  transform-origin: var(--accessory-pivot, 194px 152px);
+  transform: rotate(var(--accessory-angle, 0deg));
+}
+
+/* Add the premultiplied costume colors during the dissolve so overlapping
+   opaque fabric stays opaque while the resting and raised sleeves exchange. */
+.narration__costume {
+  isolation: isolate;
+}
+.narration__rest-outfit {
+  opacity: calc(1 - var(--arm-opacity, 0));
+}
+.narration__raised-outfit {
+  opacity: var(--arm-opacity, 0);
+  mix-blend-mode: plus-lighter;
+}
+
+.narration__arm,
+.narration__upper-arm {
+  transform-origin: var(--shoulder-pivot, 253px 246px);
+  transform: rotate(var(--upper-arm-angle, 0deg));
+}
+.narration__forearm {
+  transform-origin: var(--elbow-pivot, 300px 340px);
+  transform: rotate(var(--elbow-angle, 0deg));
+}
+.narration__arm,
+.narration__arm-foreground {
+  opacity: var(--arm-opacity, 0);
+}
+.seorin .avatar-panel__hand {
+  transform: rotate(var(--wrist-angle, 0deg));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .painted-face__eye-pose,
+  .painted-face__brow-pose,
+  .painted-face__mouth-pose {
+    transition: none;
+  }
+}

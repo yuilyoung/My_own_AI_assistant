@@ -1,15 +1,17 @@
 """Non-invasive checks for a user-owned Windows local MVP installation.
 
-The checker never starts model inference, downloads assets, or sends requests
-outside configured literal-loopback addresses.
+Direct HTTP checks use configured literal-loopback addresses. Claude Code
+auth status is delegated to the installed CLI. No check starts model inference.
 """
 
+import asyncio
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
 import httpx
 
+from .claude import ClaudeLLM
 from .config import Settings
 
 
@@ -36,24 +38,48 @@ def inspect_local_readiness(
         )
     )
 
+    if settings.cloud_configured:
+        checks.append(
+            Check("Cloud API", "PASS", "서버에 API 키와 모델 ID가 설정됨 (실제 호출은 미검증)")
+        )
+    else:
+        checks.append(
+            Check(
+                "Cloud API",
+                "FAIL" if settings.llm == "cloud" else "SKIP",
+                "클라우드 API를 사용하려면 서버에 CLOUD_API_KEY와 CLOUD_MODEL을 설정하세요.",
+            )
+        )
+
+    if settings.claude_cli is not None:
+        try:
+            asyncio.run(ClaudeLLM(settings.claude_cli, settings.timeout).check_auth())
+        except (ValueError, TimeoutError, OSError):
+            checks.append(
+                Check(
+                    "Claude Code",
+                    "FAIL",
+                    "공식 Claude Code CLI에서 Claude 구독 계정으로 로그인했는지 확인하세요.",
+                )
+            )
+        else:
+            checks.append(Check("Claude Code", "PASS", "Claude 구독 로그인 확인"))
+
     if not settings.local_llm_enabled:
-        checks.append(Check("Ollama", "SKIP", "로컬 LLM 비활성화; LOCAL_LLM_ENABLED로 설정"))
+        checks.append(
+            Check(
+                "Ollama",
+                "FAIL" if settings.llm == "ollama" else "SKIP",
+                "로컬 LLM 비활성화. 사용하려면 LOCAL_LLM_ENABLED=true를 설정하세요.",
+            )
+        )
     else:
         try:
-            tags = client.get(settings.ollama_url + "/api/tags")
-            tags.raise_for_status()
-            models = tags.json()["models"]
-            installed = {
-                model["name"]
-                for model in models
-                if isinstance(model, dict) and isinstance(model.get("name"), str)
-            }
-            if settings.model not in installed:
+            # Let Ollama resolve the configured name exactly as it does for a chat turn.
+            details = client.post(settings.ollama_url + "/api/show", json={"model": settings.model})
+            if details.status_code == 404:
                 checks.append(Check("Ollama", "FAIL", "설정된 로컬 모델 태그를 찾지 못했습니다"))
             else:
-                details = client.post(
-                    settings.ollama_url + "/api/show", json={"model": settings.model}
-                )
                 details.raise_for_status()
                 info = details.json()
                 if info.get("remote_host") or info.get("remote_model"):
@@ -88,25 +114,31 @@ def inspect_local_readiness(
     if settings.tts == "none":
         checks.append(Check("MeloTTS", "SKIP", "TTS 비활성화"))
     else:
+        if settings.tts == "supertonic":
+            name, worker = "Supertonic 2", "supertonic-2"
+            endpoint, token = settings.supertonic_url, settings.supertonic_token
+        else:
+            name, worker = "MeloTTS", "melo-tts"
+            endpoint, token = settings.melo_url, settings.melo_token
         try:
             # The authenticated health endpoint never starts synthesis.
             response = client.get(
-                settings.melo_url + "/health",
-                headers={"Authorization": "Bearer " + settings.melo_token},
+                endpoint + "/health",
+                headers={"Authorization": "Bearer " + token},
             )
             valid = response.status_code == 200 and response.json() == {
                 "status": "reachable",
-                "worker": "melo-tts",
+                "worker": worker,
             }
         except (httpx.HTTPError, ValueError, TypeError):
             valid = False
         checks.append(
             Check(
-                "MeloTTS",
+                name,
                 "PASS" if valid else "FAIL",
                 "인증된 워커 health 응답 확인 (실제 합성은 미검증)"
                 if valid
-                else "MeloTTS 워커 실행 상태·주소·인증 토큰을 확인하세요",
+                else f"{name} 워커 실행 상태·주소·인증 토큰을 확인하세요",
             )
         )
 

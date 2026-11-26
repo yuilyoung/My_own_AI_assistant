@@ -132,6 +132,34 @@ async def test_audio_is_session_bound_and_removed_on_cancel(tmp_path):
     s.close()
 
 
+async def test_full_turn_queue_preserves_previous_reply_and_audio(tmp_path):
+    from test_providers import wav_bytes
+
+    class Voice:
+        async def synthesize(self, text):
+            return wav_bytes()
+
+    s = Store(tmp_path / "db")
+    sessions = [s.create_session(SessionCreate(mode="assistant"))["id"] for _ in range(5)]
+    sid, *others = sessions
+    e = Engine(s, DemoLLM(), Voice())
+    try:
+        turn = e.start(sid, "first")
+        reply = await settled(e, sid, turn["id"])
+        audio_id = reply["segments"][0]["audio_id"]
+        queued = [e.start(other, "queued") for other in others]
+        with pytest.raises(ValueError):
+            e.start(sid, "no slot")
+
+        assert e.snapshot(sid, turn["id"]) == reply
+        assert e.get_audio(sid, audio_id) == wav_bytes()
+        e.start(others[0], "replace my queued turn")
+        assert e.snapshot(others[0], queued[0]["id"])["status"] == "cancelled"
+    finally:
+        await e.close()
+        s.close()
+
+
 async def test_tts_failure_keeps_text_and_explicit_warning(tmp_path):
     class Voice:
         async def synthesize(self, text):

@@ -1,15 +1,19 @@
 import pytest
 from gateway.config import Settings
 from gateway.contracts import Reply, SessionCreate, TurnInput
-from gateway.policy import require_assistant, scope_for
+from gateway.policy import require_assistant, scope_for, system_prompt
 from pydantic import ValidationError
 
 
 def test_valid_korean_reply():
-    assert (
-        Reply.model_validate({"segments": [{"text": "안녕하세요."}]}).segments[0].emotion
-        == "neutral"
-    )
+    segment = Reply.model_validate({"segments": [{"text": "안녕하세요."}]}).segments[0]
+    assert (segment.emotion, segment.gesture) == ("neutral", "idle")
+
+
+@pytest.mark.parametrize("mode", ["assistant", "companion"])
+def test_prompt_advertises_the_new_reply_cues(mode):
+    prompt = system_prompt(mode, [])
+    assert all(cue in prompt for cue in ("curious", "thoughtful", "tilt", "point"))
 
 
 @pytest.mark.parametrize(

@@ -3,7 +3,7 @@ import time
 from dataclasses import dataclass, field
 from uuid import uuid4
 
-from .contracts import Reply
+from .contracts import Reply, Voice
 from .policy import system_prompt
 from .providers import LLM, TTS, validate_wav
 from .store import Store
@@ -15,6 +15,7 @@ class Turn:
     session_id: str
     generation: int
     text: str
+    voice: Voice = "seorin"
     status: str = "thinking"
     segments: list = field(default_factory=list)
     warning: str | None = None
@@ -57,16 +58,23 @@ class Engine:
             if self.current.get(t.session_id) == t.id:
                 self.current.pop(t.session_id, None)
 
-    def start(self, sid: str, text: str) -> dict:
-        self.store.session(sid)
+    def start(self, sid: str, text: str, voice: Voice = "seorin") -> dict:
+        session = self.store.session(sid)
+        if session["mode"] == "companion" and voice == "hana":
+            raise ValueError("Hana is available only in assistant mode")
+        active_others = sum(
+            t.status in {"thinking", "synthesizing"}
+            for t in self.turns.values()
+            if t.session_id != sid
+        )
+        if active_others >= 4:
+            raise ValueError("Too many active turns")
         self._prune()
         if sid in self.current:
             self.cancel(sid, self.current[sid])
-        if sum(t.status in {"thinking", "synthesizing"} for t in self.turns.values()) >= 4:
-            raise ValueError("Too many active turns")
         gen = self.generations.get(sid, 0) + 1
         self.generations[sid] = gen
-        t = Turn(str(uuid4()), sid, gen, text)
+        t = Turn(str(uuid4()), sid, gen, text, voice)
         self.turns[t.id] = t
         self.current[sid] = t.id
         t.task = asyncio.create_task(self._run(t))
@@ -101,9 +109,14 @@ class Engine:
                         return
                     audio_id = None
                     try:
-                        wav = await asyncio.wait_for(
-                            self.tts.synthesize(segment.text), self.timeout
+                        # Older single-voice workers accept only the segment text.
+                        speak = getattr(self.tts, "synthesize_voice", None)
+                        audio = (
+                            speak(segment.text, t.voice)
+                            if speak
+                            else self.tts.synthesize(segment.text)
                         )
+                        wav = await asyncio.wait_for(audio, self.timeout)
                         if not self._active(t):
                             return
                         if wav:

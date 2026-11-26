@@ -43,10 +43,21 @@ class LocalGuard:
         host = headers.get(b"host", b"").decode("latin1")
         origin = headers.get(b"origin", b"").decode("latin1")
         code = None
-        if host not in allowed_hosts:
+        # Public builds may accidentally contain files copied from Vite's
+        # public/avatar-local directory. Do not let the unauthenticated static
+        # route redistribute a user's proprietary SDK or model exports.
+        if self.s.public_origin and (
+            scope["path"] == "/avatar-local" or scope["path"].startswith("/avatar-local/")
+        ):
+            code = 404
+        elif host not in allowed_hosts:
             code = 400
-        elif self.s.public_origin and host in loopback_hosts and not _is_loopback_peer(scope):
-            # A public socket may receive arbitrary Host headers over plain HTTP.
+        elif (
+            (self.s.public_origin or self.s.claude_cli is not None)
+            and host in loopback_hosts
+            and not _is_loopback_peer(scope)
+        ):
+            # A local Host header does not establish a local network peer.
             code = 400
         elif origin and origin not in allowed_origins:
             code = 403
@@ -164,7 +175,9 @@ def create_app(settings: Settings) -> FastAPI:
 
     @app.post("/api/sessions", status_code=201)
     async def session(body: SessionCreate):
-        runtime = services.runtimes[body.service or services.default_service]
+        runtime = services.runtimes.get(body.service or services.default_service)
+        if runtime is None:
+            raise HTTPException(503, "로컬에서 CLAUDE_CLI를 설정하세요.")
         if not runtime.available:
             raise HTTPException(503, runtime.reason)
         return {**runtime.store.create_session(body), "service": runtime.id}
@@ -178,8 +191,9 @@ def create_app(settings: Settings) -> FastAPI:
         runtime = services.for_session(sid)
         if not runtime.available:
             raise HTTPException(503, runtime.reason)
+        started = runtime.engine.start(sid, body.text, body.voice)
         runtime.transcriptions.cancel_session(sid)
-        return runtime.engine.start(sid, body.text)
+        return started
 
     @app.get("/api/sessions/{sid}/turns/{tid}")
     async def turn_status(sid: str, tid: str):

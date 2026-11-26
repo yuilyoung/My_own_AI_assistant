@@ -1,3 +1,4 @@
+import asyncio
 import io
 import json
 import wave
@@ -7,7 +8,7 @@ import httpx
 from pydantic import ValidationError
 
 from .config import Settings
-from .contracts import Reply
+from .contracts import Reply, Voice
 
 
 class LLM(Protocol):
@@ -103,7 +104,7 @@ class CloudLLM:
         self.transport = transport
 
     async def reply(self, messages: list[dict]) -> Reply:
-        if not self.s.cloud_api_key or not self.s.cloud_model:
+        if not self.s.cloud_configured:
             raise ValueError("Cloud requires CLOUD_API_KEY and CLOUD_MODEL")
         schema = Reply.model_json_schema()
         # Strict structured-output APIs require every property to be required,
@@ -163,12 +164,12 @@ class CloudLLM:
             raise ValueError("Cloud provider returned an invalid completion") from None
 
 
-class MeloTTS:
+class WorkerTTS:
     def __init__(self, settings: Settings, transport=None):
         self.s = settings
         self.transport = transport
 
-    async def synthesize(self, text: str) -> bytes:
+    async def _request(self, url: str, token: str, payload: dict) -> bytes:
         async with httpx.AsyncClient(
             timeout=self.s.timeout,
             trust_env=False,
@@ -177,9 +178,9 @@ class MeloTTS:
         ) as c:
             async with c.stream(
                 "POST",
-                self.s.melo_url + "/synthesize",
-                json={"text": text},
-                headers={"Authorization": "Bearer " + self.s.melo_token},
+                url + "/synthesize",
+                json=payload,
+                headers={"Authorization": "Bearer " + token},
             ) as r:
                 r.raise_for_status()
                 body = bytearray()
@@ -190,3 +191,29 @@ class MeloTTS:
         data = bytes(body)
         validate_wav(data)
         return data
+
+
+class MeloTTS(WorkerTTS):
+    async def synthesize(self, text: str) -> bytes:
+        return await self._request(self.s.melo_url, self.s.melo_token, {"text": text})
+
+
+class SupertonicTTS(WorkerTTS):
+    async def synthesize(self, text: str) -> bytes:
+        return await self.synthesize_voice(text, "seorin")
+
+    async def synthesize_voice(self, text: str, voice: Voice) -> bytes:
+        # A cancelled HTTP turn can leave the CPU finishing its last utterance.
+        # 429 is emitted before the worker starts this synthesis.
+        async with asyncio.timeout(self.s.timeout):
+            while True:
+                try:
+                    return await self._request(
+                        self.s.supertonic_url,
+                        self.s.supertonic_token,
+                        {"text": text, "voice": voice},
+                    )
+                except httpx.HTTPStatusError as exc:
+                    if exc.response.status_code != 429:
+                        raise
+                    await asyncio.sleep(0.5)

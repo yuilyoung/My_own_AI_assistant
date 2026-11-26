@@ -26,24 +26,31 @@ function createAdapter(): AvatarAdapter {
 }
 
 describe("server reply cues to a licensed avatar", () => {
-  it("applies mapped expression and motion cues", async () => {
-    const bridge = new AvatarMotionBridge();
-    const adapter = createAdapter();
-    await bridge.attach(adapter, modelUrl, manifest, {
-      expressions: { happy: "Smile" },
-      motions: { greeting: "Greeting" },
-    });
+  it.each([
+    ["happy", "greeting"],
+    ["curious", "tilt"],
+    ["thoughtful", "point"],
+  ] as const)(
+    "dispatches model-specific bindings for %s and %s",
+    async (emotion, gesture) => {
+      const bridge = new AvatarMotionBridge();
+      const adapter = createAdapter();
+      await bridge.attach(adapter, modelUrl, manifest, {
+        expressions: { [emotion]: "Smile" },
+        motions: { [gesture]: "Greeting" },
+      });
 
-    dispatchAvatarCues(bridge, {
-      text: "안녕하세요",
-      emotion: "happy",
-      gesture: "greeting",
-    });
+      dispatchAvatarCues(bridge, {
+        text: "안녕하세요",
+        emotion,
+        gesture,
+      });
 
-    expect(adapter.setExpression).toHaveBeenCalledExactlyOnceWith("Smile");
-    expect(adapter.setMotion).toHaveBeenCalledExactlyOnceWith("Greeting");
-    bridge.detach();
-  });
+      expect(adapter.setExpression).toHaveBeenCalledExactlyOnceWith("Smile");
+      expect(adapter.setMotion).toHaveBeenCalledExactlyOnceWith("Greeting");
+      bridge.detach();
+    },
+  );
 
   it("ignores unknown and unmapped cues", async () => {
     const bridge = new AvatarMotionBridge();

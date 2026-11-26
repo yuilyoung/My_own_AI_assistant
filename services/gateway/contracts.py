@@ -3,10 +3,11 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+Voice = Literal["hana", "seorin", "isol"]
 Mode = Literal["assistant", "companion"]
-Service = Literal["demo", "local", "cloud"]
-Emotion = Literal["neutral", "happy", "concerned", "surprised"]
-Gesture = Literal["idle", "nod", "greeting"]
+Service = Literal["demo", "local", "cloud", "claude"]
+Emotion = Literal["neutral", "happy", "concerned", "surprised", "curious", "thoughtful"]
+Gesture = Literal["idle", "nod", "greeting", "tilt", "point"]
 
 
 class StrictModel(BaseModel):
@@ -22,6 +23,7 @@ class SessionCreate(StrictModel):
 
 class TurnInput(StrictModel):
     text: str = Field(min_length=1, max_length=2000)
+    voice: Voice = "seorin"
 
 
 class MemoryInput(StrictModel):
