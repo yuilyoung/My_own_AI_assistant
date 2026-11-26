@@ -111,7 +111,7 @@ def check_windows_launcher(directory):
                 launcher.wait(timeout=10)
 
 
-def check_windows_input(app, window, point):
+def check_windows_input(app, window, point, js):
     """Exercise Win32 hit-testing and dragging when the runner has an input desktop."""
     import ctypes
     from ctypes import wintypes
@@ -139,12 +139,23 @@ def check_windows_input(app, window, point):
         print("Runner input desktop unavailable for Win32 hit-test and pointer drag.")
         return
     assert hit(screen_point(1, 1)) != hwnd, "Transparent corner intercepted desktop input"
+    window.activateWindow()
+    window.raise_()
+    QTest.qWait(100)
+    js("""
+        window.petPointerDown = [];
+        window.addEventListener('pointerdown', e => window.petPointerDown.push({
+          figure: !!e.target.closest('.pet-figure'), trusted: e.isTrusted, x:e.clientX, y:e.clientY
+        }), {capture:true});
+    """)
     before = window.pos()
+    down = []
 
     def drag():
         api.mouse_event(0x0002, 0, 0, 0, 0)
         try:
             time.sleep(0.18)
+            down.append(bool(api.GetAsyncKeyState(1) & 0x8000))
             for i in range(1, 13):
                 api.SetCursorPos(face.x - i * 3, face.y)
                 time.sleep(0.025)
@@ -155,7 +166,11 @@ def check_windows_input(app, window, point):
     pointer.start()
     wait_for(app, lambda: not pointer.is_alive(), "native pointer release")
     pointer.join()
-    assert window.x() < before.x() - 5, "Dragging the pet did not reposition the native window"
+    observed = js("JSON.stringify(window.petPointerDown)")
+    assert window.x() < before.x() - 5, (
+        f"Pointer drag did not move window: before={before.toTuple()}, "
+        f"after={window.pos().toTuple()}, pressed={down}, events={observed}"
+    )
     print("Win32 hit-testing and mouse drag passed.")
 
 
@@ -262,7 +277,7 @@ def main():
                         })()
                     """)
                     )
-                    check_windows_input(app, window, face)
+                    check_windows_input(app, window, face, js)
                 QCursor.setPos(window.screen().availableGeometry().topLeft() + QPoint(1, 1))
                 bounds = window.screen().availableGeometry()
                 if window.frameGeometry().contains(QCursor.pos()):

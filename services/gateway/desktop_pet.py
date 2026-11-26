@@ -125,12 +125,29 @@ class WindowControls(QObject):
         self.timer = QTimer(self)
         self.timer.setInterval(65)
         self.timer.timeout.connect(self.step)
+        self.drag_offset = QPoint()
+        self.drag_timer = QTimer(self)
+        self.drag_timer.setTimerType(Qt.TimerType.PreciseTimer)
+        self.drag_timer.setInterval(16)
+        self.drag_timer.timeout.connect(self.follow_pointer)
 
     @Slot()
     def drag(self):
-        handle = self.view.windowHandle()
-        if handle and QGuiApplication.mouseButtons() & Qt.MouseButton.LeftButton:
-            handle.startSystemMove()
+        self.drag_offset = QCursor.pos() - self.view.pos()
+        self.drag_timer.start()
+
+    def follow_pointer(self):
+        if sys.platform == "win32":
+            from ctypes import windll
+
+            # The Chromium child may hold the OS mouse capture instead of Qt.
+            pressed = bool(windll.user32.GetAsyncKeyState(0x01) & 0x8000)
+        else:
+            pressed = bool(QGuiApplication.mouseButtons() & Qt.MouseButton.LeftButton)
+        if pressed:
+            self.view.move(QCursor.pos() - self.drag_offset)
+        else:
+            self.drag_timer.stop()
 
     @Slot()
     def close(self):
@@ -145,7 +162,8 @@ class WindowControls(QObject):
 
     def step(self):
         if (
-            self.view.frameGeometry().contains(QCursor.pos())
+            self.drag_timer.isActive()
+            or self.view.frameGeometry().contains(QCursor.pos())
             or QGuiApplication.mouseButtons() != Qt.MouseButton.NoButton
             or QApplication.activeModalWidget()
         ):
@@ -245,7 +263,7 @@ class PetWindow(QWebEngineView):
         self.setUrl(QUrl(f"http://127.0.0.1:{settings.port}/?pet=1#{query}"))
 
     def refresh_input_mask(self):
-        if not self.isVisible():
+        if not self.isVisible() or self.controls.drag_timer.isActive():
             return
         image = self.grab().toImage()
         if image.isNull() or not image.hasAlphaChannel():
