@@ -56,7 +56,7 @@ it("plays the selected character's sample locally and cancels it when leaving th
   expect(messages[1].textContent).toContain("작은 노트에 그려요");
   act(() => audio.report?.(0.55, 0.7));
   expect((screen.getByRole("meter") as HTMLMeterElement).value).toBe(0.55);
-  expect(screen.getByTestId("avatar-character").dataset.gesture).toBe("point");
+  expect(screen.getByTestId("avatar-character").dataset.gesture).toBe("nod");
 
   await user.click(screen.getByRole("button", { name: /서린/ }));
   expect(fetchClip.mock.calls[0][1].signal?.aborted).toBe(true);

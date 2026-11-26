@@ -49,7 +49,7 @@ const samples = {
   intro: {
     label: "자기소개 듣기",
     prompt: "자기소개해 줄래요?",
-    cue: { emotion: "curious", gesture: "point" },
+    cue: { emotion: "thoughtful", gesture: "nod" },
   },
 } as const satisfies Record<
   SpeechSample,

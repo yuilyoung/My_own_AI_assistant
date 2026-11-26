@@ -1,14 +1,18 @@
 # 캐릭터별 한국어 음성
 
-Supertonic 2는 CPU에서 하나(F4), 서린(F1), 이솔(F2)의 목소리로 한국어 답변을 읽습니다. 하나는 경쾌하게 말하고, 이솔은 밝고 부드럽게 답하며, 서린은 차분하고 또렷하게 전달합니다. 질문은 캐릭터에 맞춰 조금 여유 있게 읽습니다. 미리듣기와 답변에는 같은 캐릭터별 음성 설정을 사용합니다. 음성 워커를 연결하기 전에도 웹 앱에 포함된 인사말과 자기소개를 들을 수 있습니다.
+Supertonic 2는 CPU에서 하나(F2), 서린(F1), 이솔(F4)의 목소리로 한국어 답변을 읽습니다. 하나는 호기심을 담아 경쾌하게 말하고, 이솔은 밝고 편하게 말을 건넵니다. 서린은 차분하고 또렷하게 전달합니다. 미리듣기와 답변에는 같은 캐릭터별 음성 설정을 사용합니다. 음성 워커를 연결하기 전에도 웹 앱에 포함된 인사말과 자기소개를 들을 수 있습니다.
 
 ## 말의 속도와 쉼
 
-워커는 문맥과 문장부호를 모델에 한 번에 전달해 단어 사이의 흐름과 억양을 살립니다. 말의 속도는 합성할 때 조율합니다. 합성 뒤에는 캐릭터별로 음높이를 조금 조정하고, 긴 무음의 가운데만 줄입니다. 짧은 쉼은 유지하고, 프레임의 최대 음량으로 무음을 판단해 작은 소리로 끝나는 발음을 보존합니다. 큰 피크가 있는 발화는 WAV가 잘리지 않도록 같은 비율로 전체 음량을 낮춥니다.
+워커는 문맥과 문장부호를 모델에 한 번에 전달해 단어 사이의 흐름과 억양을 살립니다. 하나와 이솔은 짧은 질문을 조금 여유 있게 읽고, 짧은 감탄에는 속도를 살짝 올립니다. 문장이 여러 개 이어질 때는 기본 속도에서 문장마다 모델의 억양을 따릅니다. 하나는 F2의 음높이를 그대로 사용하고 이솔은 F4의 음높이를 조금 밝게 조율합니다. 합성 뒤에는 긴 무음의 가운데만 줄입니다. 짧은 쉼은 유지하고, 프레임의 최대 음량으로 무음을 판단해 작은 소리로 끝나는 발음을 보존합니다. 큰 피크가 있는 발화는 WAV가 잘리지 않도록 같은 비율로 전체 음량을 낮춥니다.
 
 한국어 대화와 즉흥 발화의 공개 음성 예시에서 말의 빠르기와 쉼의 길이를 확인했습니다. 예를 들어 대화 세 편은 짧은 내부 쉼이 약 100–250ms였고, 망설임에는 더 긴 쉼도 나왔습니다. 인터넷 영상에서 수집한 Emilia의 한국어 공개 예시 두 편에서는 약 210–380ms의 구절 사이 쉼을 확인했습니다. 사람의 예시 음성은 발화 타이밍을 검토할 때 참고했고, 캐릭터 음성은 Supertonic 2 기본 스타일에서 합성했습니다. [한국어 대화 음성 예시](https://github.com/Nexdata-AI/500-Hours-Korean-Conversational-Speech-Data-by-Mobile-Phone) · [한국어 즉흥 발화 예시](https://github.com/Nexdata-AI/396-Hours-Korean-Spontaneous-Speech-Data) · [Emilia 데이터 미리듣기](https://github.com/Emilia-Dataset/Emilia-Demo-Page/blob/public/index.html#L208) · [Supertonic 음성 설명](https://github.com/supertone-oss-archive/supertonic-py/blob/main/docs/voices.md)
 
-웹에 담긴 여섯 MP3는 같은 워커로 생성했습니다. 44.1kHz 모노 음원으로, 디코딩한 길이는 6.38–7.94초입니다. 다국어 Whisper small로 전사했을 때 공백과 문장부호를 제외한 한글 음절이 여섯 대본과 일치했습니다. 16kHz 모노 변환 후 10ms 프레임의 RMS로 측정한 클립별 최장 내부 쉼은 기존 610–1,070ms에서 300–540ms로 줄었습니다.
+17세 두 명과 22·24세 화자의 서울말 인터뷰에서 구절의 발화 속도와 음높이 변화를 참고했습니다. TalkVid의 약 5초짜리 한국어 영상 두 편에서는 초당 약 7음절로 짧게 이어 말하는 리듬을 확인했습니다. 공개 발표의 경우 TEDxBusan의 인사와 청중 질문은 초당 약 4.2음절, TEDxSeoul의 대담은 약 5.8음절이었습니다. 대담의 구절 사이 쉼은 약 140–290ms였습니다. [한국어 자연발화 말뭉치](https://openslr.org/113/) · [TalkVid 한국어 영상](https://github.com/FreedomIntelligence/talk-vid/blob/main/static/videos/Diversity/Language/kr.mp4) · [TalkVid 한국어 대화 예시](https://github.com/FreedomIntelligence/talk-vid/blob/main/static/videos/Diversity/Gender/female_3.mp4) · [TEDxBusan 발표](https://www.youtube.com/watch?v=grgRnDg-o94) · [TEDxSeoul 대담](https://www.youtube.com/watch?v=un4qbATrmx8) · [TEDx 음성 출처](https://github.com/yc9701/pansori-tedxkr-corpus)
+
+같은 한국어 두 문장을 읽은 합성 샘플에서 하나는 초당 약 6.3음절에서 5.6음절로 여유를 두고 음높이 변화 폭을 넓혔습니다. 이솔은 초당 약 5.8음절로 말하면서 음높이 변화 폭을 좁혔습니다.
+
+웹에 담긴 여섯 MP3는 같은 워커로 생성했습니다. 44.1kHz 모노 음원으로, 디코딩한 길이는 6.43–8.14초입니다. 다국어 Whisper small로 전사했을 때 공백과 문장부호를 제외한 한글 음절이 여섯 대본과 일치했습니다. 16kHz 모노 변환 후 10ms 프레임의 RMS로 측정한 클립별 최장 내부 쉼은 기존 610–1,070ms에서 270–540ms로 줄었습니다.
 
 같은 설정으로 샘플을 다시 합성할 때는 웹 대화 미리보기의 대본을 `load_synthesizer(model_dir, seed=...)`가 돌려주는 함수에 전달합니다. 하나 인사말은 시드 2722, 다른 다섯 편은 2718로 생성했습니다. WAV를 FFmpeg의 `libmp3lame -q:a 3`으로 변환했습니다.
 

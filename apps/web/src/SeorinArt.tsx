@@ -181,19 +181,64 @@ const Forearm = memo(function SeorinForearm({
   id: string;
   gesture: ArmPose;
 }) {
+  const sleeve =
+    gesture === "point"
+      ? { href: pointForearm, x: 700, width: 129 }
+      : { href: waveForearm, x: 702, width: 130 };
+  const elbowMask = id + "-elbow-mask";
+  const elbowGradient = id + "-elbow-gradient";
+  // Near extension the rounded forearm paint overlaps the upper sleeve.
+  // Feather that join, then restore the full outline as the arm bends.
+  const overlap =
+    "clamp(0, 1.25 * sin(calc(var(--elbow-angle, 0deg) - 90deg)), 1)";
   return (
     <g transform={placement}>
-      {gesture === "point" ? (
-        <image href={pointForearm} x="700" y="527" width="129" height="334" />
-      ) : (
-        <>
-          <image href={waveForearm} x="702" y="527" width="130" height="334" />
-          <PaintedGreetingWrist
-            id={id}
-            image={greetingPaint}
-            rig={greetingHand}
+      <defs>
+        <linearGradient
+          id={elbowGradient}
+          gradientUnits="userSpaceOnUse"
+          x1="0"
+          x2="0"
+          y1="805"
+          y2="849"
+        >
+          <stop offset="0" stopColor="white" />
+          <stop
+            offset=".4"
+            stopColor="white"
+            style={{ stopOpacity: `calc(1 - .18 * ${overlap})` }}
           />
-        </>
+          <stop
+            offset="1"
+            stopColor="white"
+            style={{ stopOpacity: `calc(1 - .82 * ${overlap})` }}
+          />
+        </linearGradient>
+        <mask
+          id={elbowMask}
+          maskUnits="userSpaceOnUse"
+          x="695"
+          y="520"
+          width="145"
+          height="346"
+          style={{ maskType: "alpha" }}
+        >
+          <rect
+            x="695"
+            y="520"
+            width="145"
+            height="346"
+            fill={`url(#${elbowGradient})`}
+          />
+        </mask>
+      </defs>
+      <image {...sleeve} y="527" height="334" mask={`url(#${elbowMask})`} />
+      {gesture === "greeting" && (
+        <PaintedGreetingWrist
+          id={id}
+          image={greetingPaint}
+          rig={greetingHand}
+        />
       )}
     </g>
   );

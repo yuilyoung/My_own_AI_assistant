@@ -32,7 +32,7 @@ export type AvatarPanelProps = {
 
 const narrationCues = {
   greeting: { emotion: "happy", gesture: "greeting" },
-  intro: { emotion: "curious", gesture: "point" },
+  intro: { emotion: "thoughtful", gesture: "nod" },
 } as const;
 const speechSamples = [
   { sample: "greeting", label: "인사말 듣기" },

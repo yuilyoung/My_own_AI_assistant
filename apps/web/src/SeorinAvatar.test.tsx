@@ -122,6 +122,52 @@ it.each(["hana", "seorin", "isol"] as const)(
   },
 );
 
+it.each(["hana", "isol"] as const)(
+  "projects %s's arm through a reach without wrenching its wrist",
+  (character) => {
+    const clock = motionClock();
+    const pose = (gesture: "greeting" | "point" | "idle") => (
+      <MotionAvatar
+        character={character}
+        emotion="happy"
+        gesture={gesture}
+        level={0}
+      />
+    );
+    const { container, rerender } = render(pose("greeting"));
+    const stage = container.querySelector("svg")!;
+    const frames: number[][] = [];
+    for (let i = 0; i < 180; i++) {
+      if (i === 46) rerender(pose("point"));
+      if (i === 126) rerender(pose("idle"));
+      clock.step(16);
+      frames.push([
+        stageValue(stage, "--arm-opacity"),
+        stageValue(stage, "--wrist-angle"),
+        stageValue(stage, "--upper-arm-angle"),
+        stageValue(stage, "--forearm-scale-y"),
+        stageValue(stage, "--palm-scale-x"),
+      ]);
+    }
+    const visible = frames.filter(([opacity]) => opacity > 0.6);
+    expect(visible.length).toBeGreaterThan(70);
+    expect(
+      Math.max(...visible.map((frame) => Math.abs(frame[1]))),
+    ).toBeLessThan(42);
+    expect(
+      Math.max(...visible.map((frame) => Math.abs(frame[2]))),
+    ).toBeLessThan(29);
+    expect(Math.min(...visible.map((frame) => frame[3]))).toBeLessThan(0.8);
+    expect(Math.min(...visible.map((frame) => frame[4]))).toBeLessThan(0.96);
+    for (let i = 1; i < frames.length; i++) {
+      if (Math.min(frames[i - 1][0], frames[i][0]) > 0.6) {
+        expect(Math.abs(frames[i][1] - frames[i - 1][1])).toBeLessThan(11);
+      }
+    }
+    expect(frames.at(-1)).toEqual([0, 0, 0, 1, 1]);
+  },
+);
+
 it.each(["hana", "seorin", "isol"] as const)(
   "holds %s's painted gesture for an active reduced-motion cue without starting a frame loop",
   (character) => {

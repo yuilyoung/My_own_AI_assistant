@@ -4,7 +4,7 @@ import { MicrophoneRecorder } from "../../diagnostics/recorder.mjs";
 import { avatarNames, type AvatarCharacter } from "./avatar-cast";
 import { isExpressionCue, isMotionCue } from "./avatar-motion";
 import { Conversation } from "./conversation";
-import { GatewayClient } from "./gateway";
+import { GatewayClient, type Segment } from "./gateway";
 import { MotionAvatar } from "./MotionAvatar";
 import { useNarrationPreview } from "./useNarrationPreview";
 import "./desktop-pet.css";
@@ -94,6 +94,7 @@ function PetSurface({
   const [character, setCharacter] = useState<AvatarCharacter>("seorin");
   const [chatOpen, setChatOpen] = useState(false);
   const [roaming, setRoaming] = useState(false);
+  const [previewedReply, setPreviewedReply] = useState<Segment | null>(null);
   const end = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const preview = useNarrationPreview(
@@ -102,6 +103,8 @@ function PetSurface({
   );
   const previewActive = !!preview.signal;
   const cue = preview.signal?.started ? greeting : state.latestCue;
+  const gesture =
+    cue !== previewedReply && isMotionCue(cue?.gesture) ? cue.gesture : "idle";
   const [reduceMotion, setReduceMotion] = useState(
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
@@ -156,7 +159,7 @@ function PetSurface({
           brightness={preview.signal?.brightness ?? brightness}
           transparent
           emotion={isExpressionCue(cue?.emotion) ? cue.emotion : "neutral"}
-          gesture={isMotionCue(cue?.gesture) ? cue.gesture : "idle"}
+          gesture={gesture}
           cue={cue ?? undefined}
         />
       </div>
@@ -176,9 +179,14 @@ function PetSurface({
         <button
           type="button"
           disabled={locked}
-          onClick={() =>
-            preview.signal ? preview.stop() : void preview.start("greeting")
-          }
+          onClick={() => {
+            if (preview.signal) {
+              preview.stop();
+            } else {
+              setPreviewedReply(state.latestCue);
+              void preview.start("greeting");
+            }
+          }}
         >
           {preview.signal ? "인사 중지" : "인사"}
         </button>

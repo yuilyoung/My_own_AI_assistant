@@ -2,6 +2,7 @@
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
+import { Player } from "../../diagnostics/player.mjs";
 import { MicrophoneRecorder } from "../../diagnostics/recorder.mjs";
 import { DesktopPet, isPetWindow } from "./DesktopPet";
 
@@ -24,6 +25,7 @@ it("waits for the native host, pairs once and sends text as the selected pet", a
     })),
   );
   const requests = vi.fn(async (path: string, options: RequestInit) => {
+    if (path.endsWith(".mp3")) return new Response(new ArrayBuffer(8));
     expect(options.headers).toMatchObject({
       Authorization: "Bearer pet-test-key",
     });
@@ -42,6 +44,16 @@ it("waits for the native host, pairs once and sends text as the selected pet", a
   });
   vi.stubGlobal("fetch", requests);
   try {
+    vi.spyOn(Player.prototype, "unlock").mockResolvedValue(undefined);
+    vi.spyOn(Player.prototype, "play").mockImplementation(function (
+      this: Player,
+    ) {
+      const player = this as unknown as {
+        onLevel(level: number, tone: number): void;
+      };
+      player.onLevel(0.65, 0.5);
+      return new Promise<void>(() => {});
+    });
     vi.spyOn(MicrophoneRecorder.prototype, "start").mockResolvedValue(
       undefined,
     );
@@ -67,6 +79,11 @@ it("waits for the native host, pairs once and sends text as the selected pet", a
       text: "안녕",
       voice: "hana",
     });
+    expect(screen.getByRole("img", { name: /인사.*하나/ })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: /^인사$/ }));
+    await waitFor(() => expect(Player.prototype.play).toHaveBeenCalledOnce());
+    await user.click(screen.getByRole("button", { name: "인사 중지" }));
+    expect(screen.getByRole("img", { name: /대기.*하나/ })).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "마이크로 입력" }));
     await screen.findByRole("button", { name: "녹음 완료" });
     expect(

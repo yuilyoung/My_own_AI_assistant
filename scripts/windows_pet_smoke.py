@@ -41,6 +41,90 @@ def javascript(app, page, expression):
     return results[0]
 
 
+def native_click(window, js, element):
+    point = json.loads(
+        js(f"""(() => {{
+            const r = ({element}).getBoundingClientRect();
+            return JSON.stringify([Math.round(r.x + r.width/2), Math.round(r.y + r.height/2)]);
+        }})()""")
+    )
+    QTest.mouseClick(
+        window.focusProxy() or window,
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+        QPoint(*point),
+    )
+
+
+def check_packaged_greetings(app, window, js):
+    """Play the installed samples through real Qt Chromium Web Audio and the rig."""
+    js("""
+        const nativeStart = AudioBufferSourceNode.prototype.start;
+        AudioBufferSourceNode.prototype.start = function(...args) {
+          const result = nativeStart.apply(this, args);
+          const data = this.buffer.getChannelData(0);
+          let peak = 0;
+          for (let i = 0; i < data.length; i += 32) peak = Math.max(peak, Math.abs(data[i]));
+          window.petAudio = {duration: this.buffer.duration, peak, ended: false};
+          this.addEventListener('ended', () => { window.petAudio.ended = true; }, {once:true});
+          return result;
+        };
+    """)
+    greeting = (
+        "[...document.querySelectorAll('.pet-tools button')].find(b => b.textContent === '인사')"
+    )
+    for character in ("hana", "isol"):
+        js(f"""(() => {{
+            window.petAudio = null;
+            const picker = document.querySelector('.pet-tools select');
+            picker.value = {json.dumps(character)};
+            picker.dispatchEvent(new Event('change', {{bubbles:true}}));
+        }})()""")
+        wait_for(
+            app,
+            lambda: js(
+                f"!!document.querySelector('svg[data-character={character}] [data-testid=avatar-character]')"
+            ),
+            f"loaded {character} portrait",
+        )
+        native_click(window, js, greeting)
+        wait_for(
+            app, lambda: js("!!window.petAudio"), f"{character} audio decoder and source start"
+        )
+        audio = json.loads(js("JSON.stringify(window.petAudio)"))
+        assert audio["peak"] > 0.02 and audio["duration"] > 1, f"{character}: {audio}"
+        assert js(f"""performance.getEntriesByType('resource').some(entry =>
+          entry.name.startsWith(location.origin + '/assets/{character}-greeting-') &&
+          new URL(entry.name).pathname.endsWith('.mp3'))"""), f"Missing local {character} MP3"
+        wait_for(
+            app,
+            lambda: (
+                js("""!!document.querySelector('[data-arm-pose=greeting] [data-pose=greeting]') &&
+              Number(document.querySelector('.pet-figure svg').style.getPropertyValue('--arm-lift')) > 0.15""")
+            ),
+            f"{character} raised greeting hand",
+        )
+        wait_for(
+            app,
+            lambda: (
+                js("""document.querySelector('.painted-face__mouth-rest')?.getAttribute('opacity') === '0' &&
+              document.querySelector('[data-testid=avatar-mouth]')?.getBBox().height > 0""")
+            ),
+            f"{character} visibly voiced mouth",
+        )
+        wait_for(
+            app,
+            lambda: js(f"""window.petAudio.ended && !!({greeting}) &&
+              !!document.querySelector('[data-gesture=idle]:not([data-arm-pose])') &&
+              document.querySelector('.painted-face__mouth-rest')?.getAttribute('opacity') === '1'"""),
+            f"{character} natural audio end, resting hand and closed mouth",
+            timeout=audio["duration"] + 10,
+        )
+        print(
+            f"Native {character} greeting: {audio['duration']:.2f}s, decoded peak {audio['peak']:.2f}."
+        )
+
+
 def check_windows_launcher(directory):
     """Start Pet.cmd and close the actual window belonging to its Gateway PID."""
     import ctypes
@@ -220,20 +304,7 @@ def main():
                       .set.call(field, '데스크톱 테스트');
                     field.dispatchEvent(new Event('input', {bubbles:true}));
                 """)
-                click_point = json.loads(
-                    js("""
-                    (() => {
-                      const r = document.querySelector('.pet-chat form button').getBoundingClientRect();
-                      return JSON.stringify([Math.round(r.x+r.width/2), Math.round(r.y+r.height/2)]);
-                    })()
-                """)
-                )
-                QTest.mouseClick(
-                    window.focusProxy() or window,
-                    Qt.MouseButton.LeftButton,
-                    Qt.KeyboardModifier.NoModifier,
-                    QPoint(*click_point),
-                )
+                native_click(window, js, "document.querySelector('.pet-chat form button')")
                 wait_for(
                     app,
                     lambda: js(
@@ -314,6 +385,7 @@ def main():
                 wait_for(app, lambda: not window.controls.timer.isActive(), "roaming stop")
                 assert window.screen().availableGeometry().contains(window.frameGeometry())
 
+                check_packaged_greetings(app, window, js)
                 js("window.desktopPet.close()")
                 wait_for(app, lambda: not window.isVisible(), "native close action")
             finally:

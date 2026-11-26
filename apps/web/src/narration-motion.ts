@@ -26,7 +26,9 @@ export type NarrationPose = {
   headY: number;
   headAngle: number;
   headPitch: number;
+  headYaw: number;
   neckAngle: number;
+  torsoX: number;
   torsoY: number;
   torsoAngle: number;
   torsoPitch: number;
@@ -45,6 +47,7 @@ export type NarrationPose = {
   elbowOpen: number;
   elbowAngle: number;
   wristAngle: number;
+  palmYaw: number;
   fingerCurl: number;
   fingerSplay: number;
 };
@@ -149,7 +152,9 @@ export function createNarrationMotion(character: AvatarCharacter, seed = 1) {
     headY: 0,
     headAngle: 0,
     headPitch: 0,
+    headYaw: 0,
     neckAngle: 0,
+    torsoX: 0,
     torsoY: 0,
     torsoAngle: 0,
     torsoPitch: 0,
@@ -167,6 +172,7 @@ export function createNarrationMotion(character: AvatarCharacter, seed = 1) {
     elbowOpen: 0,
     elbowAngle: 0,
     wristAngle: 0,
+    palmYaw: 0,
     fingerCurl: 0,
     fingerSplay: 0,
   };
@@ -176,7 +182,9 @@ export function createNarrationMotion(character: AvatarCharacter, seed = 1) {
     torso = new Spring(5.2 / tempo, 0.91);
   const neck = new Spring(8.8 / tempo, 0.95);
   const headPitch = new Spring(18 / tempo, 0.86);
-  const torsoPitch = new Spring(9 / tempo, 0.92);
+  const headYaw = new Spring(12 / tempo, 0.9);
+  const torsoPitch = new Spring(7.7 / tempo, 0.92);
+  const torsoX = new Spring(5.4 / tempo, 0.94);
   const fringe = new Spring(19, 0.77),
     rearHair = new Spring(6.8, 0.65);
   const leftLock = new Spring(9.2, 0.66),
@@ -212,6 +220,7 @@ export function createNarrationMotion(character: AvatarCharacter, seed = 1) {
     upper: number;
     elbowOpen: number;
     elbowAngle: number;
+    palmYaw: number;
     fingerCurl: number;
     fingerSplay: number;
     time: number;
@@ -229,6 +238,7 @@ export function createNarrationMotion(character: AvatarCharacter, seed = 1) {
           upper: pose.upperArmAngle,
           elbowOpen: pose.elbowOpen,
           elbowAngle: pose.elbowAngle,
+          palmYaw: pose.palmYaw,
           fingerCurl: pose.fingerCurl,
           fingerSplay: pose.fingerSplay,
           time: 0,
@@ -334,12 +344,13 @@ export function createNarrationMotion(character: AvatarCharacter, seed = 1) {
   function advanceGesture(armReady: boolean) {
     if (release) {
       release.time += step;
-      const weight = 1 - ease(release.time / 0.215);
+      const weight = 1 - ease(release.time / (0.23 + 0.23 * release.lift));
       pose.armLift = release.lift * weight;
       pose.wristAngle = release.wrist * weight;
       pose.upperArmAngle = release.upper * weight;
       pose.elbowOpen = release.elbowOpen * weight;
       pose.elbowAngle = release.elbowAngle * weight;
+      pose.palmYaw = release.palmYaw * weight;
       pose.fingerCurl = release.fingerCurl * weight;
       pose.fingerSplay = release.fingerSplay * weight;
       pose.armPose = weight > 0 ? release.arm : "idle";
@@ -361,6 +372,7 @@ export function createNarrationMotion(character: AvatarCharacter, seed = 1) {
       pose.elbowOpen = 0;
       pose.elbowAngle = 0;
       pose.wristAngle = 0;
+      pose.palmYaw = 0;
       pose.fingerCurl = 0;
       pose.fingerSplay = 0;
       return;
@@ -372,11 +384,14 @@ export function createNarrationMotion(character: AvatarCharacter, seed = 1) {
       ? palmWave(t)
       : 3 * beat(t, 0, 0.1, 0.11, 0.24) - 8 * beat(t, 0.11, 0.32, 0.55, 0.95);
     pose.armLift = lift;
-    // The upper arm starts the reach. The elbow unfolds after it and leads
-    // the small, alternating changes in angle at the palm.
+    const closeWave = wave && character === "isol";
+    // A close greeting bends the elbow early. The wrist rocks once the
+    // hand arrives, with the fingers softening into each change of direction.
     pose.upperArmAngle =
       (wave ? 1.6 + 2.4 * shoulder : -2.4 - shoulder) * lift * strength;
-    pose.elbowOpen = beat(t, 0.038, 0.272, 0.72, 0.99);
+    pose.elbowOpen = closeWave
+      ? beat(t, 0.005, 0.34, 0.7, 0.985)
+      : beat(t, 0.038, 0.272, 0.72, 0.99);
     pose.elbowAngle =
       (wave
         ? palmWave(t + 0.045) * 0.2
@@ -384,10 +399,17 @@ export function createNarrationMotion(character: AvatarCharacter, seed = 1) {
       lift *
       strength;
     pose.wristAngle = wrist * lift * strength;
-    const openPalm = beat(t, 0.12, 0.29, 0.68, 0.91);
+    const openPalm = closeWave
+      ? beat(t, 0.2, 0.35, 0.63, 0.81)
+      : beat(t, 0.18, 0.29, 0.63, 0.81);
+    pose.palmYaw = follow(
+      pose.palmYaw,
+      wave ? lift * (14 + 33 * (1 - openPalm) + 1.8 * Math.max(0, wrist)) : 0,
+      0.075,
+    );
     pose.fingerCurl = follow(
       pose.fingerCurl,
-      wave ? lift * (0.75 - 0.6 * openPalm) : 0,
+      wave ? lift * (0.96 - 0.8 * openPalm) : 0,
       0.045,
     );
     pose.fingerSplay = follow(
@@ -417,16 +439,22 @@ export function createNarrationMotion(character: AvatarCharacter, seed = 1) {
     );
     pose.neckAngle = neck.advance(turn * 0.23);
     pose.headAngle = turn - pose.neckAngle;
-    pose.headX = headX.advance(pose.gazeX * 2.1 + lean * 0.8 + armLean * 0.35);
+    pose.headX = headX.advance(
+      pose.gazeX * 1.45 + lean * 0.65 + armLean * 0.35,
+    );
     pose.headY = headY.advance(
       pose.gazeY * 1.6 +
         (nod + salute) * 4.1 * strength -
-        pose.accent * 1.75 * strength,
+        pose.accent * 1.1 * strength,
     );
     pose.headPitch = headPitch.advance(
       (nod + salute) * bow + pose.accent * 1.35,
     );
-    pose.torsoPitch = torsoPitch.advance(pose.headPitch * 0.26);
+    pose.headYaw = headYaw.advance(
+      pose.gazeX * 17 + lean * Math.sign(tilt) * 4 + armLean,
+    );
+    pose.torsoPitch = torsoPitch.advance(pose.headPitch * 0.36);
+    pose.torsoX = torsoX.advance(pose.headYaw * 0.14 + armLean * 1.1);
     pose.torsoAngle = torso.advance(turn * 0.32 + armLean * 0.18);
     pose.torsoY =
       -pose.breath * 0.8 + pose.headY * 0.17 + pose.torsoPitch * 0.2;
