@@ -7,7 +7,7 @@ from typing import Literal, NamedTuple
 
 # Both workers can run directly in their own virtual environment.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from cast_tempo import speed_up_cast_speech  # noqa: E402
+from cast_tempo import shape_cast_pauses  # noqa: E402
 from tts_http import TextInput, create_worker_app, pcm16_wav  # noqa: E402
 
 PORT = 8767
@@ -20,14 +20,22 @@ class VoiceInput(TextInput):
 class VoiceProfile(NamedTuple):
     speaker: int
     speech_rate: float  # Native syllable timing, applied by Supertonic.
+    question_rate: float
     register: float  # Change resonance and pitch by this ratio after synthesis.
+    pause_seconds: float
 
 
 # The gallery and live turns use the same Korean stock speakers and direction.
 VOICE_PROFILES = {
-    "hana": VoiceProfile(speaker=3, speech_rate=0.82, register=1.20),
-    "seorin": VoiceProfile(speaker=0, speech_rate=0.95, register=1.0),
-    "isol": VoiceProfile(speaker=1, speech_rate=0.99, register=1.0),
+    "hana": VoiceProfile(
+        speaker=3, speech_rate=1.06, question_rate=1.02, register=1.08, pause_seconds=0.25
+    ),
+    "seorin": VoiceProfile(
+        speaker=0, speech_rate=1.01, question_rate=0.96, register=0.98, pause_seconds=0.36
+    ),
+    "isol": VoiceProfile(
+        speaker=1, speech_rate=1.06, question_rate=1.03, register=1.045, pause_seconds=0.30
+    ),
 }
 MODEL_FILES = {
     "duration_predictor": "duration_predictor.int8.onnx",
@@ -46,7 +54,7 @@ def create_app(token, synthesize, *, port=PORT):
     )
 
 
-def load_synthesizer(directory: Path):
+def load_synthesizer(directory: Path, *, seed: int | None = None):
     paths = {key: str(directory / name) for key, name in MODEL_FILES.items()}
     for path in paths.values():
         if not Path(path).is_file():
@@ -72,9 +80,15 @@ def load_synthesizer(directory: Path):
         config = sherpa_onnx.GenerationConfig()
         profile = VOICE_PROFILES[voice]
         config.sid = profile.speaker
-        config.speed = profile.speech_rate
+        ending = text.rstrip(" \t\r\n\"'”’」』)）")
+        config.speed = (
+            profile.question_rate if ending.endswith(("?", "？")) else profile.speech_rate
+        )
         config.num_steps = 24
-        config.extra = {"lang": "ko"}
+        extra = {"lang": "ko", "silence_duration": str(profile.pause_seconds)}
+        if seed is not None:
+            extra["seed"] = str(seed)
+        config.extra = extra
         audio = model.generate(text, config)
         samples = audio.samples
         if profile.register != 1.0:
@@ -84,7 +98,11 @@ def load_synthesizer(directory: Path):
                 audio.sample_rate,
                 quality="HQ",
             )
-        return pcm16_wav(speed_up_cast_speech(samples, audio.sample_rate), audio.sample_rate)
+        paced = shape_cast_pauses(samples, audio.sample_rate, profile.pause_seconds)
+        peak = np.max(np.abs(paced))
+        if peak > 0.9:
+            paced = paced * (0.9 / peak)
+        return pcm16_wav(paced, audio.sample_rate)
 
     return synthesize
 

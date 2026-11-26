@@ -141,11 +141,11 @@ export function AvatarPanel({
           if (next !== "live2d") onCharacterChange?.(next);
         }}
       >
-        <option value="builtin">{avatarNames.seorin} · 28세 직장인</option>
+        <option value="builtin">{avatarNames.seorin} · 30대 직장인</option>
         {mode === "assistant" && (
           <option value="hana">{avatarNames.hana} · 17세 고등학생</option>
         )}
-        <option value="isol">{avatarNames.isol} · 22세 대학생</option>
+        <option value="isol">{avatarNames.isol} · 20대 대학생 새내기</option>
         {bridge && <option value="live2d">Live2D (사용권 필요)</option>}
       </select>
       {kind !== "live2d" ? (

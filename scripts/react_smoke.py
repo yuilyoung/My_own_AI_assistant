@@ -747,8 +747,8 @@ def check_cast_previews(page, avatars):
                 expect(stop).to_be_visible()
                 mouth_box(portrait, speaking=True)
                 duration = played_mp3_duration(probe, response.body())
-                # The six 1.2× speech edits span 6.84–7.72 seconds.
-                assert 6.6 < duration < 8.0, (key, duration)
+                # Guard against empty or truncated samples while allowing different delivery.
+                assert 6.0 < duration < 9.0, (key, duration)
                 durations[key] = round(duration, 3)
                 if kind == "intro":
                     stop.click()
@@ -952,9 +952,9 @@ def main():
                     expect(portrait).to_have_accessible_name(re.compile("기본 아바타"))
                     avatars = page.get_by_label("아바타 종류")
                     for option, role in [
-                        ("builtin", "28세 직장인"),
+                        ("builtin", "30대 직장인"),
                         ("hana", "17세 고등학생"),
-                        ("isol", "22세 대학생"),
+                        ("isol", "20대 대학생 새내기"),
                     ]:
                         expect(avatars.locator(f'option[value="{option}"]')).to_contain_text(role)
                     check_cold_portrait(page, avatars)

@@ -11,8 +11,9 @@ async function measurePortraitJoints(svg) {
       .map(parseFloat);
     return new DOMPoint(x, y).matrixTransform(stageMatrix(node));
   };
-  async function mask(selector, exclude) {
-    const ctx = new OffscreenCanvas(360, 360).getContext("2d");
+  async function mask(selector, exclude, padding = 0) {
+    const size = 360 + 2 * padding;
+    const ctx = new OffscreenCanvas(size, size).getContext("2d");
     for (const node of svg.querySelectorAll(selector)) {
       if (exclude && node.closest(exclude)) continue;
       const url = node.href.baseVal;
@@ -31,7 +32,10 @@ async function measurePortraitJoints(svg) {
       const w = scale * image.width,
         h = scale * image.height;
       ctx.save();
-      ctx.setTransform(stageMatrix(node));
+      const matrix = stageMatrix(node);
+      matrix.e += padding;
+      matrix.f += padding;
+      ctx.setTransform(matrix);
       const clip = node.getAttribute("clip-path")?.match(/^url\(#(.+)\)$/);
       if (clip) {
         const path = document.getElementById(clip[1]).querySelector("path");
@@ -46,13 +50,13 @@ async function measurePortraitJoints(svg) {
       );
       ctx.restore();
     }
-    const data = ctx.getImageData(0, 0, 360, 360).data;
+    const data = ctx.getImageData(0, 0, size, size).data;
     return (x, y) =>
-      x >= 0 &&
-      x < 360 &&
-      y >= 0 &&
-      y < 360 &&
-      data[(y * 360 + x) * 4 + 3] > 128;
+      x >= -padding &&
+      x < 360 + padding &&
+      y >= -padding &&
+      y < 360 + padding &&
+      data[((y + padding) * size + x + padding) * 4 + 3] > 128;
   }
   function jointGap(first, second, pivot, radius) {
     // A local seam can be hidden under another layer. Look for opaque raster
@@ -83,19 +87,27 @@ async function measurePortraitJoints(svg) {
     neck: jointGap(torso, head, joint(".avatar-panel__head"), 28),
   };
   if (!active) return { gaps };
-  const upper = await mask(".narration__upper-arm image");
+  // A reaching wrist can enter from below the stage crop. Measure every
+  // painted segment of the arm in the same padded stage coordinate space.
+  const armPadding = 90;
+  const upper = await mask(
+    ".narration__upper-arm image",
+    undefined,
+    armPadding,
+  );
   const forearm = await mask(
     ".narration__arm .narration__forearm image",
     ".avatar-panel__hand",
+    armPadding,
   );
-  const hand = await mask(".avatar-panel__hand image");
+  const hand = await mask(".avatar-panel__hand image", undefined, armPadding);
   const wrist = joint(".avatar-panel__hand");
   gaps.shoulder = jointGap(torso, upper, joint(".narration__arm"), 25);
   gaps.elbow = jointGap(upper, forearm, joint(".narration__forearm"), 26);
   gaps.wrist = jointGap(forearm, hand, wrist, 18);
   let reach = 0;
-  for (let y = 0; y < 360; y++)
-    for (let x = 0; x < 360; x++) {
+  for (let y = -armPadding; y < 360 + armPadding; y++)
+    for (let x = -armPadding; x < 360 + armPadding; x++) {
       if (hand(x, y))
         reach = Math.max(
           reach,

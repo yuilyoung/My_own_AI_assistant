@@ -1,5 +1,10 @@
 import { memo } from "react";
 import type { MotionCue } from "./avatar-motion";
+import {
+  PaintedGreetingHand,
+  PaintedGreetingWrist,
+  type GreetingHandRig,
+} from "./PaintedGreetingHand";
 import torso from "./portraits/isol/body.webp";
 import restingSleeve from "./portraits/isol/rest-sleeve.webp";
 import wavingSleeve from "./portraits/isol/greeting-sleeve.webp";
@@ -33,6 +38,27 @@ const poses = {
     upper: { href: pointingSleeve, x: 407, y: 339, width: 159, height: 297 },
     forearm: { href: pointingForearm, x: 489, y: 388, width: 116, height: 255 },
     hand: { href: pointingHand, x: 519, y: 275, width: 75, height: 142 },
+  },
+};
+
+const greetingHand: GreetingHandRig = {
+  size: [250, 294],
+  palm: "M-2 120H78L82 111H114L117 118H153L158 119H187L192 137L230 129L252 140V296H-2Z",
+  wrist: "M94 268Q119 273 147 267L144 286Q121 290 100 287Z",
+  fingers: {
+    index: { joint: [99, 125], paint: "M80 5H116L118 126L118 147H78Z" },
+    middle: {
+      joint: [135, 128],
+      paint: "M143 -2H176L165 53L151 137H116L119 104L130 32Z",
+    },
+    ring: {
+      joint: [173, 132],
+      paint: "M188 13H220V31L191 141H151L163 93L175 53Z",
+    },
+    little: {
+      joint: [207, 144],
+      paint: "M225 63H252V100L224 152L187 156L195 131Z",
+    },
   },
 };
 
@@ -77,21 +103,44 @@ const Wardrobe = memo(function IsolOvershirt({
 });
 
 const Forearm = memo(function IsolForearm({
+  id,
   gesture,
 }: {
+  id: string;
   gesture: ArmGesture;
 }) {
   return (
     <g transform={isolProjection}>
       <image {...poses[gesture].forearm} />
+      {gesture === "greeting" && (
+        <PaintedGreetingWrist
+          id={id}
+          image={poses.greeting.hand}
+          rig={greetingHand}
+        />
+      )}
     </g>
   );
 });
 
-const Hand = memo(function IsolHand({ gesture }: { gesture: ArmGesture }) {
+const Hand = memo(function IsolHand({
+  id,
+  gesture,
+}: {
+  id: string;
+  gesture: ArmGesture;
+}) {
   return (
     <g transform={isolProjection}>
-      <image {...poses[gesture].hand} />
+      {gesture === "greeting" ? (
+        <PaintedGreetingHand
+          id={id}
+          image={poses.greeting.hand}
+          rig={greetingHand}
+        />
+      ) : (
+        <image {...poses.point.hand} />
+      )}
     </g>
   );
 });
