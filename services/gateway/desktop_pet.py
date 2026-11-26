@@ -11,7 +11,16 @@ from urllib.parse import urlencode
 
 import uvicorn
 from PySide6.QtCore import QFile, QIODevice, QObject, QPoint, Qt, QTimer, QUrl, Slot
-from PySide6.QtGui import QColor, QCursor, QGuiApplication, QKeySequence, QShortcut
+from PySide6.QtGui import (
+    QBitmap,
+    QColor,
+    QCursor,
+    QGuiApplication,
+    QImage,
+    QKeySequence,
+    QRegion,
+    QShortcut,
+)
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineCore import (
     QWebEnginePage,
@@ -157,6 +166,9 @@ class WindowControls(QObject):
 
 
 class PetWindow(QWebEngineView):
+    # White is transparent in a Qt bitmap mask. Preserve even soft painted shadows.
+    _alpha_colors = [0xFFFFFFFF] + [0xFF000000] * 255
+
     def __init__(self, settings: Settings):
         super().__init__()
         self.setWindowTitle("My Companion · 바탕화면 펫")
@@ -192,6 +204,14 @@ class PetWindow(QWebEngineView):
             QWebEngineSettings.WebAttribute.JavascriptCanOpenWindows, False
         )
 
+        # Qt WebEngine can use a composited HWND that hit-tests transparent pixels.
+        # QWidget.grab() renders the entire widget ignoring its native window mask.
+        if sys.platform == "win32":
+            self.input_mask_timer = QTimer(self)
+            self.input_mask_timer.setInterval(48)
+            self.input_mask_timer.timeout.connect(self.refresh_input_mask)
+            self.input_mask_timer.start()
+
         self.controls = WindowControls(self)
         self.channel = QWebChannel(page)
         self.channel.registerObject("controls", self.controls)
@@ -223,6 +243,27 @@ class PetWindow(QWebEngineView):
             shortcut.activated.connect(lambda dx=dx, dy=dy: self.controls.move_by(dx, dy))
         query = urlencode({"token": settings.token})
         self.setUrl(QUrl(f"http://127.0.0.1:{settings.port}/?pet=1#{query}"))
+
+    def refresh_input_mask(self):
+        if not self.isVisible():
+            return
+        image = self.grab().toImage()
+        if image.isNull() or not image.hasAlphaChannel():
+            return
+        if image.size() != self.size():
+            image = image.scaled(self.size())
+        image.setDevicePixelRatio(1.0)
+        alpha = image.convertToFormat(QImage.Format.Format_Alpha8)
+        alpha.reinterpretAsFormat(QImage.Format.Format_Indexed8)
+        alpha.setColorTable(self._alpha_colors)
+        mask = QRegion(QBitmap.fromImage(alpha, Qt.ImageConversionFlag.ThresholdDither))
+        if mask.isEmpty():
+            return
+        # Allow for antialiased edges and motion between paint frames.
+        padded = mask | mask.translated(-3, 0) | mask.translated(3, 0)
+        padded = padded | padded.translated(0, -3) | padded.translated(0, 3)
+        if padded != self.mask():
+            self.setMask(padded)
 
 
 def main():
