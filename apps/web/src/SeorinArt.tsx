@@ -1,4 +1,9 @@
 import { memo } from "react";
+import {
+  PaintedGreetingHand,
+  PaintedGreetingWrist,
+  type GreetingHandRig,
+} from "./PaintedGreetingHand";
 import type { PaintedFaceRig } from "./PaintedFace";
 import type { MotionCue } from "./avatar-motion";
 import office from "./portraits/seorin/office.webp";
@@ -29,6 +34,22 @@ import pointForearm from "./portraits/seorin/point-forearm.webp";
 import point from "./portraits/seorin/point.webp";
 
 type ArmPose = Extract<MotionCue, "greeting" | "point">;
+
+const greetingPaint = { href: wave, x: 689, y: 319, width: 160, height: 237 };
+const greetingHand: GreetingHandRig = {
+  size: [160, 237],
+  palm: "M-2 68H41L47 80H78L81 77H105L108 78L124 82L127 88L153 83L162 96V239H-2Z",
+  wrist: "M50 214Q74 218 97 214L96 230Q77 235 53 230Z",
+  fingers: {
+    index: { joint: [65, 87], paint: "M58 2H84L80 88L77 99H53L55 56Z" },
+    middle: { joint: [92, 86], paint: "M96 -2H122L114 49L103 94H78L83 61Z" },
+    ring: { joint: [113, 91], paint: "M124 12H145L140 36L124 98H101L106 73Z" },
+    little: {
+      joint: [133, 101],
+      paint: "M139 52H163V80L145 109L121 111L123 99Z",
+    },
+  },
+};
 
 // All crops use the coordinates of the 1024 × 1536 wavy-bob office portrait.
 const scale = 354 / 1536;
@@ -136,24 +157,43 @@ const Wardrobe = memo(function SeorinWardrobe({
     </g>
   );
 });
-const Hand = memo(function SeorinHand({ gesture }: { gesture: ArmPose }) {
+const Hand = memo(function SeorinHand({
+  id,
+  gesture,
+}: {
+  id: string;
+  gesture: ArmPose;
+}) {
   return (
     <g transform={placement}>
       {gesture === "point" ? (
         <image href={point} x="713" y="345" width="115" height="214" />
       ) : (
-        <image href={wave} x="689" y="319" width="160" height="237" />
+        <PaintedGreetingHand id={id} image={greetingPaint} rig={greetingHand} />
       )}
     </g>
   );
 });
-const Forearm = memo(function SeorinForearm({ gesture }: { gesture: ArmPose }) {
+const Forearm = memo(function SeorinForearm({
+  id,
+  gesture,
+}: {
+  id: string;
+  gesture: ArmPose;
+}) {
   return (
     <g transform={placement}>
       {gesture === "point" ? (
         <image href={pointForearm} x="700" y="527" width="129" height="334" />
       ) : (
-        <image href={waveForearm} x="702" y="527" width="130" height="334" />
+        <>
+          <image href={waveForearm} x="702" y="527" width="130" height="334" />
+          <PaintedGreetingWrist
+            id={id}
+            image={greetingPaint}
+            rig={greetingHand}
+          />
+        </>
       )}
     </g>
   );

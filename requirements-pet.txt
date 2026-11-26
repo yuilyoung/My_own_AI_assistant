@@ -1,0 +1,2 @@
+# Native transparent desktop window and its embedded Chromium renderer.
+PySide6==6.12.0

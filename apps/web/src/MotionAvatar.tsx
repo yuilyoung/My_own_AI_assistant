@@ -31,6 +31,7 @@ export type MotionAvatarProps = {
   emotion: ExpressionCue;
   gesture: MotionCue;
   cue?: Pick<Segment, "emotion" | "gesture">;
+  transparent?: boolean;
 };
 
 type ArmPose = "greeting" | "point";
@@ -75,6 +76,7 @@ function Portrait({
   emotion,
   gesture,
   cue,
+  transparent = false,
 }: MotionAvatarProps) {
   const {
     Backdrop,
@@ -132,6 +134,7 @@ function Portrait({
       className="avatar-panel__svg seorin"
       style={
         {
+          background: transparent ? "transparent" : undefined,
           "--shoulder-pivot": shoulderPivot,
           "--elbow-pivot": elbowPivot,
           "--neck-pivot": neckPivot,
@@ -149,9 +152,11 @@ function Portrait({
       <title id={id + "-title"}>
         {`기본 아바타 · ${expressionLabels[emotion]} · ${motionLabels[gesture]} · ${avatarNames[character]}`}
       </title>
-      <g aria-hidden="true">
-        <Backdrop id={id} />
-      </g>
+      {!transparent && (
+        <g aria-hidden="true">
+          <Backdrop id={id} />
+        </g>
+      )}
       {status !== "ready" ? (
         <g role="status" className="painted-face__status">
           <rect
@@ -186,9 +191,11 @@ function Portrait({
           >
             <g className="narration__torso">
               {RearHair && (
-                <g className="narration__hair-anchor">
-                  <g className="narration__rear-hair">
-                    <RearHair id={id} />
+                <g className="narration__neck">
+                  <g className="narration__hair-anchor">
+                    <g className="narration__rear-hair">
+                      <RearHair id={id} />
+                    </g>
                   </g>
                 </g>
               )}
@@ -211,26 +218,28 @@ function Portrait({
                   <ArmForeground id={id} />
                 </g>
               )}
-              <g className="avatar-panel__head">
-                <HairBehind id={id} />
-                <PaintedFace
-                  id={id}
-                  rig={faceRig}
-                  character={character}
-                  level={amplitude}
-                  brightness={tone}
-                  emotion={emotion}
-                />
-                {Fringe && (
-                  <g className="narration__fringe">
-                    <Fringe id={id} />
-                  </g>
-                )}
-                {Accessory && (
-                  <g className="narration__accessory">
-                    <Accessory id={id} />
-                  </g>
-                )}
+              <g className="narration__neck">
+                <g className="avatar-panel__head">
+                  <HairBehind id={id} />
+                  <PaintedFace
+                    id={id}
+                    rig={faceRig}
+                    character={character}
+                    level={amplitude}
+                    brightness={tone}
+                    emotion={emotion}
+                  />
+                  {Fringe && (
+                    <g className="narration__fringe">
+                      <Fringe id={id} />
+                    </g>
+                  )}
+                  {Accessory && (
+                    <g className="narration__accessory">
+                      <Accessory id={id} />
+                    </g>
+                  )}
+                </g>
               </g>
               <g className="narration__arm">
                 <g className="narration__forearm">

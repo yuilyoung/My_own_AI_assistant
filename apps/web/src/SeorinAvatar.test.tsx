@@ -23,6 +23,33 @@ function stageValue(svg: SVGSVGElement, name: string) {
   return parseFloat(svg.style.getPropertyValue(name));
 }
 
+it.each(["hana", "seorin", "isol"] as const)(
+  "can overlay %s without a backdrop while keeping its stage and articulation",
+  (character) => {
+    const frame = (transparent = false) => (
+      <MotionAvatar
+        character={character}
+        emotion="neutral"
+        gesture="idle"
+        level={0}
+        transparent={transparent}
+      />
+    );
+    const { container, rerender } = render(frame());
+    const svg = container.querySelector("svg")!;
+    const artworkGroups = () =>
+      Array.from(svg.children).filter((node) => node.tagName === "g");
+    expect(artworkGroups()).toHaveLength(2);
+    rerender(frame(true));
+    expect(svg.getAttribute("viewBox")).toBe("0 0 360 360");
+    expect(svg.style.background).toBe("transparent");
+    expect(artworkGroups()).toHaveLength(1);
+    expect(
+      svg.querySelector(".narration__torso .avatar-panel__head"),
+    ).toBeTruthy();
+  },
+);
+
 it("keeps the idle sleeve while assets load, then lifts the arm over several frames", () => {
   const clock = motionClock();
   poseReady.mockReturnValue(false);

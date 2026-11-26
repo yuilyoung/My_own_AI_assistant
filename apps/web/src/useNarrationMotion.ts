@@ -13,6 +13,10 @@ const foldedElbow = { hana: -98, seorin: -193.28, isol: -112 };
 const heldTilt = { hana: -5, seorin: -3.5, isol: 4 };
 type Arm = Exclude<NarrationPose["armPose"], "idle">;
 
+function verticalProjection(pitch: number) {
+  return Math.cos((pitch * Math.PI) / 180);
+}
+
 function draw(
   svg: SVGSVGElement,
   previous: Map<string, string>,
@@ -34,8 +38,11 @@ function draw(
   channel("--head-x", pose.headX, "px");
   channel("--head-y", pose.headY, "px");
   channel("--head-angle", pose.headAngle, "deg");
+  channel("--head-scale-y", verticalProjection(pose.headPitch));
+  channel("--neck-angle", pose.neckAngle, "deg");
   channel("--torso-y", pose.torsoY, "px");
   channel("--torso-angle", pose.torsoAngle, "deg");
+  channel("--torso-scale-y", verticalProjection(pose.torsoPitch));
   channel("--fringe-angle", pose.fringeAngle, "deg");
   channel("--hair-angle", pose.hairAngle, "deg");
   channel("--lock-left-angle", pose.lockLeftAngle, "deg");
@@ -48,7 +55,9 @@ function draw(
   channel("--arm-opacity", entrance * entrance * (3 - 2 * entrance));
   channel(
     "--elbow-angle",
-    pose.armPose === "idle" ? 0 : foldedElbow[character] * (1 - pose.armLift),
+    pose.armPose === "idle"
+      ? 0
+      : foldedElbow[character] * (1 - pose.elbowOpen) + pose.elbowAngle,
     "deg",
   );
   const lowering =
@@ -57,6 +66,8 @@ function draw(
       : (1 - pose.armLift) * restingArmAngle[character];
   channel("--upper-arm-angle", pose.upperArmAngle + lowering, "deg");
   channel("--wrist-angle", pose.wristAngle, "deg");
+  channel("--finger-curl", pose.fingerCurl);
+  channel("--finger-splay", pose.fingerSplay, "deg");
 }
 
 /** The painted hand changes twice per gesture; inter-frame motion stays on the SVG. */
@@ -105,8 +116,10 @@ export function useNarrationMotion(
           ...neutral,
           headAngle: current.gesture === "tilt" ? heldTilt[character] : 0,
           headY: current.gesture === "nod" ? 1.5 : 0,
+          headPitch: current.gesture === "nod" ? 5 : 0,
           armPose: held,
           armLift: held === "idle" ? 0 : 1,
+          elbowOpen: held === "idle" ? 0 : 1,
         };
       } else {
         pose = model.advance(dt, { ...current, focus });

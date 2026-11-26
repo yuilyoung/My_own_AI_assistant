@@ -119,6 +119,55 @@ describe("narrator motion", () => {
     expect(wrist("point").every((angle) => angle < -2)).toBe(true);
   });
 
+  it.each(["hana", "seorin", "isol"] as const)(
+    "gives %s a downward bow with a delayed upper-body follow-through",
+    (character) => {
+      const model = createNarrationMotion(character);
+      const frames = Array.from({ length: 120 }, () =>
+        model.advance(1 / 60, { ...idle, gesture: "nod" }),
+      );
+      const head = frames.map((pose) => pose.headPitch);
+      const torso = frames.map((pose) => pose.torsoPitch);
+      expect(Math.min(...head)).toBeLessThan(-0.4);
+      expect(Math.max(...head)).toBeGreaterThan(10);
+      expect(Math.max(...torso)).toBeGreaterThan(1);
+      expect(torso.indexOf(Math.max(...torso))).toBeGreaterThan(
+        head.indexOf(Math.max(...head)) + 3,
+      );
+      expect(Math.abs(head.at(-1)!)).toBeLessThan(0.1);
+      expect(Math.abs(torso.at(-1)!)).toBeLessThan(0.1);
+    },
+  );
+
+  it.each(["hana", "seorin", "isol"] as const)(
+    "opens %s's elbow after the lift and lets the fingers trail the palm",
+    (character) => {
+      const model = createNarrationMotion(character);
+      const request = { ...idle, gesture: "greeting", armReady: true } as const;
+      const frames = Array.from({ length: 160 }, () =>
+        model.advance(1 / 60, request),
+      );
+      const lifting = frames.find((pose) => pose.armLift > 0.4)!;
+      expect(lifting.elbowOpen).toBeLessThan(lifting.armLift - 0.08);
+      const wrist = frames.map((pose) => pose.wristAngle);
+      const splay = frames.map((pose) => pose.fingerSplay);
+      expect(Math.min(...splay)).toBeLessThan(-1);
+      expect(splay.indexOf(Math.min(...splay))).toBeGreaterThan(
+        wrist.indexOf(Math.min(...wrist)),
+      );
+      expect(
+        Math.max(...frames.map((pose) => pose.fingerCurl)),
+      ).toBeGreaterThan(0.2);
+      expect(frames.at(-1)).toMatchObject({
+        armPose: "idle",
+        elbowOpen: 0,
+        elbowAngle: 0,
+        fingerCurl: 0,
+        fingerSplay: 0,
+      });
+    },
+  );
+
   it("holds an arm gesture for its decoded pose and runs once per cue", () => {
     const model = createNarrationMotion("hana", 9);
     const request: NarrationInput = {

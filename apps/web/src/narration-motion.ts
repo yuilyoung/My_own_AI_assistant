@@ -25,8 +25,11 @@ export type NarrationPose = {
   headX: number;
   headY: number;
   headAngle: number;
+  headPitch: number;
+  neckAngle: number;
   torsoY: number;
   torsoAngle: number;
+  torsoPitch: number;
   fringeAngle: number;
   hairAngle: number;
   lockLeftAngle: number;
@@ -39,13 +42,17 @@ export type NarrationPose = {
   armPose: Arm;
   armLift: number;
   upperArmAngle: number;
+  elbowOpen: number;
+  elbowAngle: number;
   wristAngle: number;
+  fingerCurl: number;
+  fingerSplay: number;
 };
 
 const profiles = {
-  seorin: { strength: 0.93, tempo: 1.02, tilt: -4.5, seed: 17 },
-  hana: { strength: 1.13, tempo: 0.88, tilt: -6.4, seed: 47 },
-  isol: { strength: 0.83, tempo: 1.14, tilt: 4.9, seed: 79 },
+  seorin: { strength: 0.93, tempo: 1.02, tilt: -4.5, bow: 16.8, seed: 17 },
+  hana: { strength: 1.13, tempo: 0.88, tilt: -6.4, bow: 18.4, seed: 47 },
+  isol: { strength: 0.83, tempo: 1.14, tilt: 4.9, bow: 15.2, seed: 79 },
 };
 const expressionGaze: Record<ExpressionCue, readonly [number, number]> = {
   neutral: [0, 0],
@@ -93,6 +100,15 @@ function beat(
   );
 }
 
+function palmWave(t: number) {
+  return (
+    -12 * beat(t, 0.09, 0.23, 0.245, 0.37) +
+    10 * beat(t, 0.27, 0.42, 0.44, 0.55) -
+    7 * beat(t, 0.48, 0.6, 0.615, 0.76) +
+    3 * beat(t, 0.65, 0.76, 0.78, 0.91)
+  );
+}
+
 class Spring {
   value = 0;
   velocity = 0;
@@ -119,7 +135,7 @@ function randomSource(seed: number) {
 
 /** Deterministic, fixed-step motion in 360-unit stage coordinates and degrees. */
 export function createNarrationMotion(character: AvatarCharacter, seed = 1) {
-  const { strength, tempo, tilt, seed: salt } = profiles[character];
+  const { strength, tempo, tilt, bow, seed: salt } = profiles[character];
   const random = randomSource((Number.isFinite(seed) ? seed : 1) + salt * 977);
   const pose: NarrationPose = {
     level: 0,
@@ -132,8 +148,11 @@ export function createNarrationMotion(character: AvatarCharacter, seed = 1) {
     headX: 0,
     headY: 0,
     headAngle: 0,
+    headPitch: 0,
+    neckAngle: 0,
     torsoY: 0,
     torsoAngle: 0,
+    torsoPitch: 0,
     fringeAngle: 0,
     hairAngle: 0,
     lockLeftAngle: 0,
@@ -145,12 +164,19 @@ export function createNarrationMotion(character: AvatarCharacter, seed = 1) {
     armPose: "idle",
     armLift: 0,
     upperArmAngle: 0,
+    elbowOpen: 0,
+    elbowAngle: 0,
     wristAngle: 0,
+    fingerCurl: 0,
+    fingerSplay: 0,
   };
   const head = new Spring(12 / tempo, 0.81),
     headX = new Spring(10 / tempo, 0.88);
   const headY = new Spring(13 / tempo, 0.81),
     torso = new Spring(5.2 / tempo, 0.91);
+  const neck = new Spring(8.8 / tempo, 0.95);
+  const headPitch = new Spring(18 / tempo, 0.86);
+  const torsoPitch = new Spring(9 / tempo, 0.92);
   const fringe = new Spring(19, 0.77),
     rearHair = new Spring(6.8, 0.65);
   const leftLock = new Spring(9.2, 0.66),
@@ -184,6 +210,10 @@ export function createNarrationMotion(character: AvatarCharacter, seed = 1) {
     lift: number;
     wrist: number;
     upper: number;
+    elbowOpen: number;
+    elbowAngle: number;
+    fingerCurl: number;
+    fingerSplay: number;
     time: number;
   } | null = null;
 
@@ -197,6 +227,10 @@ export function createNarrationMotion(character: AvatarCharacter, seed = 1) {
           lift: pose.armLift,
           wrist: pose.wristAngle,
           upper: pose.upperArmAngle,
+          elbowOpen: pose.elbowOpen,
+          elbowAngle: pose.elbowAngle,
+          fingerCurl: pose.fingerCurl,
+          fingerSplay: pose.fingerSplay,
           time: 0,
         };
       }
@@ -304,6 +338,10 @@ export function createNarrationMotion(character: AvatarCharacter, seed = 1) {
       pose.armLift = release.lift * weight;
       pose.wristAngle = release.wrist * weight;
       pose.upperArmAngle = release.upper * weight;
+      pose.elbowOpen = release.elbowOpen * weight;
+      pose.elbowAngle = release.elbowAngle * weight;
+      pose.fingerCurl = release.fingerCurl * weight;
+      pose.fingerSplay = release.fingerSplay * weight;
       pose.armPose = weight > 0 ? release.arm : "idle";
       if (weight === 0) release = null;
       return;
@@ -317,21 +355,46 @@ export function createNarrationMotion(character: AvatarCharacter, seed = 1) {
     pose.gestureProgress = t;
     pose.gestureDone = gesture === "idle" || t >= 1;
     pose.armPose = armReady && t < 1 ? arm : "idle";
-    pose.armLift = pose.armPose === "idle" ? 0 : beat(t, 0.015, 0.24, 0.72, 1);
-    if (gesture === "greeting") {
-      const wave =
-        -12 * beat(t, 0.09, 0.23, 0.245, 0.37) +
-        10 * beat(t, 0.27, 0.42, 0.44, 0.55) -
-        7 * beat(t, 0.48, 0.6, 0.615, 0.76) +
-        3 * beat(t, 0.65, 0.76, 0.78, 0.91);
-      pose.wristAngle = wave * pose.armLift * strength;
-    } else {
-      const aim =
-        3 * beat(t, 0, 0.1, 0.11, 0.24) - 8 * beat(t, 0.11, 0.32, 0.55, 0.95);
-      pose.wristAngle = aim * pose.armLift * strength;
+    if (pose.armPose === "idle") {
+      pose.armLift = 0;
+      pose.upperArmAngle = 0;
+      pose.elbowOpen = 0;
+      pose.elbowAngle = 0;
+      pose.wristAngle = 0;
+      pose.fingerCurl = 0;
+      pose.fingerSplay = 0;
+      return;
     }
+    const wave = arm === "greeting";
+    const lift = beat(t, 0.015, 0.24, 0.72, 1);
+    const shoulder = beat(t, 0, 0.18, 0.27, 0.55);
+    const wrist = wave
+      ? palmWave(t)
+      : 3 * beat(t, 0, 0.1, 0.11, 0.24) - 8 * beat(t, 0.11, 0.32, 0.55, 0.95);
+    pose.armLift = lift;
+    // The upper arm starts the reach. The elbow unfolds after it and leads
+    // the small, alternating changes in angle at the palm.
     pose.upperArmAngle =
-      pose.armLift * (gesture === "point" ? -2.6 : 2.1) * strength;
+      (wave ? 1.6 + 2.4 * shoulder : -2.4 - shoulder) * lift * strength;
+    pose.elbowOpen = beat(t, 0.038, 0.272, 0.72, 0.99);
+    pose.elbowAngle =
+      (wave
+        ? palmWave(t + 0.045) * 0.2
+        : -2.8 * beat(t, 0.18, 0.37, 0.59, 0.86)) *
+      lift *
+      strength;
+    pose.wristAngle = wrist * lift * strength;
+    const openPalm = beat(t, 0.12, 0.29, 0.68, 0.91);
+    pose.fingerCurl = follow(
+      pose.fingerCurl,
+      wave ? lift * (0.75 - 0.6 * openPalm) : 0,
+      0.045,
+    );
+    pose.fingerSplay = follow(
+      pose.fingerSplay,
+      wave ? pose.wristAngle * 0.23 : 0,
+      0.045,
+    );
   }
 
   function advanceBody() {
@@ -347,18 +410,29 @@ export function createNarrationMotion(character: AvatarCharacter, seed = 1) {
         ? -0.1 * beat(t, 0, 0.11, 0.13, 0.24) + beat(t, 0.12, 0.38, 0.62, 1)
         : 0;
     const armLean = pose.armLift * (pose.armPose === "point" ? -1.6 : 0.9);
-    pose.headAngle = head.advance(
+    const salute =
+      pose.armPose === "greeting" ? 0.38 * beat(t, 0.22, 0.39, 0.43, 0.68) : 0;
+    const turn = head.advance(
       pose.gazeX * 2.6 + lean * tilt + armLean + pose.accent * 0.95 * strength,
     );
+    pose.neckAngle = neck.advance(turn * 0.23);
+    pose.headAngle = turn - pose.neckAngle;
     pose.headX = headX.advance(pose.gazeX * 2.1 + lean * 0.8 + armLean * 0.35);
     pose.headY = headY.advance(
-      pose.gazeY * 1.6 + nod * 4.1 * strength - pose.accent * 1.75 * strength,
+      pose.gazeY * 1.6 +
+        (nod + salute) * 4.1 * strength -
+        pose.accent * 1.75 * strength,
     );
-    pose.torsoAngle = torso.advance(pose.headAngle * 0.32 + armLean * 0.18);
-    pose.torsoY = -pose.breath * 0.8 + pose.headY * 0.22;
+    pose.headPitch = headPitch.advance(
+      (nod + salute) * bow + pose.accent * 1.35,
+    );
+    pose.torsoPitch = torsoPitch.advance(pose.headPitch * 0.26);
+    pose.torsoAngle = torso.advance(turn * 0.32 + armLean * 0.18);
+    pose.torsoY =
+      -pose.breath * 0.8 + pose.headY * 0.17 + pose.torsoPitch * 0.2;
     // Each child follows the moving attachment. The difference between the
     // sprung and driven angle is a local rotation, with opposite initial travel.
-    const anchor = pose.headAngle + pose.headX * 0.55;
+    const anchor = turn + pose.headX * 0.55;
     const left = anchor + pose.headY * 0.48;
     const right = anchor - pose.headY * 0.48;
     pose.fringeAngle = fringe.advance(anchor) - anchor;

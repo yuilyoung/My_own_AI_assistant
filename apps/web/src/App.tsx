@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { FormEvent } from "react";
 import { GatewayClient, type ServiceId } from "./gateway";
 import { AvatarPanel } from "./AvatarPanel";
+import { DesktopPet, isPetWindow } from "./DesktopPet";
 import { DemoStudio } from "./DemoStudio";
 import { characterForMode, type AvatarCharacter } from "./avatar-cast";
 import { AvatarMotionBridge } from "./avatar-motion";
@@ -375,6 +376,10 @@ function Workspace({
   );
 }
 export function App() {
+  return isPetWindow(location) ? <DesktopPet /> : <WebApp />;
+}
+
+function WebApp() {
   const [token, setToken] = useState("");
   const [character, setCharacter] = useState<AvatarCharacter>("seorin");
   const [app, setApp] = useState<Conversation | null>(null),
