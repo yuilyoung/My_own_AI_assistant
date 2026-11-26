@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 Voice = Literal["hana", "seorin", "isol"]
 Mode = Literal["assistant", "companion"]
-Service = Literal["demo", "local", "cloud"]
+Service = Literal["demo", "local", "cloud", "claude"]
 Emotion = Literal["neutral", "happy", "concerned", "surprised", "curious", "thoughtful"]
 Gesture = Literal["idle", "nod", "greeting", "tilt", "point"]
 

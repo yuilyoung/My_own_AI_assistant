@@ -47,6 +47,39 @@ React/Vite 화면과 개발용 진단 화면을 제공합니다. 두 화면은 �
 
 ## Windows에서 실행
 
+### 바로 설치하고 실행하기
+
+Windows에 Git 또는 Python이 없다면 PowerShell에서 필요한 항목을 설치한 뒤 새 PowerShell을 여세요.
+
+```powershell
+winget install --exact --id Git.Git
+winget install --exact --id Python.Python.3.12
+```
+
+GitHub에서 기본 브랜치인 `main`을 받은 뒤 `Start.cmd`를 실행합니다. 파일 탐색기에서는 받은 폴더의 **Start.cmd**를 더블 클릭할 수 있습니다.
+
+```powershell
+git clone --branch main --single-branch https://github.com/yuilyoung/My_own_AI_assistant.git
+cd My_own_AI_assistant
+.\Start.cmd
+```
+
+설치기는 Python 3.11 이상으로 Gateway를 준비하고 저장소에 포함된 웹 빌드를 실행합니다. Python을 찾지 못하고 WinGet을 사용할 수 있으면 Python 3.12 설치 여부를 묻습니다. Windows용 공식 Claude Code 2.1.248 이상이 필요합니다. 프로그램이 없다면 다음 명령으로 설치한 뒤 새 PowerShell에서 `Start.cmd`를 실행하세요. [공식 Claude Code 설치](https://github.com/anthropics/claude-code#get-started)
+
+```powershell
+winget install --exact --id Anthropic.ClaudeCode
+```
+
+첫 실행의 기본 서비스는 **Claude 구독**입니다. 로그인 안내가 나오면 Anthropic 브라우저 페이지에서 자신의 구독 계정으로 로그인하세요. 앱은 내 PC의 공식 Claude Code에 답변을 요청하며, Claude Code가 해당 계정의 구독 한도를 사용합니다. Claude는 대화 요청에 포함된 메시지와 관련 기억을 처리합니다. [Claude 구독 사용 안내](https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan) · [Anthropic 인증 조건](https://code.claude.com/docs/en/legal-and-compliance#authentication-and-credential-use)
+
+첫 화면에서 토큰 없이 이솔·서린·하나의 원화 카드 중 하나를 선택하세요. 대화 미리보기에서 인사와 자기소개를 듣고 네 가지 모션을 실행해 볼 수 있습니다. 실제 대화를 시작하려면 콘솔에 표시된 로컬 연결 주소를 열거나 **이 앱의 연결 토큰**을 입력합니다. 토큰은 서버의 대화 기록, 저장한 기억과 AI 요청을 보호합니다. 데모에서 선택한 캐릭터가 첫 대화에 적용됩니다. 답변 낭독은 Supertonic 2 워커를 연결해 켤 수 있습니다. [캐릭터별 답변 낭독 설정](workers/tts-supertonic/README.md)
+
+Claude 로그인 없이 설치와 화면만 확인하려면 `.\Start.cmd -Provider demo`로 실행합니다. 데모의 대화에는 고정 응답이 표시됩니다.
+
+이미 `main` 또는 `codex/windows-claude-app`을 받았다면 그 폴더에서 `git pull --ff-only`로 갱신하고 `Start.cmd`를 다시 실행합니다.
+
+### 개발용 수동 설치
+
 구현 커밋이 포함된 브랜치에서 Python 3.11 이상을 사용합니다. 최초 패키지 설치에는 인터넷 연결이 필요합니다.
 
 ```powershell
@@ -54,7 +87,7 @@ cd My_own_AI_assistant
 .\scripts\setup.ps1
 ```
 
-React 화면을 사용하려면 Node.js 22 이상으로 한 번 빌드한 뒤 Gateway를 시작합니다. 진단 화면만 사용하려면 빌드 없이 `scripts\start.ps1`을 실행할 수 있습니다.
+React 화면을 사용하려면 Node.js 22.22.2 이상인 22 LTS 또는 24.15.0 이상인 24 LTS에서 한 번 빌드한 뒤 Gateway를 시작합니다. 진단 화면만 사용하려면 빌드 없이 `scripts\start.ps1`을 실행할 수 있습니다.
 
 ```powershell
 cd apps/web
@@ -63,6 +96,8 @@ npm run build
 cd ../..
 .\scripts\start.ps1
 ```
+
+웹 화면을 변경할 때는 운영 빌드 후 저장소 루트에서 `python scripts/package_windows_web.py`로 Windows 동봉 빌드를 갱신합니다.
 
 콘솔에 표시되는 `http://127.0.0.1:8765/#token=...` 주소를 열고 **연결**을 누릅니다. React는 주소의 토큰을 즉시 지우고 메모리에만 보관합니다. `ASSISTANT_WEB_DIR=apps/diagnostics`를 지정하면 진단 화면을 선택할 수 있습니다. 토큰을 공유하지 마세요. 기본 모드는 **고정 응답 `demo` / TTS 없음 / STT 없음**입니다.
 
@@ -160,12 +195,7 @@ $env:WHISPER_MODEL = 'C:\tools\whisper.cpp\models\ggml-small.bin'
 
 ### 한국어 TTS
 
-Supertonic 2 워커를 설치하면 실제 대화 답변을 하나(F4), 서린(F1), 이솔(F2)의 한국어 음성으로 읽습니다. 세 목소리 모두 기존 캐릭터별 발화 속도의 1.2배로 말하며, 하나의 밝은 고음과 서린의 차분한 억양, 이솔의 부드러운 말투를 유지합니다. 워커와 Gateway에 동일한 `SUPERTONIC_TOKEN`을 지정하고, 워커를 시작한 뒤 아래 명령으로 연결하세요. 마이크로 질문도 입력하려면 whisper.cpp를 준비하고 실행 명령에 `-Microphone`을 더하세요. [Supertonic 2 모델 다운로드와 워커 설치](workers/tts-supertonic/README.md)
-
-```powershell
-.\scripts\check-readiness.ps1 -TtsProvider supertonic
-.\scripts\start.ps1 -Provider ollama -TtsProvider supertonic
-```
+Supertonic 2 워커를 설치하면 하나(F4), 서린(F1), 이솔(F2)이 한국어 답변을 읽습니다. 세 목소리는 음높이를 유지하며 기존 낭독보다 1.2배 빠르게 말합니다. Windows x64와 Linux에서 운영 웹 앱을 빌드하고 워커를 연결하는 절차는 설치 안내에 있습니다. 먼저 데모의 고정 답변으로 세 목소리를 확인한 뒤 Ollama를 연결해 대화할 수 있습니다. [Supertonic 2 설치 및 확인](workers/tts-supertonic/README.md)
 
 MeloTTS의 단일 한국어 음성을 사용하려면 별도 환경에서 `workers/tts-melo/server.py`를 실행합니다. 워커와 Gateway에 동일한 32자 이상 `MELO_TOKEN`을 지정하고 `.\scripts\start.ps1 -Provider ollama -TtsProvider melo`로 연결하세요.
 

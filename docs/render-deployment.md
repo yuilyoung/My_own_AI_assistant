@@ -1,8 +1,8 @@
 # Render에서 외부 브라우저로 접속
 
-기본 배포는 demo 고정 응답과 기본 SVG 아바타를 제공합니다. 실제 AI 대화는 아래 클라우드 설정을 추가해야 합니다. Ollama, 음성, 비공개 Live2D 자산은 자동 설치하지 않습니다.
+첫 화면에서는 토큰 없이 이솔·서린·하나의 샘플 대화와 음성을 재생하고 개별 모션을 실행할 수 있습니다. 샘플은 브라우저에서 실행되며 Docker 빌드가 캐릭터 자산을 웹 앱과 함께 설치합니다. 실제 대화와 기억은 연결 토큰으로 보호합니다. 공개 사이트의 AI 대화에는 아래에 설명한 서버 측 OpenAI 호환 API 설정이 필요합니다. Claude 구독 연결은 Windows 설치본에서 로컬 Claude Code로 사용합니다. [Windows 설치](../README.md#바로-설치하고-실행하기)
 
-1. 이 변경 사항을 GitHub에 반영하고 Render에서 해당 브랜치를 선택합니다.
+1. Render Web Service에 GitHub의 `deploy/render-web` 브랜치를 연결합니다. 기존 서비스는 Settings에서 연결된 브랜치를 확인합니다.
 2. Web Service의 Language/Runtime은 Docker, Root Directory는 비워 두고 Dockerfile Path는 `./Dockerfile`로 지정합니다. 빌드·시작 명령은 Dockerfile을 사용합니다.
 3. Environment에서 다음 값을 설정합니다.
    - `ASSISTANT_PUBLIC_ORIGIN`: Render가 서비스에 지정한 정확한 `https://서비스명.onrender.com` 주소. 끝에 `/`를 넣지 않습니다. 이름만으로 주소를 추측하지 말고 Render 표시 주소를 확인합니다.
@@ -11,7 +11,7 @@
    - `TTS_PROVIDER`: `none`
    - `STT_PROVIDER`: `none`
    - `PORT`: `10000`
-4. 테스트에 사용할 플랜의 비용을 확인하고 배포합니다. Health Check Path를 지정한다면 `/`를 사용합니다. `/api/status`는 인증이 필요합니다.
+4. 테스트에 사용할 플랜의 비용을 확인하고 배포합니다. 자동 배포가 꺼져 있으면 Manual Deploy에서 Deploy latest commit을 실행합니다. Deploys에서 최신 배포의 커밋이 `deploy/render-web`의 최신 커밋인지 확인합니다. Health Check Path를 지정한다면 `/`를 사용합니다. `/api/status`는 인증이 필요합니다.
 5. 외부 브라우저 주소창에 `https://실제주소/#token=설정한토큰`을 직접 입력하고 연결합니다. 토큰은 배포 로그에 출력하지 않습니다.
 
 **보안 경계:** HTTPS는 Render 프록시가 제공해야 합니다. 앱의 직접 HTTP 포트를 외부에 공개하지 마세요. 공개 바인딩에서 위조된 localhost Host는 비루프백 접속자로부터 거부하지만, 이것만으로 HTTPS 우회 또는 직접 포트 노출 위험이 해결되지는 않습니다. 서비스 인증 토큰은 TLS 연결에서만 입력하세요.

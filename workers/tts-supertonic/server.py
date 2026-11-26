@@ -10,6 +10,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from cast_tempo import speed_up_cast_speech  # noqa: E402
 from tts_http import TextInput, create_worker_app, pcm16_wav  # noqa: E402
 
+PORT = 8767
+
 
 class VoiceInput(TextInput):
     voice: Literal["hana", "seorin", "isol"] = "seorin"
@@ -38,9 +40,9 @@ MODEL_FILES = {
 }
 
 
-def create_app(token, synthesize):
+def create_app(token, synthesize, *, port=PORT):
     return create_worker_app(
-        token, "supertonic-2", 8767, VoiceInput, lambda body: synthesize(body.text, body.voice)
+        token, "supertonic-2", port, VoiceInput, lambda body: synthesize(body.text, body.voice)
     )
 
 
@@ -95,7 +97,7 @@ def main():
     if len(token) < 32 or not directory:
         raise SystemExit("Set SUPERTONIC_TOKEN (32+ characters) and SUPERTONIC_MODEL_DIR.")
     app = create_app(token, load_synthesizer(Path(directory)))
-    uvicorn.run(app, host="127.0.0.1", port=8767, access_log=False)
+    uvicorn.run(app, host="127.0.0.1", port=PORT, access_log=False)
 
 
 if __name__ == "__main__":
