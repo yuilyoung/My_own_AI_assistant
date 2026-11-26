@@ -1,8 +1,11 @@
 """Exercise the native Chromium desktop window, local demo turn and window controls."""
 
 import argparse
+import json
 import os
+import re
 import socket
+import subprocess
 import sys
 import tempfile
 import time
@@ -10,6 +13,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QCursor
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -36,9 +40,80 @@ def javascript(app, page, expression):
     return results[0]
 
 
+def check_windows_launcher(directory):
+    """Start Pet.cmd and close the actual window belonging to its Gateway PID."""
+    import ctypes
+    from ctypes import wintypes
+
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    enum_callback = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    user32.EnumWindows.argtypes = (enum_callback, wintypes.LPARAM)
+    user32.GetWindowThreadProcessId.argtypes = (wintypes.HWND, ctypes.POINTER(wintypes.DWORD))
+    user32.IsWindowVisible.argtypes = (wintypes.HWND,)
+    user32.GetWindowLongW.argtypes = (wintypes.HWND, ctypes.c_int)
+    user32.PostMessageW.argtypes = (wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
+
+    log_path = directory / "launcher.log"
+    env = dict(
+        os.environ, ASSISTANT_DATA_DIR=str(directory), TTS_PROVIDER="none", STT_PROVIDER="none"
+    )
+    with log_path.open("wb") as log:
+        launcher = subprocess.Popen(
+            [os.environ["COMSPEC"], "/d", "/c", "Pet.cmd", "-Provider", "demo"],
+            cwd=ROOT,
+            env=env,
+            stdin=subprocess.DEVNULL,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+        )
+        try:
+            handles = []
+            host_pid = None
+
+            @enum_callback
+            def find_window(handle, _data):
+                pid = wintypes.DWORD()
+                user32.GetWindowThreadProcessId(handle, ctypes.byref(pid))
+                if (
+                    pid.value == host_pid
+                    and user32.IsWindowVisible(handle)
+                    and user32.GetWindowLongW(handle, -20) & 0x00000008
+                ):
+                    handles.append(handle)
+                    return False
+                return True
+
+            deadline = time.monotonic() + 180
+            while not handles and time.monotonic() < deadline:
+                if launcher.poll() is not None:
+                    raise AssertionError(
+                        f"Pet.cmd exited before showing its window ({launcher.returncode})"
+                    )
+                if host_pid is None:
+                    match = re.search(rb"Started server process \[(\d+)\]", log_path.read_bytes())
+                    if match:
+                        host_pid = int(match[1])
+                if host_pid is not None:
+                    user32.EnumWindows(find_window, 0)
+                time.sleep(0.1)
+            assert handles, "Pet.cmd did not show an always-on-top native window"
+            assert user32.PostMessageW(handles[0], 0x0010, 0, 0), "Could not close the pet window"
+            assert launcher.wait(timeout=30) == 0, "Pet.cmd did not shut down cleanly"
+        finally:
+            if launcher.poll() is None:
+                subprocess.run(
+                    ["taskkill.exe", "/T", "/F", "/PID", str(launcher.pid)],
+                    capture_output=True,
+                    timeout=10,
+                    check=False,
+                )
+                launcher.wait(timeout=10)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--web-dir", type=Path, default=ROOT / "apps/web/dist")
+    parser.add_argument("--launcher", action="store_true", help="Also exercise Pet.cmd on Windows")
     args = parser.parse_args()
     assert (args.web_dir / "index.html").is_file()
     app = QApplication([])
@@ -81,7 +156,20 @@ def main():
                       .set.call(field, '데스크톱 테스트');
                     field.dispatchEvent(new Event('input', {bubbles:true}));
                 """)
-                js("document.querySelector('.pet-chat form button').click()")
+                click_point = json.loads(
+                    js("""
+                    (() => {
+                      const r = document.querySelector('.pet-chat form button').getBoundingClientRect();
+                      return JSON.stringify([Math.round(r.x+r.width/2), Math.round(r.y+r.height/2)]);
+                    })()
+                """)
+                )
+                QTest.mouseClick(
+                    window.focusProxy() or window,
+                    Qt.MouseButton.LeftButton,
+                    Qt.KeyboardModifier.NoModifier,
+                    QPoint(*click_point),
+                )
                 wait_for(
                     app,
                     lambda: js(
@@ -113,6 +201,11 @@ def main():
                 window.close()
         with socket.socket() as probe:
             assert probe.connect_ex(("127.0.0.1", local.port)) != 0
+    if args.launcher:
+        if os.name != "nt":
+            parser.error("--launcher requires Windows")
+        with tempfile.TemporaryDirectory() as directory:
+            check_windows_launcher(Path(directory))
     print("Native frameless desktop pet, local pairing, demo chat, roaming and shutdown passed.")
 
 
