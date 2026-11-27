@@ -150,8 +150,8 @@ export function resolveModelAsset(
 export async function inspectLocalModel3(
   modelPath: string,
   origin: string,
-  read: (url: string) => Promise<Response> = (url) =>
-    fetch(url, { cache: "no-store" }),
+  read?: (url: string) => Promise<Response>,
+  signal?: AbortSignal,
 ): Promise<CubismModel3> {
   const base = new URL(origin);
   const model = new URL(modelPath, base);
@@ -166,11 +166,27 @@ export async function inspectLocalModel3(
       "avatar-local 아래 동일 출처 model3.json만 검사할 수 있습니다.",
     );
   }
-  const response = await read(model.href);
+  signal?.throwIfAborted();
+  const readMetadata =
+    read ??
+    ((url: string) =>
+      fetch(url, {
+        cache: "no-store",
+        credentials: "omit",
+        mode: "same-origin",
+        redirect: "error",
+        signal,
+      }));
+  const response = await readMetadata(model.href);
+  signal?.throwIfAborted();
+  if (response.redirected) {
+    throw new Error("모델 JSON 리다이렉트는 허용하지 않습니다.");
+  }
   if (!response.ok) {
     throw new Error("모델 파일을 읽을 수 없습니다: HTTP " + response.status);
   }
   const source = await response.text();
+  signal?.throwIfAborted();
   if (source.length > 131072) {
     throw new Error("model3.json의 크기가 128 KiB를 초과합니다.");
   }

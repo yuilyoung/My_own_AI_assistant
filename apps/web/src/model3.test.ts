@@ -128,6 +128,55 @@ describe("official Cubism model3 metadata validation", () => {
     expect(read).toHaveBeenCalledTimes(1);
   });
 
+  it("requests metadata without credentials or redirects and forwards cancellation", async () => {
+    const origin = "http://127.0.0.1:8765";
+    const controller = new AbortController();
+    const read = vi.fn(async () => new Response(JSON.stringify(sample())));
+    vi.stubGlobal("fetch", read);
+    try {
+      await inspectLocalModel3(
+        "/avatar-local/Haru/Haru.model3.json",
+        origin,
+        undefined,
+        controller.signal,
+      );
+      expect(read).toHaveBeenCalledWith(
+        origin + "/avatar-local/Haru/Haru.model3.json",
+        {
+          cache: "no-store",
+          credentials: "omit",
+          mode: "same-origin",
+          redirect: "error",
+          signal: controller.signal,
+        },
+      );
+      controller.abort();
+      await expect(
+        inspectLocalModel3(
+          "/avatar-local/Haru/Haru.model3.json",
+          origin,
+          undefined,
+          controller.signal,
+        ),
+      ).rejects.toMatchObject({ name: "AbortError" });
+      expect(read).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("rejects metadata returned by a redirect even with a custom reader", async () => {
+    const response = new Response(JSON.stringify(sample()));
+    Object.defineProperty(response, "redirected", { value: true });
+    await expect(
+      inspectLocalModel3(
+        "/avatar-local/Haru/Haru.model3.json",
+        "http://127.0.0.1:8765",
+        async () => response,
+      ),
+    ).rejects.toThrow(/리다이렉트/);
+  });
+
   it("resolves only local assets inside the selected model directory", () => {
     const origin = "http://127.0.0.1:8765";
     const model = "/avatar-local/Haru/Haru.model3.json";

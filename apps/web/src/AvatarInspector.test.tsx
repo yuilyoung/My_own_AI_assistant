@@ -51,7 +51,8 @@ it("inspects local model metadata without claiming that Cubism is loaded", async
   expect(inspectLocalModel3).toHaveBeenCalledWith(
     "/avatar-local/Haru/Haru.model3.json",
     window.location.origin,
-    expect.any(Function),
+    undefined,
+    expect.any(AbortSignal),
   );
 });
 

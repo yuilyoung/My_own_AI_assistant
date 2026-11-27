@@ -1,6 +1,12 @@
 # 구현·검증 상태 — React 음성·기억 통합
 
-최종 작업 확인일: 2026-11-25 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+최종 작업 확인일: 2026-11-26 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+
+## 2026-11-26 모델 JSON 요청 정책 통일 및 PR #41 병합
+
+- [PR #41](https://github.com/yuilyoung/My_own_AI_assistant/pull/41)의 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/45518246680) 및 [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/45518246772) 성공을 확인하고 [d661727](https://github.com/yuilyoung/My_own_AI_assistant/commit/d6617277fbb969ad573e4397ac082d9fb1c8625a)로 병합했다. PR SHA 기준 Vitest 180개(19파일), Python 198개(경고 1건), Windows/Linux 합성 음성 브라우저, Docker 스모크, 4개 OS/Python 인수 시험 잡이 통과했다. web-dist 2,872,542 B, gateway-wheel 23,383 B, Windows 합성 음성 보고서 2,685 B 및 인수 시험 보고서 4개 생성 확인. 병합 후 main CI는 [Web](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/45727236519), [Local engine](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/45727236590)에서 별도로 확인한다.
+- 단독 모델 JSON 검사의 fetch 기본값이 리다이렉트를 허용하고 있었으므로, 읽기 정책을 파서 진입점으로 통합하고 동일 출처·자격증명 생략·리다이렉트 거부·AbortSignal을 적용했다. 커스텀 리더가 반환한 리다이렉트 응답도 거부한다. 요청 옵션과 취소/리다이렉트 회귀 테스트를 추가했다. 새 변경의 CI는 별도 확인 대상이다.
+- 공식 SDK/Core 및 모델 사용권, 실제 WebGL 렌더링·립싱크와 Windows 실기기 30분 통합 인수 시험은 아직 미검증이다. 소프트웨어 CI를 실기기 증거로 대체하지 않는다.
 
 ## 2026-11-25 모델 JSON 검사 취소 및 PR #40 병합
 
