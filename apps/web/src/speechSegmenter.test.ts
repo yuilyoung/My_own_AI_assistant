@@ -28,6 +28,8 @@ describe("SpeechSegmenter", () => {
     const s = new SpeechSegmenter(12);
     const parts = s.push("가나다라마바사아자차카타파하");
     expect(parts.length).toBeGreaterThan(0);
-    expect(parts.join("") + s.flush().join("")).toBe("가나다라마바사아자차카타파하");
+    expect(parts.join("") + s.flush().join("")).toBe(
+      "가나다라마바사아자차카타파하",
+    );
   });
 });
