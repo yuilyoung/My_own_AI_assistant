@@ -231,6 +231,7 @@ export function AvatarInspector({
       className="avatar-inspector"
       onSubmit={(event) => void inspect(event)}
     >
+      <p>선택적 확장: 내장 캐릭터 사용에는 Cubism SDK가 필요하지 않습니다.</p>
       <label htmlFor="avatar-model3">로컬 모델 export 경로 점검</label>
       <input
         id="avatar-model3"
