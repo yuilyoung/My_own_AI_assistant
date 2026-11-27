@@ -32,7 +32,8 @@ it("waits for the native host, pairs once and sends text as the selected pet", a
     if (path === "/api/status")
       return Response.json({ llm: "demo", tts: "none", stt_enabled: true });
     if (path === "/api/sessions") return Response.json({ id: "s" });
-    if (path.endsWith("/turns")) return Response.json({ id: "t" });
+    if (path.endsWith("/turns"))
+      return Response.json({ id: "t", status: "running", segments: [] });
     if (path.endsWith("/turns/t"))
       return Response.json({
         status: "completed",
