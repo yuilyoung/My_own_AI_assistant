@@ -143,7 +143,10 @@ def inspect_local_readiness(
         )
 
     checks.append(
-        Check("Live2D", "SKIP", "공식 SDK/Core와 사용권이 확인된 모델 렌더링 수동 검증 필요")
+        Check("내장 캐릭터", "SKIP", "원화·표정·모션·RMS 립싱크의 실제 화면 수동 검증 필요")
+    )
+    checks.append(
+        Check("Live2D", "SKIP", "선택적 확장: SDK/모델 미설치는 로컬 MVP 차단 요인이 아님")
     )
     checks.append(
         Check("기기", "SKIP", "실제 마이크·스피커, 한국어 품질과 장시간 안정성 수동 검증 필요")
