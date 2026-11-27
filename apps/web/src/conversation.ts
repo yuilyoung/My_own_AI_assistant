@@ -274,12 +274,19 @@ export class Conversation {
       }
       this.active = { sid, tid: turn.id };
       let seen = 0;
+      // Creation may already contain a reply (or a terminal status).
+      // Consume it before spending another network round trip on polling.
+      let initial =
+        turn.segments.length > 0 ||
+        ["completed", "cancelled", "error"].includes(turn.status)
+          ? turn
+          : undefined;
       while (current()) {
-        const result = await this.client.pollTurn(
-          sid,
-          turn.id,
-          controller.signal,
-        );
+        const fromCreation = initial !== undefined;
+        const result =
+          initial ??
+          (await this.client.pollTurn(sid, turn.id, controller.signal));
+        initial = undefined;
         if (!current()) return;
         for (const segment of result.segments.slice(seen)) {
           if (!current()) return;
@@ -320,7 +327,8 @@ export class Conversation {
         if (result.status === "error")
           throw new Error(turnErrors[this.state.service ?? "demo"]);
         if (["completed", "cancelled"].includes(result.status)) break;
-        await new Promise((resolve) => setTimeout(resolve, this.interval));
+        if (!fromCreation)
+          await new Promise((resolve) => setTimeout(resolve, this.interval));
       }
     } catch (error) {
       if (current()) {
