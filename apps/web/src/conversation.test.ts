@@ -700,3 +700,54 @@ it.each(["switch", "disconnect", "refresh again"] as const)(
     expect(app.snapshot()).toBe(current);
   },
 );
+
+it("plays a completed creation snapshot without an additional poll", async () => {
+  const { app, client, player } = setup();
+  await app.connect();
+  vi.spyOn(client, "createTurn").mockResolvedValue({
+    id: "t",
+    status: "completed",
+    segments: [{ text: "안녕하세요.", audio_id: "first" }],
+  });
+  const poll = vi.spyOn(client, "pollTurn");
+  vi.spyOn(client, "audio").mockResolvedValue(new ArrayBuffer(44));
+  app.setInput("안녕");
+  await app.send();
+  expect(poll).not.toHaveBeenCalled();
+  expect(player.play).toHaveBeenCalledTimes(1);
+  expect(app.state.messages.map((m) => m.text)).toEqual([
+    "안녕",
+    "안녕하세요.",
+  ]);
+  expect(app.state.busy).toBe(false);
+});
+
+it("plays an initial segment before polling and never repeats it", async () => {
+  const { app, client, player } = setup();
+  await app.connect();
+  const first = { text: "첫 문장.", audio_id: "first" };
+  const second = { text: "다음 문장.", audio_id: "second" };
+  const order: string[] = [];
+  vi.spyOn(client, "createTurn").mockResolvedValue({
+    id: "t",
+    status: "speaking",
+    segments: [first],
+  });
+  vi.spyOn(client, "pollTurn").mockImplementation(async () => {
+    order.push("poll");
+    return { id: "t", status: "completed", segments: [first, second] };
+  });
+  vi.spyOn(client, "audio").mockImplementation(async (_sid, aid) => {
+    order.push(aid);
+    return new ArrayBuffer(44);
+  });
+  app.setInput("질문");
+  await app.send();
+  expect(order).toEqual(["first", "poll", "second"]);
+  expect(player.play).toHaveBeenCalledTimes(2);
+  expect(app.state.messages.map((m) => m.text)).toEqual([
+    "질문",
+    first.text,
+    second.text,
+  ]);
+});
