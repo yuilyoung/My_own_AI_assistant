@@ -1,9 +1,11 @@
 import asyncio
 import time
+from collections.abc import AsyncIterator
+from contextlib import aclosing
 from dataclasses import dataclass, field
 from uuid import uuid4
 
-from .contracts import Reply, Voice
+from .contracts import Reply, Segment, Voice
 from .policy import system_prompt
 from .providers import LLM, TTS, validate_wav
 from .store import Store
@@ -85,6 +87,25 @@ class Engine:
     def _active(self, t: Turn):
         return self.current.get(t.session_id) == t.id and t.status not in {"cancelled", "error"}
 
+    async def _reply_segments(self, prompt: list[dict]) -> AsyncIterator[Segment]:
+        stream_reply = getattr(self.llm, "stream_segments", None)
+        if stream_reply is None:
+            reply = Reply.model_validate(
+                await asyncio.wait_for(self.llm.reply(prompt), self.timeout)
+            )
+            for segment in reply.segments:
+                yield segment
+            return
+
+        async with aclosing(stream_reply(prompt)) as stream:
+            while True:
+                try:
+                    async with asyncio.timeout(self.timeout):
+                        segment = await anext(stream)
+                except StopAsyncIteration:
+                    break
+                yield Segment.model_validate(segment)
+
     async def _run(self, t: Turn):
         try:
             s = self.store.session(t.session_id)
@@ -99,45 +120,45 @@ class Engine:
             async with self.inference:
                 if not self._active(t):
                     return
-                reply = await asyncio.wait_for(self.llm.reply(prompt), self.timeout)
-                reply = Reply.model_validate(reply)
-                if not self._active(t):
-                    return
-                t.status = "synthesizing"
-                for segment in reply.segments:
-                    if not self._active(t):
-                        return
-                    audio_id = None
-                    try:
-                        # Older single-voice workers accept only the segment text.
-                        speak = getattr(self.tts, "synthesize_voice", None)
-                        audio = (
-                            speak(segment.text, t.voice)
-                            if speak
-                            else self.tts.synthesize(segment.text)
-                        )
-                        wav = await asyncio.wait_for(audio, self.timeout)
+                segments: list[Segment] = []
+                async with aclosing(self._reply_segments(prompt)) as stream:
+                    async for segment in stream:
                         if not self._active(t):
                             return
-                        if wav:
-                            validate_wav(wav)
-                            audio_id = str(uuid4())
-                            # Bound all in-memory audio, evict oldest; never persist recordings.
-                            while (
-                                self.audio
-                                and sum(len(a[3]) for a in self.audio.values()) + len(wav)
-                                > 32_000_000
-                            ):
-                                self.audio.pop(next(iter(self.audio)))
-                            self.audio[audio_id] = (t.session_id, t.id, time.monotonic(), wav)
-                    except asyncio.CancelledError:
-                        raise
-                    except Exception:
-                        t.warning = "TTS_UNAVAILABLE"
-                    if not self._active(t):
-                        return
-                    t.segments.append({**segment.model_dump(), "audio_id": audio_id})
+                        t.status = "synthesizing"
+                        segments.append(segment)
+                        audio_id = None
+                        try:
+                            # Older single-voice workers accept only the segment text.
+                            speak = getattr(self.tts, "synthesize_voice", None)
+                            audio = (
+                                speak(segment.text, t.voice)
+                                if speak
+                                else self.tts.synthesize(segment.text)
+                            )
+                            wav = await asyncio.wait_for(audio, self.timeout)
+                            if not self._active(t):
+                                return
+                            if wav:
+                                validate_wav(wav)
+                                audio_id = str(uuid4())
+                                # Bound all in-memory audio, evict oldest; never persist recordings.
+                                while (
+                                    self.audio
+                                    and sum(len(a[3]) for a in self.audio.values()) + len(wav)
+                                    > 32_000_000
+                                ):
+                                    self.audio.pop(next(iter(self.audio)))
+                                self.audio[audio_id] = (t.session_id, t.id, time.monotonic(), wav)
+                        except asyncio.CancelledError:
+                            raise
+                        except Exception:
+                            t.warning = "TTS_UNAVAILABLE"
+                        if not self._active(t):
+                            return
+                        t.segments.append({**segment.model_dump(), "audio_id": audio_id})
                 if self._active(t):
+                    reply = Reply(segments=segments)
                     self.store.save_exchange(t.session_id, t.id, t.text, reply.model_dump())
                     t.status = "completed"
         except asyncio.CancelledError:
