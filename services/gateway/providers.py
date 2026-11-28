@@ -110,7 +110,6 @@ class OllamaLLM:
                 raise ValueError("Tool calls are disabled")
             return Reply.model_validate_json(payload["message"]["content"])
 
-
     async def stream_segments(self, messages: list[dict]) -> AsyncIterator[Segment]:
         """Read local Ollama NDJSON and yield each complete structured segment."""
         parser = ReplyStream()
