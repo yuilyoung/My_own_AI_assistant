@@ -107,7 +107,7 @@ cd ../..
 .\scripts\start.ps1
 ```
 
-웹 화면을 변경할 때는 운영 빌드 후 저장소 루트에서 `python scripts/package_windows_web.py`로 Windows 동봉 빌드를 갱신합니다.
+웹 화면을 변경할 때는 운영 빌드 후 저장소 루트에서 `python scripts/package_windows_web.py`로 Windows 동봉 빌드를 갱신합니다. `python scripts/package_windows_web.py --check`로 동봉 ZIP이 최신 빌드와 일치하는지 확인한 후 ZIP도 함께 커밋합니다. CI의 비교가 실패하면 `windows-web-bundle-candidate` 진단 artifact에 재생성한 ZIP을 보존하지만, 해당 CI는 실패 상태를 유지합니다. 후보 ZIP은 같은 커밋의 빌드에 대해서만 사용하고 다시 검증해야 합니다.
 
 콘솔에 표시되는 `http://127.0.0.1:8765/#token=...` 주소를 열고 **연결**을 누릅니다. React는 주소의 토큰을 즉시 지우고 메모리에만 보관합니다. `ASSISTANT_WEB_DIR=apps/diagnostics`를 지정하면 진단 화면을 선택할 수 있습니다. 토큰을 공유하지 마세요. 기본 모드는 **고정 응답 `demo` / TTS 없음 / STT 없음**입니다.
 
