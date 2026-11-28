@@ -1,6 +1,20 @@
 # 구현·검증 상태 — React 음성·기억 통합
 
-최종 작업 확인일: 2026-11-25 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+최종 작업 확인일: 2026-11-28 (한국 시간). 이 문서는 목표 설계와 실제 구현을 구분한다.
+
+## 2026-11-28 Windows 배포 빌드 불일치와 CI 복구
+
+- 기준 main `fab64e4`: [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/45846246592) formatter 실패, [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/45846246566) 성공.
+- PR #47의 이전 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/45916569059)는 speechSegmenter 소스·테스트 2개 포맷 실패, [Local engine CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/45916569093)는 4개 OS/Python 매트릭스와 quality 통과. PR #46의 수정 후 [Web CI](https://github.com/yuilyoung/My_own_AI_assistant/actions/runs/45916596154)는 Vitest 207개 통과 및 TypeScript/Vite 빌드 성공 후 동봉 ZIP 비교 실패. 두 PR의 Windows smoke는 기존 동봉 ZIP 기준 성공이며 신규 소스의 배포 검증이 아니다.
+- PR #47에서 [포맷 수정](https://github.com/yuilyoung/My_own_AI_assistant/commit/9f12666f12f65ceb42c40ef995631f82155b3897)과 [CI 후보 ZIP 보존](https://github.com/yuilyoung/My_own_AI_assistant/commit/8ded9d30b1d309f2aea50b82aa6d18005830db35)을 반영했다. 비교 실패 시 동일 빌드의 후보를 생성·재검사하고 진단 artifact로 보존한다. 기존 엄격한 비교 실패를 성공 처리하지 않으며 자산 차단도 유지한다. 새 CI 결과와 ZIP 재생성·커밋은 별도 검증 대상이다.
+- 실제 사용자 Windows PC 및 물리 음성 장치, 한국어 모델 품질, 내장 캐릭터 시각 품질과 30분 안정성은 아직 미검증이다. SDK는 선택적 확장이다.
+
+## 2026-11-27 내장 캐릭터 중심 MVP 인수 기준 개정
+
+- 하나·서린·이솔 SVG/WebP 원화와 자체 애니메이션 엔진을 기본으로 유지한다. 공식 Cubism SDK/Core 및 사용권 확인 모델은 선택적 확장으로 분리한다. 아래 과거 작업 기록에서 SDK를 미완료 필수 항목으로 기록한 판단은 이번 결정으로 대체한다. 실제 Cubism 렌더링은 미검증이며 기존 어댑터 계약은 유지한다.
+- 필수 인수는 내장 캐릭터의 눈 깜빡임·호흡·고개 움직임·표정·한국어 RMS 립싱크 실제 화면, 실제 LLM/STT/TTS 및 물리 음성 장치, 모드별 기억·권한 격리, React 빌드 및 CI 산출물, 사용자 Windows PC 30분 안정성이다.
+- 준비 상태 CLI에서 내장 캐릭터의 필수 수동 검증과 Live2D 선택 확장 SKIP을 별도로 안내하고, 아바타 검사 화면에도 선택 기능임을 명시했다. 이는 시각 품질 개선 또는 실제 장치 검증의 성공 기록이 아니다. 이번 변경 CI와 사용자 PC 인수는 별도 확인 대상이다.
+- 작업 기준 main: `fab64e435fed77e8cb41dd51582fb5088ca2a6ad`. [PR #46](https://github.com/yuilyoung/My_own_AI_assistant/pull/46)은 조회 시 Local engine CI 성공, Web CI의 React 테스트 실패 상태였다. 이전 [PR #42](https://github.com/yuilyoung/My_own_AI_assistant/pull/42)는 이전 기반의 CI 성공 상태이나 최신 main 통합 검증 전에는 병합하지 않는다.
 
 ## 2026-11-25 모델 JSON 검사 취소 및 PR #40 병합
 
@@ -164,11 +178,11 @@
 
 ## 남은 필수 작업
 
-**완성된 Live2D MVP가 아니다.** `UnavailableAvatar`는 안전한 대체 안내만 제공하며 실제 캐릭터 모델을 로딩하지 않는다. 현재 음성 레벨 막대는 캐릭터 입모양이 아니다.
+**내장 캐릭터 중심 로컬 MVP는 아직 인수되지 않았다.** 하나·서린·이솔 원화 레이어를 유지하고 실제 화면의 눈 깜빡임·호흡·고개·표정 및 RMS 입모양, 중지 시 입 닫힘을 검증한다.
 
-공식 Cubism SDK/Core와 사용권을 확인한 모델 export가 필요하다. [자산 전달 안내](live2d-asset-handoff.md)에 파일 목록을 적었다. 확보 후 실제 SDK 어댑터, 모델 렌더링, 표정/모션 매핑, RMS 입모양, 리소스 해제 검증을 수행한다.
+React 운영 빌드와 Windows 동봉 ZIP 일치, 기억·권한 격리, 전체 CI 및 산출물, 실제 LLM/STT/TTS·마이크/스피커·한국어 품질과 지연, 사용자 Windows PC 30분 안정성 및 리소스 해제를 확인한다. 합성 입력이나 준비도 SKIP은 실제 인수의 증거가 아니다.
 
-사용자 PC의 실제 Ollama/MeloTTS/whisper.cpp 설치·추론, 마이크/스피커·한국어 품질·지연·30분 안정성, macOS/Mac mini는 미검증이다. 인터넷 공개·다중 사용자·외부 API·Codex 자동 연동·VAD/WebSocket은 현재 범위 밖이다.
+공식 Cubism SDK/Core, 사용권 확인 모델, 실제 WebGL 어댑터는 선택적 확장으로 분리한다. [자산 전달 안내](live2d-asset-handoff.md)는 해당 확장을 사용할 경우에만 적용한다.
 
 ## 게시 방식
 

@@ -19,7 +19,10 @@ def test_demo_is_explicitly_skipped_and_missing_react_is_not_passed(tmp_path: Pa
     assert result["Ollama"] == "SKIP"
     assert result["whisper.cpp"] == "SKIP"
     assert result["MeloTTS"] == "SKIP"
+    assert result["내장 캐릭터"] == "SKIP"
     assert result["Live2D"] == "SKIP"
+    live2d = next(check for check in checks if check.component == "Live2D")
+    assert "선택적 확장" in live2d.detail
 
 
 def test_local_provider_endpoints_and_files_are_checked_without_inference(tmp_path: Path):
@@ -59,7 +62,10 @@ def test_local_provider_endpoints_and_files_are_checked_without_inference(tmp_pa
     assert result["Ollama"] == "PASS"
     assert result["whisper.cpp"] == "PASS"
     assert result["MeloTTS"] == "PASS"
+    assert result["내장 캐릭터"] == "SKIP"
     assert result["Live2D"] == "SKIP"
+    live2d = next(check for check in checks if check.component == "Live2D")
+    assert "선택적 확장" in live2d.detail
     assert ("POST", "/api/chat") not in calls
     assert ("POST", "/synthesize") not in calls
 
