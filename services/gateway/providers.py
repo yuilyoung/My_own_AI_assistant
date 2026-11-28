@@ -2,13 +2,15 @@ import asyncio
 import io
 import json
 import wave
+from collections.abc import AsyncIterator
 from typing import Protocol
 
 import httpx
 from pydantic import ValidationError
 
 from .config import Settings
-from .contracts import Reply, Voice
+from .contracts import Reply, Segment, Voice
+from .reply_stream import ReplyStream
 
 
 class LLM(Protocol):
@@ -64,29 +66,38 @@ class OllamaLLM:
         self.s = settings
         self.transport = transport
 
-    async def reply(self, messages: list[dict]) -> Reply:
-        async with httpx.AsyncClient(
+    def _client(self) -> httpx.AsyncClient:
+        return httpx.AsyncClient(
             timeout=self.s.timeout,
             trust_env=False,
             follow_redirects=False,
             transport=self.transport,
-        ) as c:
-            info = await c.post(self.s.ollama_url + "/api/show", json={"model": self.s.model})
-            info.raise_for_status()
-            metadata = info.json()
-            if metadata.get("remote_host") or metadata.get("remote_model"):
-                raise ValueError("Cloud models are forbidden")
+        )
+
+    async def _check_local(self, client: httpx.AsyncClient) -> None:
+        info = await client.post(self.s.ollama_url + "/api/show", json={"model": self.s.model})
+        info.raise_for_status()
+        metadata = info.json()
+        if metadata.get("remote_host") or metadata.get("remote_model"):
+            raise ValueError("Cloud models are forbidden")
+
+    def _chat_body(self, messages: list[dict], stream: bool) -> dict:
+        return {
+            "model": self.s.model,
+            "messages": messages,
+            "stream": stream,
+            "think": False,
+            "format": Reply.model_json_schema(),
+            "options": {"temperature": 0.65, "num_predict": 512, "num_ctx": 4096},
+        }
+
+    async def reply(self, messages: list[dict]) -> Reply:
+        async with self._client() as c:
+            await self._check_local(c)
             async with c.stream(
                 "POST",
                 self.s.ollama_url + "/api/chat",
-                json={
-                    "model": self.s.model,
-                    "messages": messages,
-                    "stream": False,
-                    "think": False,
-                    "format": Reply.model_json_schema(),
-                    "options": {"temperature": 0.65, "num_predict": 512, "num_ctx": 4096},
-                },
+                json=self._chat_body(messages, stream=False),
             ) as r:
                 r.raise_for_status()
                 body = bytearray()
@@ -98,6 +109,65 @@ class OllamaLLM:
             if payload["message"].get("tool_calls"):
                 raise ValueError("Tool calls are disabled")
             return Reply.model_validate_json(payload["message"]["content"])
+
+
+    async def stream_segments(self, messages: list[dict]) -> AsyncIterator[Segment]:
+        """Read local Ollama NDJSON and yield each complete structured segment."""
+        parser = ReplyStream()
+        done = False
+
+        def consume(line: bytes) -> list[Segment]:
+            nonlocal done
+            if not line.strip():
+                return []
+            if done:
+                raise ValueError("Data after terminal Ollama frame")
+            payload = json.loads(line)
+            if not isinstance(payload, dict) or payload.get("error"):
+                raise ValueError("Invalid Ollama stream frame")
+            message = payload.get("message")
+            terminal = payload.get("done")
+            if (
+                not isinstance(message, dict)
+                or message.get("role") != "assistant"
+                or message.get("tool_calls")
+                or message.get("function_call")
+                or not isinstance(message.get("content"), str)
+                or not isinstance(terminal, bool)
+            ):
+                raise ValueError("Invalid or unsupported Ollama stream message")
+            if terminal and payload.get("done_reason") != "stop":
+                raise ValueError("Incomplete Ollama reply")
+            done = terminal
+            return parser.feed(message["content"])
+
+        async with self._client() as client:
+            await self._check_local(client)
+            async with client.stream(
+                "POST",
+                self.s.ollama_url + "/api/chat",
+                json=self._chat_body(messages, stream=True),
+            ) as response:
+                response.raise_for_status()
+                pending = bytearray()
+                received = 0
+                async for chunk in response.aiter_bytes():
+                    received += len(chunk)
+                    if received > 128_000:
+                        raise ValueError("Provider reply too large")
+                    pending.extend(chunk)
+                    while (end := pending.find(b"\n")) >= 0:
+                        line = bytes(pending[:end])
+                        del pending[: end + 1]
+                        for segment in consume(line):
+                            yield segment
+                if pending:
+                    for segment in consume(bytes(pending)):
+                        yield segment
+        if not done:
+            raise ValueError("Missing terminal Ollama frame")
+        for segment in parser.finish():
+            yield segment
 
 
 class CloudLLM:
