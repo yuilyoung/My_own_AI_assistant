@@ -15,7 +15,9 @@ export class SpeechSegmenter {
     const ready: string[] = [];
     while (this.pending.length > 0) {
       const punctuation = /[.!?。！？](?=\s|$)/u.exec(this.pending);
-      const boundary = punctuation ? punctuation.index + punctuation[0].length : -1;
+      const boundary = punctuation
+        ? punctuation.index + punctuation[0].length
+        : -1;
       if (boundary > 0 && boundary <= this.maxChars) {
         ready.push(this.pending.slice(0, boundary).trim());
         this.pending = this.pending.slice(boundary).trimStart();

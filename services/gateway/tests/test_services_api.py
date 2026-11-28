@@ -46,6 +46,28 @@ def finish(client, sid, tid):
     pytest.fail("Turn did not settle")
 
 
+def ollama_stream_reply(text):
+    frames = [
+        {
+            "message": {
+                "role": "assistant",
+                "content": json.dumps({"segments": [{"text": text}]}),
+            },
+            "done": False,
+        },
+        {
+            "message": {"role": "assistant", "content": ""},
+            "done": True,
+            "done_reason": "stop",
+        },
+    ]
+    return httpx.Response(
+        200,
+        content="".join(json.dumps(frame) + "\n" for frame in frames),
+        headers={"Content-Type": "application/x-ndjson"},
+    )
+
+
 @pytest.fixture
 def transport(monkeypatch):
     requests = []
@@ -55,9 +77,8 @@ def transport(monkeypatch):
         if request.url.path == "/api/show":
             return httpx.Response(200, json={"details": {}})
         if request.url.path == "/api/chat":
-            return httpx.Response(
-                200, json={"message": {"content": '{"segments":[{"text":"local reply"}]}'}}
-            )
+            assert json.loads(request.content)["stream"] is True
+            return ollama_stream_reply("local reply")
         assert request.url.path == "/v1/chat/completions"
         return httpx.Response(200, json=completion())
 
@@ -228,9 +249,7 @@ def test_busy_local_does_not_block_cloud_and_late_cancelled_reply_is_discarded(
             try:
                 await asyncio.Event().wait()
             except asyncio.CancelledError:
-                return httpx.Response(
-                    200, json={"message": {"content": '{"segments":[{"text":"late"}]}'}}
-                )
+                return ollama_stream_reply("late")
         return httpx.Response(200, json=completion())
 
     monkeypatch.setattr(
